@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="referrer" content="no-referrer"><meta name="theme-color" content="#23cabb">
+  <title>登录 · SeaTraces</title><link rel="stylesheet" href="/journey.css"><link rel="stylesheet" href="/account.css">
+  <script type="module" src="/login.js"></script>
+</head>
+<body class="login-page">
+  <main class="login-content">
+    <a class="login-brand" href="/login.html" aria-label="SeaTraces 登录">≈ SeaTraces</a>
+    <div class="login-art" aria-hidden="true">↗</div>
+    <h1 id="login-title">收好行囊，出发吧</h1><p id="login-subtitle" class="muted">登录，收好你的每一程。</p>
+    <div id="login-tabs" class="account-tabs"><button data-mode="login" aria-pressed="true">登录</button><button data-mode="register" aria-pressed="false">注册</button></div>
+    <form id="login-form">
+      <label class="field" id="username-field"><span>账号</span><input name="username" autocomplete="username" pattern="[a-zA-Z0-9_]{3,32}" maxlength="32" placeholder="3–32 位字母、数字或下划线" required></label>
+      <label class="field" id="email-field" hidden><span>已验证邮箱</span><input name="email" type="email" autocomplete="email" maxlength="254" placeholder="用于找回密码的邮箱" disabled></label>
+      <label class="field" id="password-field"><span id="password-label">密码</span><input name="password" type="password" autocomplete="current-password" minlength="8" maxlength="72" placeholder="至少 8 位" required></label>
+      <label class="field" id="confirm-field" hidden><span>再输入一次密码</span><input name="confirm" type="password" autocomplete="new-password" disabled></label>
+      <label id="guest-field" class="guest-choice" hidden><input type="checkbox" name="claimGuest" disabled> 保留当前设备的体验行程</label>
+      <p id="login-error" class="error" role="alert"></p><p id="login-message" role="status"></p>
+      <button id="submit-login" class="primary big" type="submit">登录 ↗</button>
+    </form>
+    <button id="forgot-password" class="inline-action">忘记密码？</button>
+    <button id="back-login" class="inline-action" hidden>返回登录</button>
+  </main>
+</body>
+</html>

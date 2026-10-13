@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "decisions": [
+    {
+      "childId":"osm:node/5016408122",
+      "parentId":"osm:relation/8249243",
+      "jobHash":"0b96580bf2617c7f7879fa865d0c68942ae79868c365f3e00ac5d77e00ade777",
+      "sourceSha256":"ca0f46edc61790342cd3a5870014302c24f8bc83827ba437022a70e7c8b97b81",
+      "status":"accepted",
+      "reviewedAt":"2026-10-12T07:33:00Z",
+      "reason":"官网明确称摩星岭为白云山最高峰、三十多座山峰之首；地点名称相符，实际坐标位于白云山景区完整多边形内。接受景点归属，不推断票务或开放时间。"
+    },
+    {
+      "childId":"osm:node/4828971896",
+      "parentId":"osm:relation/8249243",
+      "jobHash":"0b96580bf2617c7f7879fa865d0c68942ae79868c365f3e00ac5d77e00ade777",
+      "sourceSha256":"ca0f46edc61790342cd3a5870014302c24f8bc83827ba437022a70e7c8b97b81",
+      "status":"rejected",
+      "reviewedAt":"2026-10-12T07:33:00Z",
+      "reason":"该条引用仅列游览路线途经能仁寺，不能单凭这段文字确认从属。保留空间候选，等待更直接的归属证据。"
+    }
+  ]
+}

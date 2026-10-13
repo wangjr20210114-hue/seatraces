@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width,initial-scale=1,viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#23cabb" />
+    <title>SeaTraces · 一路去玩</title>
+    <link rel="stylesheet" href="/journey.css" />
+    <link rel="stylesheet" href="/account.css" />
+    <link rel="stylesheet" href="/pages.css" />
+    <link rel="stylesheet" href="/citywalk.css" />
+    <script defer src="/vendor/lottie_light.min.js"></script>
+    <script type="module" src="/journey.js"></script>
+  </head>
+  <body class="auth-pending">
+    <div id="auth-loading"><b>≈ SeaTraces</b><span>正在打开你的旅行…</span><button id="auth-retry" class="primary" hidden>重新连接</button><a href="/login.html">前往登录</a></div>
+    <main id="home" class="app-page" aria-label="旅行">
+      <div class="map-stage">
+      <iframe
+        id="travel-map"
+        data-src="/amap-view.html?mode=home"
+        title="旅行地图"
+        allow="geolocation"
+      ></iframe>
+      <header class="topbar">
+        <div class="brand">
+          <span class="brand-mark">≈</span><b>SeaTraces</b
+          ><span class="brand-sub">一路去玩</span>
+        </div>
+      </header>
+      </div>
+      <section id="itinerary" class="itinerary" hidden></section>
+      <footer class="home-footer">
+        <button id="begin" class="primary big">
+          制订个性化旅行方案 <span aria-hidden="true">↗</span>
+        </button>
+        <section class="walk-section" aria-labelledby="classic-title">
+          <div class="walk-heading"><h2 id="classic-title">经典 CityWalk <span aria-hidden="true">✦</span></h2><button id="walk-auto" class="walk-icon" aria-label="暂停自动轮播">Ⅱ</button></div>
+          <div id="classic-walks" class="walk-carousel" aria-label="经典 CityWalk 路线" aria-roledescription="轮播"></div>
+          <div id="walk-dots" class="walk-dots" aria-label="选择路线"></div>
+        </section>
+        <section id="my-citywalks" class="walk-section" aria-labelledby="my-walk-title">
+          <div class="walk-heading"><h2 id="my-walk-title">我的 CityWalk</h2><button id="create-walk" class="walk-create">＋ 自己画一条</button></div>
+          <div id="my-walk-list"><p class="muted">把想逛的地方，连成自己的路线。</p></div>
+          <button id="more-walks" class="loadmore" hidden>更多路线 ↓</button>
+        </section>
+      </footer>
+    </main>
+    <section id="discover-page" class="app-page shell-page" aria-labelledby="discover-title" hidden>
+      <div class="shell-content">
+        <header class="shell-heading"><span class="mini-mark" aria-hidden="true">✦</span><div><h1 id="discover-title">发现</h1><p>好路线，一起走。</p></div></header>
+        <article class="discovery-card">
+          <span class="coming-soon">即将开放</span>
+          <svg class="discovery-art" viewBox="0 0 320 230" aria-hidden="true">
+            <ellipse cx="164" cy="201" rx="122" ry="13" fill="#d6e6c9"/>
+            <g stroke="#183c40" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M50 56 249 37 267 179 68 199Z" fill="#fffdf2"/>
+              <path d="m62 64 175-16 11 112-175 18Z" fill="#bbeedc"/>
+              <circle cx="203" cy="81" r="17" fill="#ffda73"/>
+              <path d="m72 161 44-68 37 44 30-26 63 49-171 15Z" fill="#60c4a4"/>
+              <path d="m97 123 19-30 21 25-15-4-10 11Z" fill="#fffdf2"/>
+              <path d="M179 131c-42 16 36 21-18 38" fill="none" stroke="#fffdf2" stroke-width="6"/>
+              <path d="m83 184 52-5m15-1 18-2"/>
+              <circle cx="258" cy="168" r="31" fill="#ffda73"/>
+              <path d="m244 180 9-28 19 5-10 28Z" fill="#fffdf2" transform="rotate(18 258 167)"/>
+              <path d="m253 152 5 16 14-11" fill="#ed8064"/>
+              <path d="m38 102-9 3m236-41 11-8m-15-29 3-11M45 169l-11 7" fill="none"/>
+            </g>
+          </svg>
+          <h2>下一段灵感，在路上</h2>
+          <p>把喜欢的路线，分享给同路人。</p>
+          <button class="primary" data-open-travel>先去看看地图 ↗</button>
+        </article>
+      </div>
+    </section>
+    <section id="profile-page" class="app-page shell-page" aria-labelledby="profile-title" hidden>
+      <div class="shell-content">
+        <header class="shell-heading"><span class="mini-mark peach" aria-hidden="true">☺</span><div><h1 id="profile-title">我的</h1><p>每一程，都算数。</p></div></header>
+        <button id="account" class="profile-card" aria-label="我的账号">
+          <span id="profile-avatar" class="profile-avatar" aria-hidden="true">☺</span>
+          <span class="profile-identity"><b id="profile-name">旅行者</b><span id="profile-account-label">登录，收好你的旅行</span></span>
+          <span class="menu-arrow" aria-hidden="true">↗</span>
+        </button>
+        <div class="profile-grid">
+          <button id="history" class="profile-tile"><span class="tile-icon mint" aria-hidden="true">↗</span><b>历史行程</b><span>保存的每一程</span></button>
+          <button class="profile-tile" data-profile-page="favorites"><span class="tile-icon yellow" aria-hidden="true">☆</span><b>我的收藏</b><span>即将开放</span></button>
+          <button class="profile-tile" data-profile-page="browsing"><span class="tile-icon peach" aria-hidden="true">◷</span><b>历史浏览</b><span>即将开放</span></button>
+          <button class="profile-tile" data-profile-page="report"><span class="tile-icon lilac" aria-hidden="true">▤</span><b>旅行报告</b><span>即将开放</span></button>
+        </div>
+        <p class="profile-signoff" aria-hidden="true">≈ 一路去玩</p>
+      </div>
+    </section>
+    <section id="detail-page" class="detail-page" aria-labelledby="detail-title" hidden>
+      <header class="page-header"><div class="page-header-inner">
+        <button id="page-back" class="page-back" aria-label="返回上一页">←</button>
+        <h1 id="detail-title" tabindex="-1"></h1>
+        <span class="page-brand" aria-hidden="true">≈</span>
+      </div></header>
+      <div id="page-content" class="page-content"></div>
+    </section>
+    <nav class="bottom-nav" aria-label="主导航">
+      <button data-page="home" aria-current="page"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 5 6-2 6 2 6-2v16l-6 2-6-2-6 2Z"/><path d="M9 3v16M15 5v16"/></svg></span><span>旅行</span></button>
+      <button data-page="discover"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m16 8-2.5 5.5L8 16l2.5-5.5Z"/></svg></span><span>发现</span></button>
+      <button data-page="profile"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21v-2a8 8 0 0 1 16 0v2"/></svg></span><span>我的</span></button>
+    </nav>
+    <dialog id="wizard" aria-labelledby="question-title">
+      <div class="paper">
+        <div class="paper-tools">
+          <button id="back" class="round" aria-label="上一页">←</button
+          ><span id="page-stamp">TRAVEL PASS</span
+          ><button id="close" class="round" aria-label="收起问卷">×</button>
+        </div>
+        <div class="perforation"></div>
+        <div id="question" class="question"></div>
+        <p id="form-error" class="error" role="alert"></p>
+        <div class="paper-footer">
+          <span id="progress"></span
+          ><button id="next" class="primary">下一页 →</button>
+        </div>
+      </div>
+    </dialog>
+    <div id="toast" role="status" hidden></div>
+    <aside id="connection-status" role="status" hidden><span>暂时连不上服务，页面仍可浏览</span><button id="reconnect">重连 ↻</button></aside>
+  </body>
+</html>

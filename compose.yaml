@@ -1,0 +1,39 @@
+services:
+  db:
+    image: postgis/postgis:18-3.6
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: seatraces_owner
+      POSTGRES_PASSWORD: ${DB_OWNER_PASSWORD:?Set DB_OWNER_PASSWORD}
+      POSTGRES_DB: seatraces
+    volumes:
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U seatraces_owner -d seatraces"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    mem_limit: 1g
+    # No host port: only the private compose network can reach the database.
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://seatraces_app:${DB_APP_PASSWORD:?Set DB_APP_PASSWORD}@db:5432/seatraces
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: 8787
+      SKIP_MIGRATIONS: "true"
+      REQUIRE_POSTGIS: "true"
+    ports: ["127.0.0.1:8787:8787"]
+    mem_limit: 768m
+    read_only: true
+    tmpfs: [/tmp]
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+volumes:
+  pgdata:

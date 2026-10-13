@@ -1,0 +1,11 @@
+[
+  {
+    "canonicalId": "osm:relation/9511883",
+    "sourceId": "osm:node/3884441391",
+    "canonicalName": "故宫",
+    "sourceName": "故宫博物院",
+    "reason": "User-approved single visit entity: Palace Museum marker and Forbidden City area; names retained as search aliases. This is product identity, not a claim of identical Wikidata entities.",
+    "reviewed": true,
+    "requires": "point_inside_scenic_area"
+  }
+]

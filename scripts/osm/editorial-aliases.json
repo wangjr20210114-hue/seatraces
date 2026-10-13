@@ -1,0 +1,7 @@
+{
+  "aliases": [
+    {"placeId":"osm:relation/4247312","alias":"东京塔","language":"zh-Hans","sourceName":"SeaTraces 中文检索别名，依据同一 OSM 对象的 Tokyo Tower / 東京タワー 名称","sourceUrl":"https://www.openstreetmap.org/relation/4247312"},
+    {"placeId":"osm:relation/4247312","alias":"東京塔","language":"zh-Hant","sourceName":"SeaTraces 中文检索别名，依据同一 OSM 对象的 Tokyo Tower / 東京タワー 名称","sourceUrl":"https://www.openstreetmap.org/relation/4247312"}
+  ],
+  "facts": []
+}
