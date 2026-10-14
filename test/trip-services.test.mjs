@@ -105,6 +105,7 @@ test(
       b = randomUUID(),
       id = randomUUID(),
       other = randomUUID();
+    let priceCalls = 0;
     let calls = 0,
       fail = false;
     try {
@@ -140,6 +141,12 @@ test(
         ),
       );
       await query(
+        await readFile(
+          new URL("../server/service-prices-schema.sql", import.meta.url),
+          "utf8",
+        ),
+      );
+      await query(
         "INSERT INTO trips(id,user_id,plan) VALUES($1,$2,$3),($4,$5,$3)",
         [id, a, JSON.stringify(plan), other, b],
       );
@@ -155,6 +162,10 @@ test(
         auth,
         query,
         transaction,
+        priceSearch: async () => {
+          priceCalls++;
+          return { pois: [] };
+        },
         search: async (path, q) => {
           calls++;
           if (fail) throw Error("offline");
@@ -260,6 +271,28 @@ test(
         Number((await query("SELECT count(*) n FROM trip_versions")).rows[0].n),
         3,
       );
+      const unified = await req("/recommendations", {
+        day: 0,
+        groupMeals: true,
+        activeSlot: "dining:0",
+      });
+      assert.equal(unified.status, 200);
+      assert.deepEqual(
+        unified.data.slots.map((s) => s.kind),
+        ["dining", "stay"],
+      );
+      assert.equal(unified.data.slots[0].items[0].price.amount, null);
+      assert.equal(priceCalls, 1);
+      await req("/recommendations", {
+        day: 0,
+        groupMeals: true,
+        activeSlot: "dining:0",
+        refresh: true,
+      });
+      assert.equal(priceCalls, 1, "unavailable price persists and is reused");
+      const stored = await query("SELECT * FROM place_service_prices");
+      assert.equal(stored.rows.length, 1);
+      assert.equal(stored.rows[0].payload.status, "unmatched");
       await query(
         "UPDATE trip_service_recommendations SET expires_at=now()-interval '1 second'",
       );

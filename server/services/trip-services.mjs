@@ -2,13 +2,28 @@ import { z } from "zod";
 import { randomUUID } from "node:crypto";
 import { query as dbQuery, transaction as dbTransaction } from "../db.mjs";
 import { catalogRequest } from "./catalog.mjs";
-import { serviceSlots, rankServicePlaces } from "../domain/trip-services.mjs";
+import { createServicePrices } from "./service-prices.mjs";
+import {
+  serviceSlots,
+  rankServicePlaces,
+  selectServiceBatch,
+  serviceComparator,
+  serviceSearchAnchors,
+} from "../domain/trip-services.mjs";
 const failure = (message, status = 400) =>
   Object.assign(Error(message), { status });
 export const recommendationInput = z
   .object({
     day: z.number().int().min(0).max(29),
     radius: z.number().int().min(500).max(10000).optional(),
+    groupMeals: z.boolean().optional(),
+    activeSlot: z
+      .string()
+      .regex(/^(dining|lunch|dinner):\d{1,2}$|^stay:\d{1,2}-\d{1,2}$/)
+      .optional(),
+    sort: z.enum(["distance", "price", "comprehensive"]).optional(),
+    refresh: z.boolean().optional(),
+    excludePlaceIds: z.array(z.string().min(1).max(200)).max(200).optional(),
   })
   .strict();
 export const selectionInput = z
@@ -26,9 +41,11 @@ export function installTripServiceRoutes(
     query = dbQuery,
     transaction = dbTransaction,
     search = catalogRequest,
+    priceSearch,
   },
 ) {
   const inflight = new Map();
+  const getPrice = createServicePrices({ query, search: priceSearch });
   async function own(id, user, c = { query }, lock = false) {
     z.uuid().parse(id);
     const trip = (
@@ -44,10 +61,12 @@ export function installTripServiceRoutes(
     return trip;
   }
   function findSlot(trip, id) {
-    if (!/^(lunch|dinner):\d{1,2}$|^stay:\d{1,2}-\d{1,2}$/.test(id))
+    if (!/^(dining|lunch|dinner):\d{1,2}$|^stay:\d{1,2}-\d{1,2}$/.test(id))
       throw failure("吃住位置无效");
     const day = Number(id.split(":")[1].split("-")[0]);
-    const slot = serviceSlots(trip.plan, day).find((s) => s.id === id);
+    const slot = serviceSlots(trip.plan, day, {
+      groupMeals: id.startsWith("dining:"),
+    }).find((s) => s.id === id);
     if (!slot) throw failure("行程已变化，请重新打开吃住推荐", 409);
     return slot;
   }
@@ -74,20 +93,38 @@ export function installTripServiceRoutes(
           [trip.id, slot.id, slot.scopeKey, radius],
         )
       ).rows[0];
-      if (cached)
+      if (cached?.payload.poolVersion === 2)
         return { ...cached.payload, recommendationId: cached.id, cached: true };
       try {
-        const data = await search("/places", {
-          q: "",
-          category: slot.kind === "stay" ? "accommodation" : "food",
-          lat: slot.anchor.lat,
-          lng: slot.anchor.lng,
-          radius,
-          limit: 40,
-        });
+        const responses = [];
+        for (const anchor of serviceSearchAnchors({ ...slot, radius })) {
+          responses.push(
+            await search("/places", {
+              q: "",
+              category: slot.kind === "stay" ? "accommodation" : "food",
+              lat: anchor.lat,
+              lng: anchor.lng,
+              radius,
+              limit: 40,
+            }),
+          );
+        }
+        const valid = responses.filter((d) =>
+          ["live", "snapshot"].includes(d.status),
+        );
+        const data = {
+          status: valid.length
+            ? valid.some((d) => d.status === "snapshot")
+              ? "snapshot"
+              : "live"
+            : "unavailable",
+          items: valid.flatMap((d) => d.items || []),
+          cachedAt: valid.find((d) => d.cachedAt)?.cachedAt,
+        };
         if (!["live", "snapshot"].includes(data.status))
           throw failure("地点服务暂不可用", 503);
         const payload = {
+          poolVersion: 2,
           status: data.status,
           items: rankServicePlaces(data.items || [], data, slot),
           queriedAt: new Date().toISOString(),
@@ -135,11 +172,42 @@ export function installTripServiceRoutes(
         trip = await own(req.params.id, req.user.id),
         slots = [];
       // The read gateway permits two queries. Sequential reads avoid a burst per user.
-      for (const slot of serviceSlots(trip.plan, body.day))
+      for (const slot of serviceSlots(trip.plan, body.day, {
+        groupMeals: body.groupMeals,
+      })) {
+        const pool = await recommend(trip, slot, body.radius || slot.radius);
+        const active = !body.activeSlot
+          ? slot.kind === "dining"
+          : slot.id === body.activeSlot;
+        const batch = body.groupMeals
+          ? selectServiceBatch(pool.items, {
+              ...body,
+              kind: slot.kind,
+              radius: pool.radius,
+              refresh: active && body.refresh,
+              excludePlaceIds: active ? body.excludePlaceIds : [],
+            })
+          : { items: pool.items.slice(0, 5) };
+        if (body.groupMeals && active) {
+          // Price only this displayed batch, not every OSM row. Reuse PG across trips.
+          for (const p of batch.items) p.price = await getPrice(p, slot.anchor);
+          batch.items.sort(serviceComparator(body.sort));
+          if (pool.recommendationId)
+            await query(
+              "UPDATE trip_service_recommendations SET payload=$1 WHERE id=$2",
+              [
+                JSON.stringify({ ...pool, items: pool.items }),
+                pool.recommendationId,
+              ],
+            );
+        }
         slots.push({
           ...slot,
-          ...(await recommend(trip, slot, body.radius || slot.radius)),
+          ...pool,
+          ...batch,
+          sort: body.sort || "comprehensive",
         });
+      }
       res.json({
         tripId: trip.id,
         version: trip.version,

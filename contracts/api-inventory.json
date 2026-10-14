@@ -475,35 +475,35 @@
       "method": "GET",
       "path": "/api/journey/trips/:id/services",
       "source": "server/services/trip-services.mjs",
-      "line": 64,
+      "line": 83,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "POST",
       "path": "/api/journey/trips/:id/services/recommendations",
       "source": "server/services/trip-services.mjs",
-      "line": 130,
+      "line": 167,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "POST",
       "path": "/api/journey/trips/:id/services/:slot/preview",
       "source": "server/services/trip-services.mjs",
-      "line": 166,
+      "line": 234,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "PUT",
       "path": "/api/journey/trips/:id/services/:slot",
       "source": "server/services/trip-services.mjs",
-      "line": 224,
+      "line": 292,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "DELETE",
       "path": "/api/journey/trips/:id/services/:slot",
       "source": "server/services/trip-services.mjs",
-      "line": 227,
+      "line": 295,
       "reference": "API_REFERENCE.md"
     },
     {

@@ -99,7 +99,11 @@ export function createAmapClient({
       location,
       radius,
       sortrule: sort,
-      ...(details && v === "v5" ? { show_fields: "business" } : {}),
+      ...(details
+        ? v === "v5"
+          ? { show_fields: "business" }
+          : { extensions: "all" }
+        : {}),
       ...(v === "v5" ? { page_size: size } : { offset: size, page: 1 }),
     });
   }

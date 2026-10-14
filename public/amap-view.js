@@ -39,23 +39,7 @@ function showLayers(view) {
   visibleView = view;
   for (const p of detailLayers) view === "day" ? p.show() : p.hide();
   for (const p of cityLayers) view === "overview" ? p.show() : p.hide();
-  const legend = document.querySelector("#route-legend");
-  legend.hidden = !(view === "overview"
-    ? payload?.cityConnections?.length
-    : payload?.connections?.length);
-  legend.textContent =
-    payload?.kind === "citywalk"
-      ? "CityWalk · 顺序连线"
-      : view === "overview"
-        ? "旅行总览 · 行程连线"
-        : "每日行程 · 顺序连线";
-  if (payload?.kind === "planner") {
-    legend.hidden = !payload.clusters?.length;
-    legend.textContent = "点亮片区 · 下方挑想去的地方";
-  } else if (payload?.kind === "services") {
-    legend.hidden = false;
-    legend.textContent = "路线仍在 · 点击吃住标记";
-  }
+  document.querySelector("#route-legend").hidden = true;
 }
 function onZoom() {
   if (!payload || payload.lockView || fitting || !userGesture) return;
@@ -139,12 +123,13 @@ function interactivePins(points, kind) {
     const icon =
       kind === "cluster"
         ? p.number
-        : { lunch: "🍜", dinner: "🍲", stay: "🛏" }[p.kind] || "♥";
+        : { dining: "🍜", lunch: "🍜", dinner: "🍜", stay: "🛏" }[p.kind] ||
+          "♥";
     const marker = new AMap.Marker({
       position: p.position,
       anchor: "bottom-center",
       zIndex: p.selected ? 160 : 140,
-      content: `<button class="map-action ${kind} ${p.selected ? "selected" : ""}" aria-label="${escapeText(p.name)}" aria-pressed="${Boolean(p.selected)}"><b>${icon}</b>${kind === 'service' && !p.selected ? `<small>${p.saved ? '✓' : i + 1}</small>` : ''}<span>${escapeText(p.name)}</span>${p.saved && p.selected ? "<small>✓</small>" : ""}</button>`,
+      content: `<button class="map-action ${kind} ${p.selected ? "selected" : ""}" aria-label="${escapeText(p.name)}" aria-pressed="${Boolean(p.selected)}"><b>${icon}</b><span>${escapeText(p.name)}</span>${p.saved && p.selected ? "<small>✓</small>" : ""}</button>`,
     });
     marker.on("click", () =>
       parent.postMessage(

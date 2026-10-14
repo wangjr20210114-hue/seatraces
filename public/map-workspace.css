@@ -222,3 +222,16 @@
     padding: 6px 16px;
   }
 }
+
+#services-content .service-tabs {
+  z-index: 3;
+}
+.service-pick {
+  scroll-margin-top: 76px;
+}
+.service-pick-actions {
+  justify-content: space-between;
+}
+.service-pick-actions .service-outline {
+  padding: 10px 16px;
+}

@@ -117,31 +117,36 @@ operation：`{type:lock/remove/replace/add/move,day:0…29,placeId?:≤80,newPla
 
 ## 沿途餐饮和住宿
 
-实现：`server/domain/trip-services.mjs`负责位置/评分，`server/services/trip-services.mjs`负责鉴权、候选缓存、预览和保存；`public/trip-services.js`负责独立页面。无图片生成、无订餐订房、无付费地图/模型调用。
+实现：`server/domain/trip-services.mjs`负责位置/评分，`server/services/trip-services.mjs`负责鉴权、候选缓存、预览和保存；`public/trip-services.js`负责独立页面。无图片生成、无订餐订房。按需调用高德获取展示商家的人均消费；不调用大模型预测价格。
 
 | 方法与路径（前缀 /api） | 输入 | 输出与职责 |
 |---|---|---|
 | GET /journey/trips/:id/services | UUID | `{tripId,version,days:[{day,date,city,slots}]}`，纯读已存行程；不请求地点库 |
-| POST /journey/trips/:id/services/recommendations | `{day:0…29,radius?:500…10000}`，未知字段拒绝 | `{tripId,version,day,slots,automaticSelection:false}`；根据行程位置查OSM。默认餐饮1500米、住宿3000米，每组最多5个，候选在PG缓存6小时 |
+| POST /journey/trips/:id/services/recommendations | `{day:0…29,radius?:500…10000,groupMeals?:boolean,activeSlot?:string,sort?:"comprehensive"/"distance"/"price",refresh?:boolean,excludePlaceIds?:string[0…200]}`，未知字段拒绝 | `{tripId,version,day,slots,automaticSelection:false}`；根据行程位置查OSM。默认餐饮1500米、住宿3000米，每组最多5个，候选在PG缓存6小时 |
 | POST /journey/trips/:id/services/:slot/preview | `{version:正整数,recommendationId:UUID,placeId:1…200字符串}` | `{tripId,version,slot,candidate,effect:{type:"nearby_choice",affectedDays,scenicOrderChanged:false,reservationMade:false}}`；验证候选真实来自本人行程、当前范围和未过期推荐，不保存 |
 | PUT /journey/trips/:id/services/:slot | 同preview | `{trip,services}`；服务端从候选取详情，写入Trip.plan.services并增加版本；不接受用户伪造地点名称/坐标 |
 | DELETE /journey/trips/:id/services/:slot | `{version:正整数}` | `{trip,services}`；移除该位置选择，增加版本，历史版本仍保留 |
 
-slot格式：`lunch:0`、`dinner:0`、`stay:0-2`。住宿按连续同城日分组；中途去其他城市再回来属于另一组。一天无有效景点坐标时返回空slots，不编造推荐中心。
+slot格式：`dining:0`、`stay:0-2`；兼容旧 `lunch:0`、`dinner:0`。前端传 `groupMeals:true` 返回餐饮+住宿两组，旧调用不传该参数仍返回三组。住宿按连续同城日分组；中途去其他城市再回来属于另一组。一天无有效景点坐标时返回空slots，不编造推荐中心。
 
-Slot结构：`id,kind(lunch/dinner/stay),title,anchor,next,days,radius,city,date,fromDate,toDate,scopeKey,selected`。anchor/next是WGS84景点简要对象，days是0起始日期索引；fromDate/toDate描述同城行程范围，**不是已经预订的入住/退房日期**。selected为 `{slotId,kind,days,scopeKey,selectedAt,candidate,reviewNeeded}` 或null。行程改变导致scopeKey不同，旧选择标记reviewNeeded，须重新确认。
+Slot结构：`id,kind(dining/lunch/dinner/stay),title,anchor,next,days,radius,city,date,fromDate,toDate,scopeKey,selected`。anchor/next是WGS84景点简要对象，days是0起始日期索引；fromDate/toDate描述同城行程范围，**不是已经预订的入住/退房日期**。selected为 `{slotId,kind,days,scopeKey,selectedAt,candidate,reviewNeeded}` 或null。行程改变导致scopeKey不同，旧选择标记reviewNeeded，须重新确认。
 
 推荐时Slot额外包含 `status(live/snapshot/unavailable),items,recommendationId?,queriedAt?,sourceCachedAt?,cached?,code?,message?`。items是PlaceCandidate加 `lat,lng,country,mainlandCityVerified,distanceMeters,extraStraightLineMeters,distanceKind:"straight_line",rankCost,reason`。recommendationId只能用于本行程/本slot；跨用户、已过期或范围变化返回409。
 
 推荐规则：
 
-1. 午餐以第一个预计离开时间≥11:30的景点为锚点，没有时间时用中间景点；晚餐用最后景点。
-2. 同城住宿用该连续城市段所有景点的几何medoid，即离所有景点距离之和较小的一个真实景点，避免用落在水中的均值坐标。
-3. 每组附近最多读取40条，剔除无名称/无坐标、重复ID、错类别；午晚餐剔除明确的咖啡、酒吧、酒馆和冰淇淋子类。仍可能存在来源分类粗糙的地点。
-4. 午餐成本=0.7×经过餐厅的额外直线距离+0.3×距锚点直线距离；晚餐/住宿按距锚点距离。成本越低越靠前。当前不把未知价格、评论或房态伪造成评分。
-5. 范围内没有结果可主动扩大半径，最多10公里；故障显示重试，不能静默当作无数据。查询只读；选择才写用户行程。
+1. 餐饮以当天全部景点为范围，最多选4个分散的真实景点进行OSM只读检索，每处40条；按离最近景点的直线距离计算位置。住宿以连续同城日景点的medoid为中心。不是按午晚餐营业时间筛选。
+2. 候选按ID去重；同名且80米内合并为一个备选。排除无名/无坐标/错类别及明确的咖啡、酒吧、酒馆和冰淇淋。
+3. 每批最多5家。优先店间距餐饮300米、住宿500米；数据密集或稀少时逐级放宽，绝不复制凑数。`refresh:true`随机换批，`excludePlaceIds`优先排除已展示项；不足5个新项才复用。返回 `canRefresh,candidateCount`。
+4. `activeSlot`指定当前显示类别，只为该类别本批最多5家补价格。先读PostgreSQL `place_service_prices`，未命中才按名称+位置查高德 `searchAround(details:true)`。大陆以外暂无价格；不发送用户身份、偏好或行程给高德。
+5. 仅同类别、名称相似度≥0.85、距离≤250米，且前两名差距≥0.08时采用人均消费。OSM未写分店后缀时，只在100米内允许完整主店名匹配；已有分店名不去除。读取v5 `business.cost` / v3 `biz_ext.cost`；空值、数组、0、非数字或有歧义的匹配显示“人均 暂无”。不推测；酒店该字段也为人均消费，**不是某日房价或每间每晚报价**。[字段文档](https://lbs.amap.com/api/webservice/guide/api-advanced/newpoisearch)
+6. `price={status,amount,currency:CNY,unit:per_person,provider:amap,providerId?,matchedName?,matchDistanceMeters?,matchScore?,checkedAt,sourceUpdatedAt:null,cached?}`。成功/无价格/未匹配缓存24小时；暂时故障缓存5分钟，额度/服务故障暂停价格请求5分钟。名称、坐标、类别改变使旧记录失效。来源留在后端与接口，详情不显示来源链接。
+7. 默认综合成本=0.75×距离归一值 + 0.20×人均消费归一值 + 0.05×资料缺失比例，越低越优先。价格未知使用中性值；不编造评论或人气。界面“综合 / 距离 / 价格”排序当前5家，点击不重新调用高德；价格未知放最后。“换一批”从当前缓存候选池重新抽样，再获取缺失价格并按所选规则排列。
+8. `recommendationId`代表当前有效候选池；详情携带该ID和placeId进行原preview，换批不导致旧详情失效。历史午晚餐选择仍可见、可移除，新选择存 `dining:n`。保存仍做所有权、版本、有效期校验。
 
 新增表 `trip_service_recommendations`：`id,trip_id,slot_id,scope_key,radius,payload,created_at,expires_at`；唯一键为trip_id+slot_id+scope_key+radius。过期缓存按该行程后续成功查询时清理。选择存入 `trips.plan.services`，同时写 `trip_versions`。不得让agent或客户端绕过预览/版本检查直接写表。
+
+新增表 `place_service_prices`：`place_id`（OSM主地点ID主键）、`fingerprint`（名称/坐标/类别摘要）、`payload`（价格与匹配来源）、`checked_at`、`expires_at`。这是所有用户共用的商家价格缓存，跨行程复用；不存JSON文件，不把高德价格写成OSM原始事实。
 
 ## CityWalk
 
@@ -208,8 +213,8 @@ OSM导入、边界/site/parent重建、去重和官方证据审核位于 `script
 3. 每城市POST cities?async=1加载聚类；GET boundary画区图；POST wishes保存想去。
 4. POST questions → 用户答题 → POST generate → 获得Trip。
 5. 选择Day → 页面下方“沿途吃住”自动POST services/recommendations；只推荐，不替用户选。
-6. 点击午餐/晚餐/住宿 → 独立候选页 → 点击商家 → POST preview进入详情；未知字段不显示。
-7. 点击“选作午餐/晚餐/住宿” → PUT services/:slot带当前version → 返回首页；从历史行程再次打开GET /trips/:id恢复选择。
+6. 点击餐饮/住宿 → 独立候选页 → 点击商家 → POST preview进入详情；未知字段不显示。
+7. 点击“选作餐饮/住宿” → PUT services/:slot带当前version → 返回首页；从历史行程再次打开GET /trips/:id恢复选择。
 8. 不满意可在列表“移除选择”，DELETE带当前version；行程改动后reviewNeeded提示重新确认。
 
 示例（登录后在同源客户端执行；tripId必须是本人真实ID）：
@@ -247,7 +252,7 @@ const saved = await call(path, choice, 'PUT');
 
 问卷使用首页地图与下方不透明纸签。选中出发地仅使用已有地点坐标；选中目的城市调用新增的 `GET /api/journey/cities/:cityId/boundary`。日期与偏好不触发重复选点查询。片区页继续使用原有 session 城市目录、区县刷新、wishes、questions、generate 接口。地图点与片区卡片共用选择状态。
 
-`#/services/:tripId?day=0&slot=lunch:0` 现在使用同一地图下方的吃住面板；`place` 参数仍打开独立详情页。午餐、晚餐、住宿保留当天景点曲线，分别叠加候选位置。点击标记或卡片调用原有 preview，选择才调用原有 PUT，移除调用 DELETE。版本冲突保留错误并提供刷新；不自动重排景点，不把虚线当作实际道路。
+`#/services/:tripId?day=0&slot=lunch:0` 现在使用同一地图下方的吃住面板；`place` 参数仍打开独立详情页。餐饮、住宿保留当天景点曲线，分别叠加候选位置。点击标记或卡片调用原有 preview，选择才调用原有 PUT，移除调用 DELETE。版本冲突保留错误并提供刷新；不自动重排景点，不把虚线当作实际道路。
 
 地图通信是同源 iframe 的内部视图协议（不是新增业务HTTP接口）：原有 `seatraces-overview`/`seatraces-route` 字段保持兼容，新增可选 `kind,contextKey,services,serviceAnchor,boundary,district,clusters,wishes,focus`。`fitKey` 只控制主动适配；候选高亮不改变它。新上下文首进适配，返回恢复相机；用户移动地图后迟到的边界不会抢走视角。CityWalk继续兼容旧消息格式。坐标从WGS84转换到GCJ02一次，高德边界已为GCJ02直接绘制。
 

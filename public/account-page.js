@@ -28,7 +28,7 @@ export async function renderAccountPage({ content, api, esc, isCurrent, onUser, 
     </section>
     <section class="account-details" aria-label="个人资料">
       <label class="field"><span>怎么称呼你</span><span class="account-input-wrap"><input name="nickname" aria-label="昵称" value="${esc(user.nickname)}" autocomplete="nickname" required maxlength="40">${icon('pen')}</span></label>
-      <p class="account-recommendation-note"><span aria-hidden="true">✦</span> 应用内浏览记录用于个性化旅行推荐</p>
+      
       <button class="primary account-save" type="submit">${icon('check')}<span>保存资料</span></button>
       <p id="profile-message" class="account-feedback" role="status"></p>
     </section>

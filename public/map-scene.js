@@ -92,16 +92,23 @@ export function serviceScene(base, slot, selectedId) {
     view: "day",
     lockView: true,
     contextKey: `services:${base.tripId}:${base.day}:${slot.id}:${slot.radius}`,
-    fitKey: `services:${base.tripId}:${base.day}:${slot.id}:${slot.radius}`,
+    fitKey: `services:${base.tripId}:${base.day}:${slot.id}:${slot.radius}:${slot.items
+      .map((p) => p.id)
+      .sort()
+      .join(",")}`,
     viewPadding: [90, 55, 40, 40],
     services,
-    serviceAnchor: scenePoint(slot.anchor, base.cityContext),
+    serviceAnchor: scenePoint(
+      candidates.find((p) => p.id === selectedId)?.nearestAnchor || slot.anchor,
+      base.cityContext,
+    ),
   };
 }
 
 export function savedServicePoints(trip, day) {
   const seen = new Set();
-  const city = trip?.plan?.cities?.find(c => c.id === trip.plan.days[day]?.cityId) || {};
+  const city =
+    trip?.plan?.cities?.find((c) => c.id === trip.plan.days[day]?.cityId) || {};
   return Object.values(trip?.plan?.services || {})
     .filter((s) => s.days?.includes(day))
     .map((s) => {

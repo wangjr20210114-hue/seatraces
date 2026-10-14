@@ -3,9 +3,9 @@ import { createCityWalkHome, renderCityWalkEditor } from "./citywalk.js";
 import { createTabMotion } from "./tab-motion.js";
 import { createPageNavigation } from "./page-navigation.js";
 import { renderProfilePage } from "./profile-pages.js";
-import { mountTripServices,renderTripServicesPage } from './trip-services.js';
-import { mountServiceMapDock } from './service-map-dock.js';
-import { plannerScene, serviceScene, savedServicePoints } from './map-scene.js';
+import { mountTripServices, renderTripServicesPage } from "./trip-services.js";
+import { mountServiceMapDock } from "./service-map-dock.js";
+import { plannerScene, serviceScene, savedServicePoints } from "./map-scene.js";
 import { toGcj, mainlandEligible } from "./coordinates.js";
 import { currentPosition } from "./geolocation.js";
 import { createPresenceRecorder } from "./presence.js";
@@ -121,154 +121,306 @@ function syncProfile() {
   const avatar = $("#profile-avatar");
   avatar.replaceChildren();
   if (me?.user?.avatarUrl) {
-    const image = document.createElement('img'); image.src = me.user.avatarUrl; image.alt = ''; avatar.append(image);
-  } else avatar.textContent = me?.user?.avatar || '☺';
+    const image = document.createElement("img");
+    image.src = me.user.avatarUrl;
+    image.alt = "";
+    avatar.append(image);
+  } else avatar.textContent = me?.user?.avatar || "☺";
   $("#profile-account-label").textContent = me?.user
     ? "管理我的账号 ↗"
     : "登录，收好你的旅行";
 }
-const reducedMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
-const tabMotion = createTabMotion({ buttons: document.querySelectorAll('[data-page]'), lottie: window.lottie, reducedMotion });
-const panels = { home: '#home', discover: '#discover-page', profile: '#profile-page' };
-const pageNames = { home: '旅行', discover: '发现', profile: '我的' };
-let pageRevision = 0, pageCleanup, serviceDock, serviceMap, plannerMap, originCity;
+const reducedMotion = () =>
+  matchMedia("(prefers-reduced-motion: reduce)").matches;
+const tabMotion = createTabMotion({
+  buttons: document.querySelectorAll("[data-page]"),
+  lottie: window.lottie,
+  reducedMotion,
+});
+const panels = {
+  home: "#home",
+  discover: "#discover-page",
+  profile: "#profile-page",
+};
+const pageNames = { home: "旅行", discover: "发现", profile: "我的" };
+let pageRevision = 0,
+  pageCleanup,
+  serviceDock,
+  serviceMap,
+  plannerMap,
+  originCity;
 const boundaryCache = new Map();
-let plannerCity, boundaryRequest = 0;
+let plannerCity,
+  boundaryRequest = 0;
 function workspace(mode) {
-  $('#home').classList.toggle('map-workspace', Boolean(mode));
-  $('#home').dataset.workspace = mode || '';
-  $('#services-panel').hidden = mode !== 'services';
-  if (mode) $('#home').scrollTop = 0;
+  $("#home").classList.toggle("map-workspace", Boolean(mode));
+  $("#home").dataset.workspace = mode || "";
+  $("#services-panel").hidden = mode !== "services";
+  if (mode) $("#home").scrollTop = 0;
 }
 function closeWizard() {
-  $('#wizard').close();
+  $("#wizard").close();
   ++boundaryRequest;
   clearTimeout(districtRefresh);
   workspace(null);
   paintMap();
 }
 function publishPlanner() {
-  if (!$('#wizard').open || !plannerCity) return;
-  const city = plannerCity, clusterStep = state.step >= 3 && state.step < 3 + state.cities.length;
+  if (!$("#wizard").open || !plannerCity) return;
+  const city = plannerCity,
+    clusterStep = state.step >= 3 && state.step < 3 + state.cities.length;
   const catalog = clusterStep ? state.catalog[city.id] : null;
-  plannerMap = plannerScene({ city, boundary: catalog?.boundary || boundaryCache.get(city.id),
-    clusters: catalog?.clusters || [], selected: state.selections[city.id] || [], district: clusterStep ? state.district : '',
-    contextKey: `planner:${city.id || city.name}`, fitKey: `planner:${city.id || city.name}:${clusterStep ? state.district : 'city'}` });
+  plannerMap = plannerScene({
+    city,
+    boundary: catalog?.boundary || boundaryCache.get(city.id),
+    clusters: catalog?.clusters || [],
+    selected: state.selections[city.id] || [],
+    district: clusterStep ? state.district : "",
+    contextKey: `planner:${city.id || city.name}`,
+    fitKey: `planner:${city.id || city.name}:${clusterStep ? state.district : "city"}`,
+  });
   paintMap();
 }
 async function focusPlannerCity(city, withBoundary = true) {
-  if (!city || !$('#wizard').open) return;
+  if (!city || !$("#wizard").open) return;
   plannerCity = city;
   const revision = ++boundaryRequest;
   publishPlanner();
   if (!withBoundary || !city.id || boundaryCache.has(city.id)) return;
   try {
-    const r = await api(`/api/journey/cities/${encodeURIComponent(city.id)}/boundary`);
+    const r = await api(
+      `/api/journey/cities/${encodeURIComponent(city.id)}/boundary`,
+    );
     boundaryCache.set(city.id, r.boundary);
-    if (revision !== boundaryRequest || !$('#wizard').open || plannerCity?.id !== city.id) return;
+    if (
+      revision !== boundaryRequest ||
+      !$("#wizard").open ||
+      plannerCity?.id !== city.id
+    )
+      return;
     publishPlanner(); // Geometry may arrive later; preserve a manually moved camera.
-  } catch { /* Boundary failure must not block answering the questionnaire. */ }
+  } catch {
+    /* Boundary failure must not block answering the questionnaire. */
+  }
 }
 function syncPlannerStep() {
-  if (!$('#wizard').open) return;
-  if (state.step === 0 && hasPosition(state.origin)) void focusPlannerCity(originCity || { ...state.origin, name: state.origin.label }, false);
-  else if (state.step === 1 && state.cities.length) void focusPlannerCity(state.cities.at(-1));
-  else if (state.step >= 3 && state.step < 3 + state.cities.length) void focusPlannerCity(state.cities[state.step - 3]);
+  if (!$("#wizard").open) return;
+  if (state.step === 0 && hasPosition(state.origin))
+    void focusPlannerCity(
+      originCity || { ...state.origin, name: state.origin.label },
+      false,
+    );
+  else if (state.step === 1 && state.cities.length)
+    void focusPlannerCity(state.cities.at(-1));
+  else if (state.step >= 3 && state.step < 3 + state.cities.length)
+    void focusPlannerCity(state.cities[state.step - 3]);
   // Dates and preferences keep the existing city and camera stable.
 }
 function keepTrip(trip) {
   state.trip = trip;
-  localStorage.setItem('seatraces-last-trip', trip.id);
+  localStorage.setItem("seatraces-last-trip", trip.id);
 }
-const cityWalkHome = createCityWalkHome({ api, navigate: path => navigation.go(path), toast });
+const cityWalkHome = createCityWalkHome({
+  api,
+  navigate: (path) => navigation.go(path),
+  toast,
+});
 const navigation = createPageNavigation({
-  onRepeat: route => $(panels[route.page] || '#detail-page').scrollTo({ top: 0, behavior: reducedMotion() ? 'auto' : 'smooth' }),
+  onRepeat: (route) =>
+    $(panels[route.page] || "#detail-page").scrollTo({
+      top: 0,
+      behavior: reducedMotion() ? "auto" : "smooth",
+    }),
   onChange: (route, { animate }) => {
-    if (!me?.user) { location.replace('/login.html'); return; }
-    const revision = ++pageRevision, serviceView = route.page === 'services' && !route.params?.place, detail = !panels[route.page] && !serviceView;
+    if (!me?.user) {
+      location.replace("/login.html");
+      return;
+    }
+    const revision = ++pageRevision,
+      serviceView = route.page === "services" && !route.params?.place,
+      detail = !panels[route.page] && !serviceView;
     setBusy(false);
-    if ($('#wizard').open) closeWizard();
+    if ($("#wizard").open) closeWizard();
     serviceMap = null;
-    workspace(serviceView ? 'services' : null);
-    pageCleanup?.(); pageCleanup = null; serviceDock = null;
-    cityWalkHome.setActive(route.page === 'home');
-    for (const [name, selector] of Object.entries(panels)) $(selector).hidden = name !== (serviceView ? 'home' : route.page);
-    $('#detail-page').hidden = !detail;
-    $('.bottom-nav').hidden = detail;
-    document.body.classList.toggle('detail-open', detail);
-    tabMotion.select(detail ? 'profile' : serviceView ? 'home' : route.page, { animate: animate && !detail });
-    document.querySelectorAll('[data-page]').forEach(button => {
-      if (button.dataset.page === (detail ? 'profile' : serviceView ? 'home' : route.page)) button.setAttribute('aria-current', 'page');
-      else button.removeAttribute('aria-current');
+    workspace(serviceView ? "services" : null);
+    pageCleanup?.();
+    pageCleanup = null;
+    serviceDock = null;
+    cityWalkHome.setActive(route.page === "home");
+    for (const [name, selector] of Object.entries(panels))
+      $(selector).hidden = name !== (serviceView ? "home" : route.page);
+    $("#detail-page").hidden = !detail;
+    $(".bottom-nav").hidden = detail;
+    document.body.classList.toggle("detail-open", detail);
+    tabMotion.select(detail ? "profile" : serviceView ? "home" : route.page, {
+      animate: animate && !detail,
     });
-    const setTitle = title => { $('#detail-title').textContent = title; document.title = title + ' · SeaTraces'; };
+    document.querySelectorAll("[data-page]").forEach((button) => {
+      if (
+        button.dataset.page ===
+        (detail ? "profile" : serviceView ? "home" : route.page)
+      )
+        button.setAttribute("aria-current", "page");
+      else button.removeAttribute("aria-current");
+    });
+    const setTitle = (title) => {
+      $("#detail-title").textContent = title;
+      document.title = title + " · SeaTraces";
+    };
     if (serviceView) {
-      document.title = '沿途吃住 · SeaTraces';
-      $('#services-back').onclick = () => { navigation.go('/home'); if (state.trip) paintTrip(); };
-      const content = document.createElement('div');
-      $('#services-content').replaceChildren(content);
-      content.innerHTML = '<p class="page-status" role="status">正在打开这一天…</p>';
+      document.title = "沿途吃住 · SeaTraces";
+      $("#services-back").onclick = () => {
+        navigation.go("/home");
+        if (state.trip) paintTrip();
+      };
+      const content = document.createElement("div");
+      $("#services-content").replaceChildren(content);
+      content.innerHTML =
+        '<p class="page-status" role="status">正在打开这一天…</p>';
       const current = () => revision === pageRevision;
       const ready = async () => {
         try {
           if (state.trip?.id !== route.id) {
-            const trip = await api('/api/trips/' + encodeURIComponent(route.id));
+            const trip = await api(
+              "/api/trips/" + encodeURIComponent(route.id),
+            );
             if (!current()) return;
             keepTrip(trip);
           }
           const day = Number(route.params?.day || 0);
-          if (!Number.isInteger(day) || !state.trip.plan.days[day]) throw Error('这一天不存在');
-          state.day = day; state.mapView = 'day'; paintMap();
-          serviceDock = mountServiceMapDock({route,content,api,isCurrent:current,navigate:path=>navigation.go(path),
-            onScene:(slot,id)=>{ serviceMap = {slot,id}; paintMap(); },
-            onTrip:trip=>{ keepTrip(trip); paintTrip(false); }});
-          const dock = serviceDock; pageCleanup = () => dock.dispose();
-        } catch(e) { if (current()) content.textContent = e.message; }
+          if (!Number.isInteger(day) || !state.trip.plan.days[day])
+            throw Error("这一天不存在");
+          state.day = day;
+          state.mapView = "day";
+          paintMap();
+          serviceDock = mountServiceMapDock({
+            route,
+            content,
+            api,
+            isCurrent: current,
+            navigate: (path) => navigation.go(path),
+            onScene: (slot, id) => {
+              serviceMap = { slot, id };
+              paintMap();
+            },
+            onTrip: (trip) => {
+              keepTrip(trip);
+              paintTrip(false);
+            },
+          });
+          const dock = serviceDock;
+          pageCleanup = () => dock.dispose();
+        } catch (e) {
+          if (current()) content.textContent = e.message;
+        }
       };
       void ready();
     } else if (detail) {
       // A render owns its container so a delayed response cannot overwrite a later page.
-      const content = document.createElement('div');
-      $('#page-content').replaceChildren(content);
-      $('#detail-page').scrollTop = 0;
-      if (route.page === 'services') {
+      const content = document.createElement("div");
+      $("#page-content").replaceChildren(content);
+      $("#detail-page").scrollTop = 0;
+      if (route.page === "services") {
         const renderDetail = async () => {
           try {
-            const trip = state.trip?.id === route.id ? state.trip : await api('/api/trips/' + encodeURIComponent(route.id));
+            const trip =
+              state.trip?.id === route.id
+                ? state.trip
+                : await api("/api/trips/" + encodeURIComponent(route.id));
             if (revision !== pageRevision) return;
-            const cityContext = trip.plan.cities.find(c => c.id === trip.plan.days[Number(route.params?.day || 0)]?.cityId);
-            await renderTripServicesPage({route,content,setTitle,api,cityContext,isCurrent:()=>revision===pageRevision,navigate:path=>navigation.go(path),onTrip:trip=>{
-          state.trip=trip;const day=Number(route.params?.day||0);state.day=trip.plan.days[day]?day:0;
-          state.mapView='day';state.fitRevision++;localStorage.setItem('seatraces-last-trip',trip.id);
-          navigation.go('/home');paintTrip();$('#itinerary').scrollIntoView({behavior:reducedMotion()?'auto':'smooth',block:'start'});
-            }});
-          } catch(e) { if (revision === pageRevision) content.textContent = e.message; }
+            const cityContext = trip.plan.cities.find(
+              (c) =>
+                c.id === trip.plan.days[Number(route.params?.day || 0)]?.cityId,
+            );
+            await renderTripServicesPage({
+              route,
+              content,
+              setTitle,
+              api,
+              cityContext,
+              isCurrent: () => revision === pageRevision,
+              navigate: (path) => navigation.go(path),
+              onTrip: (trip) => {
+                state.trip = trip;
+                const day = Number(route.params?.day || 0);
+                state.day = trip.plan.days[day] ? day : 0;
+                state.mapView = "day";
+                state.fitRevision++;
+                localStorage.setItem("seatraces-last-trip", trip.id);
+                navigation.go("/home");
+                paintTrip();
+                $("#itinerary").scrollIntoView({
+                  behavior: reducedMotion() ? "auto" : "smooth",
+                  block: "start",
+                });
+              },
+            });
+          } catch (e) {
+            if (revision === pageRevision) content.textContent = e.message;
+          }
         };
         void renderDetail();
-      } else if (route.page === 'citywalk') {
-        void renderCityWalkEditor({ route, content, setTitle, api, toast, navigate: path => navigation.go(path), isCurrent: () => revision === pageRevision }).then(cleanup => { if (revision === pageRevision) pageCleanup = cleanup; else cleanup?.(); });
-      } else void renderProfilePage({
-        route, content, setTitle, api, esc,
-        isCurrent: () => revision === pageRevision,
-        navigate: path => navigation.go(path),
-        onTrip: trip => { selectPage('home'); showTrip(trip).catch(e => toast(e.message)); },
-        onUser: user => { me = { user }; syncProfile(); },
-        onLogout: () => { if (presence.isEnabled()) presence.toggle(); localStorage.removeItem('seatraces-last-trip'); location.replace('/login.html'); },
-      });
-      $('#detail-title').focus({ preventScroll: true });
+      } else if (route.page === "citywalk") {
+        void renderCityWalkEditor({
+          route,
+          content,
+          setTitle,
+          api,
+          toast,
+          navigate: (path) => navigation.go(path),
+          isCurrent: () => revision === pageRevision,
+        }).then((cleanup) => {
+          if (revision === pageRevision) pageCleanup = cleanup;
+          else cleanup?.();
+        });
+      } else
+        void renderProfilePage({
+          route,
+          content,
+          setTitle,
+          api,
+          esc,
+          isCurrent: () => revision === pageRevision,
+          navigate: (path) => navigation.go(path),
+          onTrip: (trip) => {
+            selectPage("home");
+            showTrip(trip).catch((e) => toast(e.message));
+          },
+          onUser: (user) => {
+            me = { user };
+            syncProfile();
+          },
+          onLogout: () => {
+            if (presence.isEnabled()) presence.toggle();
+            localStorage.removeItem("seatraces-last-trip");
+            location.replace("/login.html");
+          },
+        });
+      $("#detail-title").focus({ preventScroll: true });
     } else {
-      $('#page-content').replaceChildren();
-      document.title = pageNames[route.page] + ' · SeaTraces';
-      if (route.page === 'profile') syncProfile();
-      if (route.page === 'home') { if (state.trip) paintTrip(); else paintMap(); }
+      $("#page-content").replaceChildren();
+      document.title = pageNames[route.page] + " · SeaTraces";
+      if (route.page === "profile") syncProfile();
+      if (route.page === "home") {
+        if (state.trip) paintTrip();
+        else paintMap();
+      }
     }
   },
 });
-function selectPage(page) { navigation.go('/' + page); }
-$('#page-back').onclick = () => navigation.back();
-document.querySelectorAll('[data-page]').forEach(button => { button.onclick = () => selectPage(button.dataset.page); });
-document.querySelectorAll('[data-open-travel]').forEach(button => { button.onclick = () => selectPage('home'); });
-document.querySelectorAll('[data-profile-page]').forEach(button => { button.onclick = () => selectPage(button.dataset.profilePage); });
+function selectPage(page) {
+  navigation.go("/" + page);
+}
+$("#page-back").onclick = () => navigation.back();
+document.querySelectorAll("[data-page]").forEach((button) => {
+  button.onclick = () => selectPage(button.dataset.page);
+});
+document.querySelectorAll("[data-open-travel]").forEach((button) => {
+  button.onclick = () => selectPage("home");
+});
+document.querySelectorAll("[data-profile-page]").forEach((button) => {
+  button.onclick = () => selectPage(button.dataset.profilePage);
+});
 const presence = createPresenceRecorder({
   getTrip: () => state.trip,
   api,
@@ -285,8 +437,8 @@ async function ensureUser() {
   me = await api("/api/me");
   syncProfile();
   if (me.user) return;
-  location.replace('/login.html');
-  throw Error('请先登录');
+  location.replace("/login.html");
+  throw Error("请先登录");
 }
 function heading(label, title, stamp = "") {
   return `<div class="eyebrow">${esc(label)}</div>${stamp ? `<div class="stamp" aria-hidden="true">${stamp}</div>` : ""}<h1 id="question-title" tabindex="-1">${esc(title)}</h1>`;
@@ -298,7 +450,7 @@ function setBusy(value, title) {
   $("#back").disabled = value;
   if (value && title)
     $("#question").innerHTML =
-      `<div class="loading"><div class="spinner" aria-hidden="true"></div><h1 id="question-title">${esc(title)}</h1><p class="muted">好玩的地方，马上就来</p></div>`;
+      `<div class="loading"><div class="spinner" aria-hidden="true"></div><h1 id="question-title">${esc(title)}</h1></div>`;
 }
 function invalidateSession() {
   state.session = null;
@@ -318,7 +470,11 @@ async function turn(step) {
       matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 300,
     ),
   );
-  if (!$('#wizard').open) { paper.classList.remove('tear'); setBusy(false); return; }
+  if (!$("#wizard").open) {
+    paper.classList.remove("tear");
+    setBusy(false);
+    return;
+  }
   state.step = step;
   state.limit = 24;
   state.district = "";
@@ -328,7 +484,7 @@ async function turn(step) {
   await render();
 }
 async function render() {
-  if (!$('#wizard').open) return;
+  if (!$("#wizard").open) return;
   syncPlannerStep();
   const s = state.step;
   $("#question").onclick = null;
@@ -350,7 +506,8 @@ async function render() {
       heading("START HERE", "您从哪里出发？", "↗") +
       `<label class="field"><span>出发地</span><input id="origin" placeholder="输入出发城市或地点" autocomplete="off" value="${esc(state.origin.label)}"></label><button id="locate" class="inline-action">◎ 用当前位置</button><div id="city-results" class="choices"></div>`;
     $("#origin").oninput = (e) => {
-      state.origin = { label: e.target.value }; originCity = null;
+      state.origin = { label: e.target.value };
+      originCity = null;
       invalidateSession();
       searchCities(e.target.value, true);
     };
@@ -407,7 +564,14 @@ async function render() {
             // proxy/tunnel disconnect without starting another city computation.
             data = { status: "loading", retryAfterMs: 1500 };
           }
-          if (state.session?.id !== sessionId || !$("#wizard").open || state.step !== s) { setBusy(false); return; }
+          if (
+            state.session?.id !== sessionId ||
+            !$("#wizard").open ||
+            state.step !== s
+          ) {
+            setBusy(false);
+            return;
+          }
           if (data.status === "loading")
             await new Promise((resolve) =>
               setTimeout(resolve, data.retryAfterMs || 1500),
@@ -477,7 +641,8 @@ function searchCities(q, origin, immediate = false) {
         const c = cityResults[Number(el.dataset.city)];
         if (origin) {
           state.origin = { label: c.name, lat: c.lat, lng: c.lng };
-          originCity = c; void focusPlannerCity(c, false);
+          originCity = c;
+          void focusPlannerCity(c, false);
           $("#origin").value = c.name;
           $("#city-results").innerHTML = "";
           invalidateSession();
@@ -488,7 +653,10 @@ function searchCities(q, origin, immediate = false) {
           else return toast("最多选 5 座城市");
           invalidateSession();
           paintCities();
-          if (state.cities.length) void focusPlannerCity(state.cities.includes(c) ? c : state.cities.at(-1));
+          if (state.cities.length)
+            void focusPlannerCity(
+              state.cities.includes(c) ? c : state.cities.at(-1),
+            );
           el.setAttribute(
             "aria-pressed",
             state.cities.some((x) => x.id === c.id),
@@ -530,7 +698,8 @@ async function locate(silent) {
   try {
     const coords = await currentPosition();
     const r = await api(`/api/nearby?lat=${coords.lat}&lng=${coords.lng}`);
-    if (!$('#wizard').open || state.step !== 0 || state.origin !== original) return;
+    if (!$("#wizard").open || state.step !== 0 || state.origin !== original)
+      return;
     state.origin = { label: r.place?.name || "当前位置", ...coords };
     originCity = { ...r.place, ...state.origin, name: state.origin.label };
     void focusPlannerCity(originCity, false);
@@ -559,7 +728,7 @@ function renderClusters(city) {
   $("#question").onclick = null;
   $("#question").innerHTML =
     heading("PICK YOUR PATCH", city.name + "，想逛哪一片？") +
-    `<select id="district" class="district-filter" aria-label="选择区县"><option value="">整座城市</option>${data.boundary.districts.map((d) => `<option value="${esc(d.name)}" ${d.name === state.district ? "selected" : ""}>${esc(d.name)}</option>`).join("")}</select><p class="muted cluster-hint">选一片或几片 · ${selected.length ? "已选 " + selected.length + " 片" : "编号对应下方片区，圆点为代表景点"}${data.boundary.status === "partial" ? " · 部分区县边界暂缺" : ""}${data.coverage.scope === "city_surroundings" ? " · 城市周边景点" : ""}${data.coverage.status === "bounded_sample" ? " · 当前为部分景点" : ""}</p><div class="clusters">${shown.map((c) => `<article class="cluster ${selected.includes(c.id) ? "selected" : ""}"><button class="cluster-main" data-cluster="${c.id}" aria-pressed="${selected.includes(c.id)}"><div><b>${c.number} · ${esc(c.name)}</b><small>${c.memberCount} 处 · 综合 ${c.score} 分${c.districts.length ? " · " + esc(c.districts[0]) : ""}</small></div><span class="check">${selected.includes(c.id) ? "✓" : "+"}</span></button><details data-members="${c.id}"><summary>看看这些地方</summary><div class="member-list"></div></details></article>`).join("")}</div>${!groups.length ? '<p class="muted">这里暂时没有可选景点，试试其他区县。</p>' : ""}<details class="muted"><summary>分数怎么看</summary>各景点分数相加。现阶段使用已有资料与兴趣匹配；知名度、拥挤程度仅在有来源且未过期时计分。</details>`;
+    `<select id="district" class="district-filter" aria-label="选择区县"><option value="">整座城市</option>${data.boundary.districts.map((d) => `<option value="${esc(d.name)}" ${d.name === state.district ? "selected" : ""}>${esc(d.name)}</option>`).join("")}</select><div class="clusters">${shown.map((c) => `<article class="cluster ${selected.includes(c.id) ? "selected" : ""}"><button class="cluster-main" data-cluster="${c.id}" aria-pressed="${selected.includes(c.id)}"><div><b>${c.number} · ${esc(c.name)}</b><small>${c.memberCount} 处 · 综合 ${c.score} 分${c.districts.length ? " · " + esc(c.districts[0]) : ""}</small></div><span class="check">${selected.includes(c.id) ? "✓" : "+"}</span></button><details data-members="${c.id}"><summary>看看这些地方</summary><div class="member-list"></div></details></article>`).join("")}</div>${!groups.length ? '<p class="muted">这里暂时没有可选景点，试试其他区县。</p>' : ""}`;
   const inventory = data.inventory;
   if (inventory) {
     const info = document.createElement("p");
@@ -691,7 +860,10 @@ $("#next").onclick = async () => {
           start: state.start,
           end: state.end,
         });
-        if (revision !== pageRevision || !$('#wizard').open) { setBusy(false); return; }
+        if (revision !== pageRevision || !$("#wizard").open) {
+          setBusy(false);
+          return;
+        }
         setBusy(false);
       }
     }
@@ -705,7 +877,10 @@ $("#next").onclick = async () => {
           `/api/journey/sessions/${state.session.id}/questions`,
           {},
         );
-        if (revision !== pageRevision || !$('#wizard').open) { setBusy(false); return; }
+        if (revision !== pageRevision || !$("#wizard").open) {
+          setBusy(false);
+          return;
+        }
         state.questions = q.questions;
         state.answers = { ...state.answers, ...q.defaults };
         setBusy(false);
@@ -720,7 +895,10 @@ $("#next").onclick = async () => {
         `/api/journey/sessions/${state.session.id}/generate`,
         { selections: state.selections, answers: state.answers },
       );
-      if (revision !== pageRevision || !$('#wizard').open) { setBusy(false); return; }
+      if (revision !== pageRevision || !$("#wizard").open) {
+        setBusy(false);
+        return;
+      }
       setBusy(false);
       closeWizard();
       await showTrip(trip);
@@ -740,12 +918,16 @@ $("#next").onclick = async () => {
   }
 };
 $("#back").onclick = () => turn(Math.max(0, state.step - 1));
-$("#close").onclick = () => { if (state.busy) return toast("正在处理，请稍等一下"); closeWizard(); };
+$("#close").onclick = () => {
+  if (state.busy) return toast("正在处理，请稍等一下");
+  closeWizard();
+};
 $("#begin").onclick = async () => {
   try {
     await ensureUser();
     workspace("planner");
-    plannerMap = null; plannerCity = null;
+    plannerMap = null;
+    plannerCity = null;
     $("#wizard").show();
     paintMap();
     await render();
@@ -760,7 +942,7 @@ function mapPayload() {
   return {
     type: "seatraces-overview",
     tripId: state.trip?.id,
-    cityContext: state.trip?.plan.cities.find(c => c.id === day?.cityId),
+    cityContext: state.trip?.plan.cities.find((c) => c.id === day?.cityId),
     contextKey: `trip:${state.trip?.id || "home"}:${state.mapView}:${state.day}`,
     view: state.mapView,
     day: state.day,
@@ -769,7 +951,8 @@ function mapPayload() {
     viewPadding: [70, 35, 35, 35],
     cities,
     stops,
-    services: state.mapView === 'day' ? savedServicePoints(state.trip, state.day) : [],
+    services:
+      state.mapView === "day" ? savedServicePoints(state.trip, state.day) : [],
     connections: schematicConnections(stops),
     cityConnections: schematicConnections(cities),
     segments: [],
@@ -785,14 +968,29 @@ function mapPayload() {
 }
 function paintMap({ preserveCamera = false } = {}) {
   let payload = mapPayload();
-  if ($('#wizard').open) payload = plannerMap || {type:'seatraces-overview',kind:'planner',view:'day',lockView:true,segments:[],contextKey:'planner:blank',fitKey:'planner:blank'};
-  else if (serviceMap) payload = serviceScene(payload, serviceMap.slot, serviceMap.id);
+  if ($("#wizard").open)
+    payload = plannerMap || {
+      type: "seatraces-overview",
+      kind: "planner",
+      view: "day",
+      lockView: true,
+      segments: [],
+      contextKey: "planner:blank",
+      fitKey: "planner:blank",
+    };
+  else if (serviceMap)
+    payload = serviceScene(payload, serviceMap.slot, serviceMap.id);
   if (preserveCamera) payload.preserveCamera = true;
-  $('#travel-map').contentWindow.postMessage(payload, location.origin);
+  $("#travel-map").contentWindow.postMessage(payload, location.origin);
 }
-function workspaceHeight() { document.documentElement.style.setProperty('--workspace-height', (window.visualViewport?.height || innerHeight) + 'px'); }
-window.visualViewport?.addEventListener('resize', workspaceHeight);
-window.addEventListener('resize', workspaceHeight);
+function workspaceHeight() {
+  document.documentElement.style.setProperty(
+    "--workspace-height",
+    (window.visualViewport?.height || innerHeight) + "px",
+  );
+}
+window.visualViewport?.addEventListener("resize", workspaceHeight);
+window.addEventListener("resize", workspaceHeight);
 workspaceHeight();
 window.addEventListener("message", (e) => {
   if (
@@ -801,18 +999,39 @@ window.addEventListener("message", (e) => {
   )
     return;
   if (e.data?.type === "seatraces-map-ready") paintMap();
-  if (e.data?.type === 'seatraces-service-pick') {
+  if (e.data?.type === "seatraces-service-pick") {
     if (serviceDock) void serviceDock.select(e.data.id, true);
-    else if (state.trip && !$('#wizard').open) {
-      const p = savedServicePoints(state.trip, state.day).find(p => p.id === e.data.id);
-      if (p) navigation.go(`/services/${state.trip.id}?day=${state.day}&slot=${encodeURIComponent(p.slotId)}`);
+    else if (state.trip && !$("#wizard").open) {
+      const p = savedServicePoints(state.trip, state.day).find(
+        (p) => p.id === e.data.id,
+      );
+      if (p)
+        navigation.go(
+          `/services/${state.trip.id}?day=${state.day}&slot=${encodeURIComponent(p.slotId)}`,
+        );
     }
   }
-  if (e.data?.type === 'seatraces-cluster-pick' && $('#wizard').open) {
-    const button = [...document.querySelectorAll('#question [data-cluster]')].find(b => b.dataset.cluster === e.data.id);
-    if (button) { button.click(); const next = [...document.querySelectorAll('#question [data-cluster]')].find(b => b.dataset.cluster === e.data.id); next?.scrollIntoView({block:'nearest',behavior:reducedMotion()?'auto':'smooth'}); }
+  if (e.data?.type === "seatraces-cluster-pick" && $("#wizard").open) {
+    const button = [
+      ...document.querySelectorAll("#question [data-cluster]"),
+    ].find((b) => b.dataset.cluster === e.data.id);
+    if (button) {
+      button.click();
+      const next = [
+        ...document.querySelectorAll("#question [data-cluster]"),
+      ].find((b) => b.dataset.cluster === e.data.id);
+      next?.scrollIntoView({
+        block: "nearest",
+        behavior: reducedMotion() ? "auto" : "smooth",
+      });
+    }
   }
-  if (e.data?.type === "seatraces-map-view" && state.trip && !$('#wizard').open && !serviceDock) {
+  if (
+    e.data?.type === "seatraces-map-view" &&
+    state.trip &&
+    !$("#wizard").open &&
+    !serviceDock
+  ) {
     state.mapView = e.data.view === "overview" ? "overview" : "day";
     if (Number.isInteger(e.data.day) && state.trip.plan.days[e.data.day])
       state.day = e.data.day;
@@ -914,9 +1133,16 @@ function paintTrip(updateMap = true) {
     }
   };
   if (updateMap) paintMap();
-  const services=document.createElement('section');
-  $('#itinerary').append(services);
-  if (!overview) mountTripServices({element:services,trip:t,day:state.day,api,navigate:path=>navigation.go(path)});
+  const services = document.createElement("section");
+  $("#itinerary").append(services);
+  if (!overview)
+    mountTripServices({
+      element: services,
+      trip: t,
+      day: state.day,
+      api,
+      navigate: (path) => navigation.go(path),
+    });
 }
 let districtRefresh;
 function refreshDistricts(city) {
@@ -957,29 +1183,45 @@ function refreshDistricts(city) {
     }
   }, 4000);
 }
-$('#account').onclick = () => selectPage('account');
-$('#history').onclick = () => selectPage('history');
+$("#account").onclick = () => selectPage("account");
+$("#history").onclick = () => selectPage("history");
 async function boot() {
   try {
-    me = await api('/api/me');
-    if (!me.user) { location.replace('/login.html'); return; }
+    me = await api("/api/me");
+    if (!me.user) {
+      location.replace("/login.html");
+      return;
+    }
     syncProfile();
-    document.body.classList.remove('auth-pending');
-    $('#auth-loading').hidden = true;
+    document.body.classList.remove("auth-pending");
+    $("#auth-loading").hidden = true;
     navigation.start();
-    $('#travel-map').src = $('#travel-map').dataset.src;
+    $("#travel-map").src = $("#travel-map").dataset.src;
     const bootRevision = pageRevision;
-    const last = localStorage.getItem('seatraces-last-trip');
-    if (last && !location.hash.startsWith('#/services/')) {
-      try { const t = await api('/api/trips/' + encodeURIComponent(last)); if (t.plan.schemaVersion === 'journey/2' && bootRevision === pageRevision && !$('#wizard').open) await showTrip(t); }
-      catch { localStorage.removeItem('seatraces-last-trip'); }
+    const last = localStorage.getItem("seatraces-last-trip");
+    if (last && !location.hash.startsWith("#/services/")) {
+      try {
+        const t = await api("/api/trips/" + encodeURIComponent(last));
+        if (
+          t.plan.schemaVersion === "journey/2" &&
+          bootRevision === pageRevision &&
+          !$("#wizard").open
+        )
+          await showTrip(t);
+      } catch {
+        localStorage.removeItem("seatraces-last-trip");
+      }
     }
   } catch {
-    $('#auth-loading span').textContent = '暂时连不上服务，请稍后重试';
-    $('#auth-retry').hidden = false;
+    $("#auth-loading span").textContent = "暂时连不上服务，请稍后重试";
+    $("#auth-retry").hidden = false;
   }
 }
-$('#auth-retry').onclick = boot;
-window.addEventListener('pageshow', e => { if (e.persisted) void ensureUser().catch(() => {}); });
-document.addEventListener('visibilitychange', () => { if (!document.hidden && me?.user) void ensureUser().catch(() => {}); });
+$("#auth-retry").onclick = boot;
+window.addEventListener("pageshow", (e) => {
+  if (e.persisted) void ensureUser().catch(() => {});
+});
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden && me?.user) void ensureUser().catch(() => {});
+});
 void boot();
