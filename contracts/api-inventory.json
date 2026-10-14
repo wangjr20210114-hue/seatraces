@@ -367,66 +367,73 @@
       "reference": "API_REFERENCE.md"
     },
     {
+      "method": "GET",
+      "path": "/api/journey/cities/:cityId/boundary",
+      "source": "server/services/journey-service.mjs",
+      "line": 203,
+      "reference": "API_REFERENCE.md"
+    },
+    {
       "method": "POST",
       "path": "/api/journey/sessions",
       "source": "server/services/journey-service.mjs",
-      "line": 202,
+      "line": 209,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "POST",
       "path": "/api/journey/sessions/:id/cities/:cityId",
       "source": "server/services/journey-service.mjs",
-      "line": 228,
+      "line": 235,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "GET",
       "path": "/api/journey/sessions/:id/cities/:cityId/boundary",
       "source": "server/services/journey-service.mjs",
-      "line": 262,
+      "line": 269,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "POST",
       "path": "/api/journey/sessions/:id/visits",
       "source": "server/services/journey-service.mjs",
-      "line": 287,
+      "line": 294,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "POST",
       "path": "/api/journey/sessions/:id/wishes",
       "source": "server/services/journey-service.mjs",
-      "line": 305,
+      "line": 312,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "POST",
       "path": "/api/journey/sessions/:id/questions",
       "source": "server/services/journey-service.mjs",
-      "line": 327,
+      "line": 334,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "POST",
       "path": "/api/journey/sessions/:id/generate",
       "source": "server/services/journey-service.mjs",
-      "line": 366,
+      "line": 373,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "POST",
       "path": "/api/journey/trips/:id/presence",
       "source": "server/services/journey-service.mjs",
-      "line": 445,
+      "line": 452,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "POST",
       "path": "/api/journey/trips/:id/days/:day/route",
       "source": "server/services/journey-service.mjs",
-      "line": 483,
+      "line": 490,
       "reference": "API_REFERENCE.md"
     },
     {

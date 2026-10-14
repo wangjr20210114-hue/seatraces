@@ -43,6 +43,18 @@ const area = (slot) =>
     : `${slot.anchor.name}附近`;
 const selectionText = (s) => s?.candidate?.name || "挑一家喜欢的";
 const cache = new Map();
+export function clearServiceCache() { cache.clear(); }
+export function serviceRecommendations(api, tripId, day, radius) {
+  // A short shared flight avoids duplicate requests when opening from the shortcut.
+  const key = `map:${tripId}:${day}:${radius || ''}`;
+  const existing = cache.get(key);
+  if (existing?.expires > Date.now()) return existing.work;
+  const work = api(`/api/journey/trips/${encodeURIComponent(tripId)}/services/recommendations`, { day, ...(radius ? { radius } : {}) })
+    .catch(e => { cache.delete(key); throw e; });
+  cache.set(key, { expires: Date.now() + 30000, work });
+  while (cache.size > 30) cache.delete(cache.keys().next().value);
+  return work;
+}
 export function mountTripServices({ element, trip, day, api, navigate }) {
   const key = trip.id + ":" + trip.version + ":" + day;
   element.className = "trip-services-widget";
@@ -56,9 +68,7 @@ export function mountTripServices({ element, trip, day, api, navigate }) {
       if (!cache.has(key))
         cache.set(
           key,
-          api("/api/journey/trips/" + trip.id + "/services/recommendations", {
-            day,
-          }).catch((e) => {
+          serviceRecommendations(api, trip.id, day).catch((e) => {
             cache.delete(key);
             throw e;
           }),
@@ -92,6 +102,7 @@ export async function renderTripServicesPage({
   isCurrent,
   navigate,
   onTrip,
+  cityContext,
 }) {
   const day = Number(route.params?.day || 0),
     tripId = route.id;
@@ -139,6 +150,7 @@ export async function renderTripServicesPage({
               isCurrent,
               navigate,
               onTrip,
+              cityContext,
             });
           status?.append(reload);
         }
@@ -165,8 +177,9 @@ export async function renderTripServicesPage({
       const p = preview.candidate,
         website = safeUrl(fact(p, "website")),
         source = safeUrl(p.sources?.[0]?.url);
-      const nav = mainlandEligible(p)
-        ? amapLegUrl(null, p, slot.kind === "stay" ? "balanced" : "walk")
+      const navPlace = { ...p, country:p.country || p.location?.countryCode || cityContext?.country };
+      const nav = mainlandEligible(navPlace)
+        ? amapLegUrl(null, navPlace, slot.kind === "stay" ? "balanced" : "walk")
         : null;
       setTitle(slot.kind === "stay" ? "看看这间住宿" : "看看这家店");
       content.innerHTML = `<article class="service-detail"><span class="service-detail-icon" aria-hidden="true">${icons[slot.kind]}</span><span class="eyebrow">${escape(slot.city)} · ${slot.title}</span><h2>${escape(p.name)}</h2><p>${escape(area(slot))} · 直线 ${distance(p.distanceMeters)}</p><div class="service-facts">${[
@@ -229,6 +242,7 @@ export async function renderTripServicesPage({
             isCurrent,
             navigate,
             onTrip,
+            cityContext,
           });
       else if (slot.radius < 10000) {
         retry.textContent = "找远一点的 ↗";
@@ -251,6 +265,7 @@ export async function renderTripServicesPage({
           isCurrent,
           navigate,
           onTrip,
+          cityContext,
         });
     };
   }

@@ -10,7 +10,7 @@
     "test": "node --test test/*.test.mjs",
     "import:geonames": "node scripts/import-geonames.mjs",
     "verify:backup": "node scripts/verify-backup.mjs",
-    "check": "node --check public/journey.js && node --check public/amap-view.js && node --check public/login.js && node --check public/account-page.js && node --check public/page-navigation.js && node --check public/profile-pages.js && node --check public/tab-motion.js && node --check server/auth.mjs && node --check server/mail.mjs && node --check server/index.mjs && node --check public/city-selection.js && node --check public/citywalk.js && node --check public/citywalk-route.js && node --check server/services/citywalk-service.mjs && node --check public/trip-services.js && node --check server/services/trip-services.mjs && node --check server/domain/trip-services.mjs",
+    "check": "node --check public/journey.js && node --check public/amap-view.js && node --check public/login.js && node --check public/account-page.js && node --check public/page-navigation.js && node --check public/profile-pages.js && node --check public/tab-motion.js && node --check server/auth.mjs && node --check server/mail.mjs && node --check server/index.mjs && node --check public/city-selection.js && node --check public/citywalk.js && node --check public/citywalk-route.js && node --check server/services/citywalk-service.mjs && node --check public/trip-services.js && node --check server/services/trip-services.mjs && node --check server/domain/trip-services.mjs && node --check public/map-scene.js && node --check public/service-map-dock.js && node --check server/services/journey-service.mjs",
     "providers:status": "node scripts/check-providers.mjs",
     "providers:check": "node scripts/check-providers.mjs --live"
   },

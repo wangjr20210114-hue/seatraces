@@ -199,6 +199,13 @@ async function singleFlight(key, fn) {
   return work;
 }
 export function installJourneyRoutes(app, { auth, travelHabit }) {
+  // Preview boundaries before the date/session step, using the same shared cache.
+  app.get("/api/journey/cities/:cityId/boundary", auth, async (req, res) => {
+    const id = z.string().min(1).max(80).parse(req.params.cityId);
+    const city = (await query("SELECT id,name,country,province,lat,lng,timezone FROM places WHERE category='city' AND id=$1", [id])).rows[0];
+    if (!city) throw error("城市不存在", 404);
+    res.json({ city, boundary: publicBoundary(await cityBoundaries(city)) });
+  });
   app.post("/api/journey/sessions", auth, async (req, res) => {
     const input = journeyRequest.parse(req.body);
     if (new Set(input.cityIds).size !== input.cityIds.length)

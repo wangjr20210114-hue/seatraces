@@ -106,6 +106,20 @@ body,
 .home .amap-copyright {
   bottom: 6px !important;
 }
+.map-action { display:flex; align-items:center; gap:5px; border:2px solid #183c40; border-radius:22px; background:#fffdf2; box-shadow:2px 3px 0 #183c40; color:#183c40; padding:5px 9px 5px 5px; min-height:40px; font:600 12px system-ui; white-space:nowrap; cursor:pointer; }
+.map-action b { display:grid; place-items:center; min-width:26px; height:26px; background:#ffdf8e; border-radius:50%; }
+.map-action span { max-width:110px; overflow:hidden; text-overflow:ellipsis; }
+.map-action.cluster span { display:none; }
+.map-action.cluster { padding:3px; min-width:40px; justify-content:center; }
+.map-action.selected { background:#28cbbb; box-shadow:2px 3px 0 #183c40,0 0 0 4px #ffffffbd; }
+.map-action.service b { background:#ffdf8e; font-size:18px; }
+.map-action.service.selected b { background:#fffdf2; }
+.map-action.service:not(.selected) span { display:none; }
+.map-action:focus-visible { outline:3px solid #ed8064; outline-offset:3px; }
+.map-district { font:600 12px system-ui; color:#315b57; white-space:nowrap; text-shadow:0 1px 3px #fff,1px 0 3px #fff; pointer-events:none; }
+.scene-arrive { animation:map-arrive .4s ease-out; }
+@keyframes map-arrive { from { opacity:.72; } to { opacity:1; } }
+@media (prefers-reduced-motion:reduce) { .scene-arrive { animation:none; } }
 .home .amap-copyright {
   left: auto !important;
   right: 10px !important;

@@ -86,6 +86,7 @@ OSM类别共11类：`attraction,heritage,nature,leisure,accommodation,food,rest,
 
 | 方法与路径（前缀 /api） | 输入 | 输出与职责 |
 |---|---|---|
+| GET /journey/cities/:cityId/boundary | 城市ID（1…80字符），须登录，无请求体 | `{city,boundary}`；问卷选城时预览市界，复用现有高德边界缓存。city为自建库城市简要对象，boundary沿用ClusterCatalog的GCJ02结构。未找到城市404；境外或边界不可用按boundary.status返回，不创建问卷、不写数据库 |
 | POST /journey/sessions | `origin:{label(1…150),lat?,lng?},cityIds:string[1…5],start,end`，城市不可重复，每个ID≤80 | 201 `{id,cities}`，保存本人问卷会话。天数不少于城市数，结束日不得早于起始日，最多30天 |
 | POST /journey/sessions/:id/cities/:cityId | body `{}`；query `async=1` 推荐 | 202 `{status:"loading",retryAfterMs,...}` 或200 ClusterCatalog。相同用户/会话/城市合并进行中的请求；将候选存入会话；按retryAfterMs再查询，禁止紧循环 |
 | GET /journey/sessions/:id/cities/:cityId/boundary | 路径参数 | `{boundary,districts}`；districts为聚类ID到区名列表的映射 |
@@ -241,3 +242,13 @@ const saved = await call(path, choice, 'PUT');
 - 餐饮住宿本次是地点推荐及行程备选，不含预订、支付、用户评论、实时价格/房态；不做餐厅和旅店概念图。
 - 景点概念图和本地缓存为后续功能：建议缓存键为规范景点ID+画风版本，区分概念图和实拍；本次没有生成接口或自动花费。
 - 后续agent应复用“查询→预览→确认→带版本保存”的接口顺序，不能把模型输出直接当作可信地点、任意SQL或已生效变更。本次未接入agent工具。
+
+## 共享旅行地图（2026-10-14）
+
+问卷使用首页地图与下方不透明纸签。选中出发地仅使用已有地点坐标；选中目的城市调用新增的 `GET /api/journey/cities/:cityId/boundary`。日期与偏好不触发重复选点查询。片区页继续使用原有 session 城市目录、区县刷新、wishes、questions、generate 接口。地图点与片区卡片共用选择状态。
+
+`#/services/:tripId?day=0&slot=lunch:0` 现在使用同一地图下方的吃住面板；`place` 参数仍打开独立详情页。午餐、晚餐、住宿保留当天景点曲线，分别叠加候选位置。点击标记或卡片调用原有 preview，选择才调用原有 PUT，移除调用 DELETE。版本冲突保留错误并提供刷新；不自动重排景点，不把虚线当作实际道路。
+
+地图通信是同源 iframe 的内部视图协议（不是新增业务HTTP接口）：原有 `seatraces-overview`/`seatraces-route` 字段保持兼容，新增可选 `kind,contextKey,services,serviceAnchor,boundary,district,clusters,wishes,focus`。`fitKey` 只控制主动适配；候选高亮不改变它。新上下文首进适配，返回恢复相机；用户移动地图后迟到的边界不会抢走视角。CityWalk继续兼容旧消息格式。坐标从WGS84转换到GCJ02一次，高德边界已为GCJ02直接绘制。
+
+本次只新增上述一个认证只读市界接口，原72个HTTP操作的请求/响应合同与数据库表结构保持不变。地图渲染实现参考[高德 JS API 2.0 地图状态](https://developer.amap.com/api/javascript-api-v2/guide/map/state)。

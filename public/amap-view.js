@@ -9,6 +9,12 @@ let map,
 let detailLayers = [],
   cityLayers = [],
   visibleView = "overview";
+const layerSets = new Map(),
+  cameraStates = new Map();
+let activeContext,
+  manuallyMoved = false,
+  boundaryFitted = false;
+const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 const home = new URLSearchParams(location.search).get("mode") === "home";
 const status = document.querySelector("#status");
 const escapeText = (s) =>
@@ -25,6 +31,7 @@ for (const event of ["pointerdown", "touchstart", "wheel", "keydown"])
     event,
     () => {
       userGesture = true;
+      manuallyMoved = true;
     },
     { passive: true },
   );
@@ -37,7 +44,18 @@ function showLayers(view) {
     ? payload?.cityConnections?.length
     : payload?.connections?.length);
   legend.textContent =
-      payload?.kind === 'citywalk' ? 'CityWalk · 顺序连线' : view === "overview" ? "旅行总览 · 行程连线" : "每日行程 · 顺序连线";
+    payload?.kind === "citywalk"
+      ? "CityWalk · 顺序连线"
+      : view === "overview"
+        ? "旅行总览 · 行程连线"
+        : "每日行程 · 顺序连线";
+  if (payload?.kind === "planner") {
+    legend.hidden = !payload.clusters?.length;
+    legend.textContent = "点亮片区 · 下方挑想去的地方";
+  } else if (payload?.kind === "services") {
+    legend.hidden = false;
+    legend.textContent = "路线仍在 · 点击吃住标记";
+  }
 }
 function onZoom() {
   if (!payload || payload.lockView || fitting || !userGesture) return;
@@ -106,51 +124,227 @@ function pins(points, overview = false) {
       }),
   );
 }
-function paint() {
-  if (!map || !payload) return;
-  map.clearMap();
-  detailLayers = [
-    ...curves(payload.connections, "#168c81"),
-    ...pins(payload.stops),
-  ];
-  cityLayers = [
-    ...curves(payload.cityConnections, "#df7956"),
-    ...pins(payload.cities, true),
-  ];
-  map.add([...detailLayers, ...cityLayers]);
-  showLayers(payload.view === "day" ? "day" : "overview");
-  const active = visibleView === "overview" ? cityLayers : detailLayers;
-  if (!active.length && payload.kind === 'citywalk' && payload.focus?.length === 2 && payload.focus.every(Number.isFinite) && lastFitKey !== payload.fitKey) {
-    lastFitKey = payload.fitKey;
-    map.setZoomAndCenter(11, payload.focus);
-  }
-  if (active.length && lastFitKey !== payload.fitKey) {
-    lastFitKey = payload.fitKey;
-    const raw = payload.viewPadding || [88, 38, 45, 45];
-    const padding = raw.map((n, i) =>
-      Math.max(
-        16,
-        Math.min(
-          Number(n) || 0,
-          (i < 2 ? innerHeight : innerWidth) * (i === 0 ? 0.4 : 0.25),
-        ),
+function replaceLayer(key, data, build) {
+  const signature = JSON.stringify(data ?? null),
+    old = layerSets.get(key);
+  if (old?.signature === signature) return old.layers;
+  if (old) map.remove(old.layers);
+  const layers = build();
+  if (layers.length) map.add(layers);
+  layerSets.set(key, { signature, layers });
+  return layers;
+}
+function interactivePins(points, kind) {
+  return (points || []).map((p, i) => {
+    const icon =
+      kind === "cluster"
+        ? p.number
+        : { lunch: "🍜", dinner: "🍲", stay: "🛏" }[p.kind] || "♥";
+    const marker = new AMap.Marker({
+      position: p.position,
+      anchor: "bottom-center",
+      zIndex: p.selected ? 160 : 140,
+      content: `<button class="map-action ${kind} ${p.selected ? "selected" : ""}" aria-label="${escapeText(p.name)}" aria-pressed="${Boolean(p.selected)}"><b>${icon}</b>${kind === 'service' && !p.selected ? `<small>${p.saved ? '✓' : i + 1}</small>` : ''}<span>${escapeText(p.name)}</span>${p.saved && p.selected ? "<small>✓</small>" : ""}</button>`,
+    });
+    marker.on("click", () =>
+      parent.postMessage(
+        {
+          type:
+            kind === "cluster"
+              ? "seatraces-cluster-pick"
+              : "seatraces-service-pick",
+          id: p.id,
+        },
+        location.origin,
       ),
     );
+    return marker;
+  });
+}
+function boundaries(b, district) {
+  if (!b) return [];
+  const colors = [
+    "#ffdf8e",
+    "#bfe7b5",
+    "#c7dbf5",
+    "#ffc8ac",
+    "#e4d6f5",
+    "#c7ece1",
+  ];
+  const polygons = (rings, color, selected = false) =>
+    (rings || [])
+      .filter((r) => r.length > 2)
+      .map(
+        (path) =>
+          new AMap.Polygon({
+            path,
+            strokeColor: selected ? "#168c81" : "#ffffff",
+            strokeWeight: selected ? 3 : 1,
+            strokeOpacity: 0.9,
+            fillColor: color,
+            fillOpacity: selected ? 0.4 : 0.26,
+            zIndex: 40,
+            bubble: true,
+          }),
+      );
+  return [
+    ...polygons(b.cityRings, "#fff0bf", !(b.districts || []).length),
+    ...(b.districts || []).flatMap((d, i) => [
+      ...polygons(d.rings, colors[i % colors.length], d.name === district),
+      ...(d.center
+        ? [
+            new AMap.Marker({
+              position: d.center,
+              anchor: "center",
+              zIndex: 50,
+              content: `<span class="map-district">${escapeText(d.name)}</span>`,
+            }),
+          ]
+        : []),
+    ]),
+  ];
+}
+function paint() {
+  if (!map || !payload) return;
+  const context = payload.contextKey || "legacy",
+    changed = context !== activeContext;
+  if (changed) {
+    if (activeContext)
+      cameraStates.set(activeContext, {
+        center: map.getCenter(),
+        zoom: map.getZoom(),
+        fitKey: lastFitKey,
+        manuallyMoved,
+        boundaryFitted,
+      });
+    while (cameraStates.size > 40)
+      cameraStates.delete(cameraStates.keys().next().value);
+    activeContext = context;
+    manuallyMoved = false;
+    boundaryFitted = false;
+  }
+  detailLayers = replaceLayer(
+    "route",
+    [payload.connections, payload.stops],
+    () => [...curves(payload.connections, "#168c81"), ...pins(payload.stops)],
+  );
+  cityLayers = replaceLayer(
+    "overview",
+    [payload.cityConnections, payload.cities],
+    () => [
+      ...curves(payload.cityConnections, "#df7956"),
+      ...pins(payload.cities, true),
+    ],
+  );
+  const boundaryLayers = replaceLayer(
+    "boundary",
+    [payload.boundary, payload.district],
+    () => boundaries(payload.boundary, payload.district),
+  );
+  const clusterLayers = replaceLayer("clusters", payload.clusters, () =>
+    interactivePins(payload.clusters, "cluster"),
+  );
+  const wishLayers = replaceLayer("wishes", payload.wishes, () =>
+    pins((payload.wishes || []).map((p) => ({ ...p, name: "♥ " + p.name }))),
+  );
+  const serviceLayers = replaceLayer("services", payload.services, () =>
+    interactivePins(payload.services, "service"),
+  );
+  const selected = payload.services?.find((p) => p.selected);
+  replaceLayer(
+    "service-link",
+    [selected?.position, payload.serviceAnchor?.position],
+    () =>
+      selected && payload.serviceAnchor
+        ? [
+            new AMap.Polyline({
+              path: [payload.serviceAnchor.position, selected.position],
+              strokeStyle: "dashed",
+              strokeColor: "#e3935f",
+              strokeWeight: 3,
+              zIndex: 70,
+            }),
+          ]
+        : [],
+  );
+  showLayers(payload.view === "day" ? "day" : "overview");
+  let active =
+    visibleView === "overview"
+      ? cityLayers
+      : [...detailLayers, ...serviceLayers];
+  if (payload.kind === "planner")
+    active = boundaryLayers.length
+      ? boundaryLayers
+      : [...clusterLayers, ...wishLayers];
+  const saved = changed && cameraStates.get(context);
+  const raw = payload.viewPadding || [70, 35, 35, 35];
+  const padding = raw.map((n, i) =>
+    Math.max(
+      16,
+      Math.min(
+        Number(n) || 0,
+        (i < 2 ? innerHeight : innerWidth) * (i === 0 ? 0.4 : 0.25),
+      ),
+    ),
+  );
+  const beginCamera = () => {
     fitting = true;
     userGesture = false;
     clearTimeout(fitTimer);
-    // Only this view's curves and markers take part in fitting. Roads and
-    // distant city markers never enlarge a daily route's bounding rectangle.
-    map.setFitView(
-      active,
-      false,
-      padding,
-      visibleView === "overview" ? 12 : 19,
+    fitTimer = setTimeout(
+      () => {
+        fitting = false;
+      },
+      reduced() ? 0 : 700,
     );
-    if (visibleView === "day") detailThreshold = Math.min(9, map.getZoom() - 1);
-    fitTimer = setTimeout(() => {
-      fitting = false;
-    }, 700);
+  };
+  if (payload.preserveCamera) {
+    lastFitKey = payload.fitKey;
+    manuallyMoved = true;
+  } else if (saved && saved.fitKey === payload.fitKey) {
+    beginCamera();
+    map.setZoomAndCenter(saved.zoom, saved.center, reduced(), 400);
+    lastFitKey = saved.fitKey;
+    manuallyMoved = saved.manuallyMoved;
+    boundaryFitted = saved.boundaryFitted;
+  } else if (
+    changed ||
+    lastFitKey !== payload.fitKey ||
+    (payload.kind === "planner" &&
+      boundaryLayers.length &&
+      !boundaryFitted &&
+      !manuallyMoved)
+  ) {
+    beginCamera();
+    lastFitKey = payload.fitKey;
+    manuallyMoved = false;
+    if (active.length) {
+      // Fit only the current scene, never the distant origin in a daily view.
+      const district = payload.boundary?.districts?.find(
+        (d) => d.name === payload.district,
+      );
+      const bounds = district?.rings?.length
+        ? district.rings.map((path) => new AMap.Polygon({ path }))
+        : active;
+      map.setFitView(
+        bounds,
+        reduced(),
+        padding,
+        payload.kind === "planner" ? 14 : visibleView === "overview" ? 12 : 19,
+      );
+      boundaryFitted = Boolean(boundaryLayers.length);
+      if (visibleView === "day" && !payload.lockView)
+        detailThreshold = Math.min(9, map.getZoom() - 1);
+    } else if (
+      payload.focus?.length === 2 &&
+      payload.focus.every(Number.isFinite)
+    )
+      map.setZoomAndCenter(11, payload.focus, reduced(), 500);
+  }
+  if (changed && !reduced()) {
+    const el = document.querySelector("#map");
+    el.classList.remove("scene-arrive");
+    requestAnimationFrame(() => el.classList.add("scene-arrive"));
   }
   if (home) status.hidden = true;
 }
@@ -204,10 +398,12 @@ window.addEventListener("message", (e) => {
     map.on("zoomend", onZoom);
     document.querySelector("#zoom-in").onclick = () => {
       userGesture = true;
+      manuallyMoved = true;
       map.zoomIn();
     };
     document.querySelector("#zoom-out").onclick = () => {
       userGesture = true;
+      manuallyMoved = true;
       map.zoomOut();
     };
     paint();
