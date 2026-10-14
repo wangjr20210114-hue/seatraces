@@ -15,6 +15,7 @@ import { searchCandidates } from './services/place-candidates.mjs';
 import { nearbyRecommendations } from './services/nearby-recommendations.mjs';
 import { installJourneyRoutes } from './services/journey-service.mjs';
 import { installCityWalkRoutes } from './services/citywalk-service.mjs';
+import { installTripServiceRoutes } from './services/trip-services.mjs';
 import { openingOnDate, validateOpeningDate } from './opening-hours.mjs';
 import { createRouteSelection, routingProvider } from './route-selection.mjs';
 const routeSelections = createRouteSelection();
@@ -267,6 +268,7 @@ async function travelHabit(user) {
   };
 }
 installJourneyRoutes(app,{auth,travelHabit});
+installTripServiceRoutes(app,{auth});
 installCityWalkRoutes(app,{auth,travelHabit});
 app.get("/api/questions", auth, async (req, res) =>
   res.json(await personalizedQuestions(await travelHabit(req.user))),

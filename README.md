@@ -518,3 +518,9 @@ node scripts/assess-five-city-deepseek.mjs --stop
 启动文件为 `validation/entity-dedup-package/run-on-server.txt`，须在既有服务器 OrcaTerm 中完整执行。后台入口 `start_entity_dedup.py` 不新增 SSH 密钥或定时任务，先写本次 running 状态，结束后自动部署和验证只读接口；失败会记录错误，读服务验收失败则恢复读代码及旧主实体版本。状态目录为 `/home/ubuntu/seatraces-osm/audits/entity-dedup/`。全量算法完成并不等于所有潜在别名已找到，缺少足够身份依据的记录仍独立保留。
 
 本机 7 项身份/搜索结构/证据保留检查、20 项相关 Node 检查通过；服务器启动包重跑 7 项身份检查通过。用户回传确认北京时间 2026-10-13 10:13:41 启动，worker PID 3994297，阶段 `rebuild_entities.py`。10:14 经只读接口检查原服务为 live，`/entity-coverage` 尚未安装；这不能单独证明批次仍在运行或已经失败。发布验收会实查故宫、故宫博物院、Palace Museum、太和殿以及聚类输入。目前尚无全量去重完成统计或发布验收结果。启动证据见 `validation/entity-dedup-launch-20261013.json`。
+# 沿途吃住与接口说明（2026-10-14）
+
+完整端到端接口见 [API_REFERENCE.md](API_REFERENCE.md)，方法与源码位置清单见 [contracts/api-inventory.json](contracts/api-inventory.json)。文档区分当前页面、旧版兼容接口及尚未接通的功能。
+
+行程的“沿途吃住”提供午餐、晚餐、同城住宿候选，使用自建 OSM 库和 PostgreSQL 缓存；点击后进入独立列表与详情页，确认后保存到行程版本，从历史行程可恢复。当前按直线距离/顺路程度推荐，不生成商家图片、不提供预订或实时价格房态、不调用 agent。生产更新需以迁移角色执行 `server/trip-services-schema.sql`，不要给业务账号新增建表权限。后续更新脚本见 `deploy/update-services.py`。
+

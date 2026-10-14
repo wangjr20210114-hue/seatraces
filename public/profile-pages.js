@@ -20,7 +20,7 @@ export async function renderProfilePage({ route, content, setTitle, api, esc, is
       content.innerHTML = `<div class="trip-detail-heading"><span class="eyebrow">MY JOURNEY</span><h2>${esc(trip.title)}</h2><p class="muted">${esc(trip.request?.start || '')} — ${esc(trip.request?.end || '')}</p></div>
         ${trip.plan?.schemaVersion === 'journey/2' ? '<button class="primary page-map-action">在地图上查看 ↗</button>' : ''}
         ${days.map((day, index) => `<article class="trip-day"><header><span class="day-number">Day ${index + 1}</span><div><h3>${esc(day.city || '')}</h3><small>${esc(day.date)}</small></div></header>
-          ${(day.stops || []).length ? `<ol class="trip-stop-list">${day.stops.map(stop => `<li><span>${esc(stop.name)}</span>${stop.arrive ? `<small>${esc(stop.arrive)}</small>` : ''}</li>`).join('')}</ol>` : '<p class="muted">自由时光</p>'}</article>`).join('') || '<p class="page-status">行程内容暂不可展示</p>'}`;
+          ${(day.stops || []).length ? `<ol class="trip-stop-list">${day.stops.map(stop => `<li><span>${esc(stop.name)}</span>${stop.arrive ? `<small>${esc(stop.arrive)}</small>` : ''}</li>`).join('')}</ol>` : '<p class="muted">自由时光</p>'}${Object.values(trip.plan.services||{}).filter(s=>s.days?.includes(index)).map(s=>`<div class="service-saved-summary">${s.kind==='stay'?'🛏 住宿':s.kind==='lunch'?'🍜 午餐':'🍲 晚餐'} · ${esc(s.candidate.name)}</div>`).join('')}${trip.plan.schemaVersion==='journey/2'?`<a class="inline-action" href="#/services/${encodeURIComponent(trip.id)}?day=${index}">看看附近吃住 ↗</a>`:''}</article>`).join('') || '<p class="page-status">行程内容暂不可展示</p>'}`;
       const mapButton = content.querySelector('.page-map-action');
       if (mapButton) mapButton.onclick = () => onTrip(trip);
     } else if (route.page === 'history') {

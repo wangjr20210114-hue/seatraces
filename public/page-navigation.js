@@ -1,13 +1,16 @@
-const pages = new Set(['home', 'discover', 'profile', 'account', 'history', 'favorites', 'browsing', 'report', 'citywalk']);
+const pages = new Set(['home', 'discover', 'profile', 'account', 'history', 'favorites', 'browsing', 'report', 'citywalk','services']);
 
 function parseRoute(hash) {
-  const parts = hash.replace(/^#?\/?/, '').split('/');
+  const [pathname,search=''] = hash.replace(/^#?\/?/, '').split('?');
+  const parts = pathname.split('/');
   const page = pages.has(parts[0]) ? parts[0] : 'home';
   let id = '';
-  if (['history', 'citywalk'].includes(page) && parts[1]) {
+  if (['history', 'citywalk','services'].includes(page) && parts[1]) {
     try { id = decodeURIComponent(parts[1]); } catch { /* Invalid URLs open the list. */ }
   }
-  return { page, id, path: '/' + page + (id ? '/' + encodeURIComponent(id) : '') };
+  const params = page==='services'?Object.fromEntries([...new URLSearchParams(search)].filter(([k])=>['day','slot','place','radius'].includes(k))):{};
+  const query = new URLSearchParams(params).toString();
+  return { page, id, params, path: '/' + page + (id ? '/' + encodeURIComponent(id) : '')+(query?'?'+query:'') };
 }
 
 // Same-document history keeps the map and in-progress questionnaire alive.
@@ -41,7 +44,7 @@ export function createPageNavigation({ onChange, onRepeat }) {
     },
     back() {
       if (history.state?.seatracesPage?.depth > 0) history.back();
-      else go(current?.page === 'citywalk' ? '/home' : current?.id ? '/history' : '/profile', { replace: true });
+      else go(['citywalk','services'].includes(current?.page) ? '/home' : current?.id ? '/history' : '/profile', { replace: true });
     },
   };
 }

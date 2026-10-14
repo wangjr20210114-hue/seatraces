@@ -3,6 +3,7 @@ import { createCityWalkHome, renderCityWalkEditor } from "./citywalk.js";
 import { createTabMotion } from "./tab-motion.js";
 import { createPageNavigation } from "./page-navigation.js";
 import { renderProfilePage } from "./profile-pages.js";
+import { mountTripServices,renderTripServicesPage } from './trip-services.js';
 import { toGcj, mainlandEligible } from "./coordinates.js";
 import { currentPosition } from "./geolocation.js";
 import { createPresenceRecorder } from "./presence.js";
@@ -152,7 +153,13 @@ const navigation = createPageNavigation({
       const content = document.createElement('div');
       $('#page-content').replaceChildren(content);
       $('#detail-page').scrollTop = 0;
-      if (route.page === 'citywalk') {
+      if (route.page === 'services') {
+        void renderTripServicesPage({route,content,setTitle,api,isCurrent:()=>revision===pageRevision,navigate:path=>navigation.go(path),onTrip:trip=>{
+          state.trip=trip;const day=Number(route.params?.day||0);state.day=trip.plan.days[day]?day:0;
+          state.mapView='day';state.fitRevision++;localStorage.setItem('seatraces-last-trip',trip.id);
+          navigation.go('/home');paintTrip();$('#itinerary').scrollIntoView({behavior:reducedMotion()?'auto':'smooth',block:'start'});
+        }});
+      } else if (route.page === 'citywalk') {
         void renderCityWalkEditor({ route, content, setTitle, api, toast, navigate: path => navigation.go(path), isCurrent: () => revision === pageRevision }).then(cleanup => { if (revision === pageRevision) pageCleanup = cleanup; else cleanup?.(); });
       } else void renderProfilePage({
         route, content, setTitle, api, esc,
@@ -783,6 +790,9 @@ function paintTrip(updateMap = true) {
     }
   };
   if (updateMap) paintMap();
+  const services=document.createElement('section');
+  $('#itinerary').append(services);
+  mountTripServices({element:services,trip:t,day:state.day,api,navigate:path=>navigation.go(path)});
 }
 let districtRefresh;
 function refreshDistricts(city) {

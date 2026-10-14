@@ -19,7 +19,7 @@ const skipped = new Set(['sessions','account_tokens','auth_rate_limits']);
 try {
   await client.connect();
   await client.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
-  const schemas = await Promise.all(['schema.sql','auth-schema.sql','citywalk-schema.sql'].map(f=>readFile(path.join(root,'server',f),'utf8')));
+  const schemas = await Promise.all(['schema.sql','auth-schema.sql','citywalk-schema.sql','trip-services-schema.sql'].map(f=>readFile(path.join(root,'server',f),'utf8')));
   const tables = (await client.query("SELECT tablename FROM pg_tables WHERE schemaname='public' ORDER BY tablename")).rows.map(r=>r.tablename);
   const known = new Set([...schemas.join('\n').matchAll(/CREATE TABLE IF NOT EXISTS\s+(\w+)/gi)].map(m=>m[1]));
   if (tables.some(t=>!known.has(t))) throw Error('Unrecognized table: review the migration schema before export');
