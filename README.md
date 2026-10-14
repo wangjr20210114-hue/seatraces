@@ -4,6 +4,8 @@
 
 ## 团队共用服务
 
+团队后端配置已提供加密快照 [`.env.enc`](.env.enc)，解密密码单独私下分享；组员使用步骤见 [团队加密配置](TEAM_ENV.md)。公开仓库不包含明文密钥，线上服务配置不受此快照影响。
+
 2026-10-14 已上线 **https://trip.seatraces.com**。浏览器直接打开后注册/登录；API 基址为 `https://trip.seatraces.com/api`。组员使用这个地址，无需启动原开发电脑、SSH 隧道或本机 PostgreSQL。已有账号、历史行程和 CityWalk 已迁入服务器独立的 `seatraces_business` PostgreSQL 数据库，旧登录会话不迁移，需要重新登录。
 
 HarmonyOS 源码默认连接此 HTTPS 地址。已安装旧 HAP 的设备在顶部“连接设置”填入 `https://trip.seatraces.com` 并连接；本次没有重新发布 HAP。服务器运行独立前端与 API 容器，前端不依赖数据库启动；OSM 服务继续使用同机私有端口。详细结构、运维和回滚见 [部署说明](deploy/README.md)。
