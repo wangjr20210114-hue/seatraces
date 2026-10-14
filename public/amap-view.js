@@ -2,6 +2,7 @@
 let map,
   payload,
   lastFitKey,
+  lastFocusKey,
   fitting = false,
   fitTimer,
   detailThreshold = 9,
@@ -207,6 +208,7 @@ function paint() {
     activeContext = context;
     manuallyMoved = false;
     boundaryFitted = false;
+    lastFocusKey = undefined;
   }
   detailLayers = replaceLayer(
     "route",
@@ -258,9 +260,7 @@ function paint() {
       ? cityLayers
       : [...detailLayers, ...serviceLayers];
   if (payload.kind === "planner")
-    active = boundaryLayers.length
-      ? boundaryLayers
-      : [...clusterLayers, ...wishLayers];
+    active = clusterLayers.length ? clusterLayers : boundaryLayers;
   const saved = changed && cameraStates.get(context);
   const raw = payload.viewPadding || [70, 35, 35, 35];
   const padding = raw.map((n, i) =>
@@ -283,7 +283,24 @@ function paint() {
       reduced() ? 0 : 700,
     );
   };
-  if (payload.preserveCamera) {
+  const focus = payload.selectionFocus;
+  if (!focus) lastFocusKey = undefined;
+  if (
+    focus?.key !== lastFocusKey &&
+    focus?.position?.length === 2 &&
+    focus.position.every(Number.isFinite)
+  ) {
+    beginCamera();
+    map.setZoomAndCenter(
+      Math.max(16, map.getZoom()),
+      focus.position,
+      reduced(),
+      450,
+    );
+    lastFocusKey = focus.key;
+    lastFitKey = payload.fitKey;
+    manuallyMoved = false;
+  } else if (payload.preserveCamera) {
     lastFitKey = payload.fitKey;
     manuallyMoved = true;
   } else if (saved && saved.fitKey === payload.fitKey) {
@@ -296,6 +313,7 @@ function paint() {
     changed ||
     lastFitKey !== payload.fitKey ||
     (payload.kind === "planner" &&
+      !clusterLayers.length &&
       boundaryLayers.length &&
       !boundaryFitted &&
       !manuallyMoved)
@@ -308,14 +326,15 @@ function paint() {
       const district = payload.boundary?.districts?.find(
         (d) => d.name === payload.district,
       );
-      const bounds = district?.rings?.length
-        ? district.rings.map((path) => new AMap.Polygon({ path }))
-        : active;
+      const bounds =
+        !clusterLayers.length && district?.rings?.length
+          ? district.rings.map((path) => new AMap.Polygon({ path }))
+          : active;
       map.setFitView(
         bounds,
         reduced(),
         padding,
-        payload.kind === "planner" ? 14 : visibleView === "overview" ? 12 : 19,
+        payload.kind === "planner" ? 16 : visibleView === "overview" ? 12 : 19,
       );
       boundaryFitted = Boolean(boundaryLayers.length);
       if (visibleView === "day" && !payload.lockView)

@@ -151,51 +151,6 @@
   margin: 0;
   padding: 6px 0 10px;
 }
-#services-content .service-area {
-  margin: 4px 0 12px;
-  font-size: 13px;
-}
-#services-content .service-card[aria-pressed="true"] {
-  background: #d2f3df;
-  border-color: #17484a;
-  box-shadow: 3px 3px 0 #17484a;
-}
-.service-pick {
-  scroll-margin-top: 66px;
-  padding: 12px 14px;
-  margin: 4px 0 14px;
-  border: 2px solid #17484a;
-  border-radius: 18px;
-  background: #ffecaf;
-}
-.service-pick h2 {
-  font-size: 18px;
-  margin: 0 0 7px;
-}
-.service-pick p {
-  font-size: 13px;
-  margin: 6px 0;
-}
-.service-pick-actions {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-top: 10px;
-}
-.service-pick-actions .primary {
-  padding: 10px 18px;
-  min-height: 44px;
-  font-size: 15px;
-}
-.service-pick [role="status"] {
-  min-height: 1em;
-}
-.map-workspace .service-heading {
-  margin: 0;
-}
-.map-workspace .service-source {
-  font-size: 11px;
-}
 @media (min-width: 780px) {
   #home.map-workspace {
     max-width: 1050px;
@@ -225,13 +180,4 @@
 
 #services-content .service-tabs {
   z-index: 3;
-}
-.service-pick {
-  scroll-margin-top: 76px;
-}
-.service-pick-actions {
-  justify-content: space-between;
-}
-.service-pick-actions .service-outline {
-  padding: 10px 16px;
 }

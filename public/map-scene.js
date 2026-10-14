@@ -41,8 +41,13 @@ export function plannerScene({
     view: "day",
     segments: [],
     contextKey,
-    fitKey,
-    viewPadding: [80, 48, 35, 35],
+    fitKey: `${fitKey}:clusters:${groups
+      .map((g) => {
+        const p = g.anchor || g.center;
+        return `${g.id}:${p?.lng}:${p?.lat}`;
+      })
+      .join("|")}`,
+    viewPadding: [32, 32, 45, 45],
     focus: scenePoint(city)?.position,
     boundary,
     district,
@@ -68,7 +73,7 @@ export function plannerScene({
   };
 }
 
-export function serviceScene(base, slot, selectedId) {
+export function serviceScene(base, slot, selectedId, focusRevision = 0) {
   const saved = slot.selected?.candidate;
   const candidates = [...slot.items];
   if (saved && !candidates.some((p) => p.id === saved.id))
@@ -96,7 +101,14 @@ export function serviceScene(base, slot, selectedId) {
       .map((p) => p.id)
       .sort()
       .join(",")}`,
-    viewPadding: [90, 55, 40, 40],
+    viewPadding: [35, 35, 45, 45],
+    selectionFocus:
+      selectedId && services.some((p) => p.id === selectedId)
+        ? {
+            key: `${slot.id}:${selectedId}:${focusRevision}`,
+            position: services.find((p) => p.id === selectedId).position,
+          }
+        : null,
     services,
     serviceAnchor: scenePoint(
       candidates.find((p) => p.id === selectedId)?.nearestAnchor || slot.anchor,

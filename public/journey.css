@@ -128,7 +128,7 @@ button:disabled {
   background: #ffdb78;
   border: 2px solid #183c40;
   border-radius: 18px;
-  box-shadow: 3px 3px 0 #183c40;
+  box-shadow: 1px 1px 0 #183c4040;
   transform: rotate(-7deg);
 }
 .discovery-card {
@@ -138,7 +138,7 @@ button:disabled {
   border: 2px solid #183c40;
   border-radius: 26px;
   background: #fffdf2;
-  box-shadow: 6px 7px 0 #183c40;
+  box-shadow: 3px 3px 0 #183c4040;
   text-align: center;
 }
 .coming-soon {
@@ -180,7 +180,7 @@ button:disabled {
   border: 2px solid #183c40;
   border-radius: 24px;
   background: #c4f1df;
-  box-shadow: 5px 5px 0 #183c40;
+  box-shadow: 2px 2px 0 #183c4040;
   text-align: left;
 }
 .profile-avatar {
@@ -230,7 +230,7 @@ button:disabled {
   border: 2px solid #183c40;
   border-radius: 21px;
   background: #fffdf2;
-  box-shadow: 3px 4px 0 #183c40;
+  box-shadow: 1px 2px 0 #183c4040;
   text-align: left;
   transition: transform 0.15s;
 }
@@ -310,7 +310,7 @@ button:disabled {
   border: 2px solid #183c40;
   border-radius: 16px;
   background: #ffe5a6;
-  box-shadow: 3px 3px 0 #183c40;
+  box-shadow: 1px 1px 0 #183c4040;
   font-size: 12px;
 }
 #reconnect {
@@ -350,7 +350,7 @@ button:disabled {
   border: 2px solid #173c40;
   background: #fffced;
   border-radius: 50px;
-  box-shadow: 3px 4px 0 #173c40;
+  box-shadow: 1px 2px 0 #183c4040;
   font-size: 19px;
   letter-spacing: -0.5px;
 }
@@ -391,7 +391,7 @@ button:disabled {
   background: #27cfb8;
   border: 2px solid #173c40;
   border-radius: 16px;
-  box-shadow: 0 5px 0 #173c40;
+  box-shadow: 0 2px 0 #183c4040;
   padding: 14px 26px;
   font-size: 17px;
   font-weight: 800;
@@ -405,7 +405,7 @@ button:disabled {
 }
 .primary:active {
   transform: translateY(4px);
-  box-shadow: 0 1px 0 #173c40;
+  box-shadow: 0 1px 0 #183c4040;
 }
 .home-footer {
   position: relative;
@@ -435,7 +435,7 @@ button:disabled {
   background: #fffced;
   border: 2px solid #173c40;
   border-radius: 22px;
-  box-shadow: 3px 3px 0 #173c40;
+  box-shadow: 1px 1px 0 #183c4040;
   padding: 17px 20px;
 }
 .navigation-action {
@@ -499,7 +499,7 @@ button:disabled {
 }
 .day[aria-pressed="true"] {
   background: #ffda69;
-  box-shadow: 2px 2px 0 #183c40;
+  box-shadow: 1px 1px 0 #183c4040;
   font-weight: 800;
 }
 .stopline {
@@ -552,7 +552,7 @@ dialog::backdrop {
   opacity: 1;
   border: 2.5px solid #173c40;
   border-radius: 20px 20px 8px 8px;
-  box-shadow: 7px 9px 0 #173c40;
+  box-shadow: 3px 4px 0 #183c4040;
   position: relative;
   max-height: calc(100dvh - 42px);
   display: flex;
@@ -685,7 +685,7 @@ dialog::backdrop {
 }
 .choice[aria-pressed="true"] {
   background: #ffdb79;
-  box-shadow: 3px 3px 0 #183c40;
+  box-shadow: 1px 1px 0 #183c4040;
   transform: translate(-2px, -2px);
 }
 .choice small {
@@ -719,7 +719,7 @@ dialog::backdrop {
   border: 2.5px solid #173c40;
   border-radius: 24px;
   transform: rotate(-7deg);
-  box-shadow: 4px 4px 0 #173c40;
+  box-shadow: 2px 2px 0 #183c4040;
 }
 .date-row {
   display: grid;

@@ -2,7 +2,6 @@ import { z } from "zod";
 import { randomUUID } from "node:crypto";
 import { query as dbQuery, transaction as dbTransaction } from "../db.mjs";
 import { catalogRequest } from "./catalog.mjs";
-import { createServicePrices } from "./service-prices.mjs";
 import {
   serviceSlots,
   rankServicePlaces,
@@ -41,11 +40,9 @@ export function installTripServiceRoutes(
     query = dbQuery,
     transaction = dbTransaction,
     search = catalogRequest,
-    priceSearch,
   },
 ) {
   const inflight = new Map();
-  const getPrice = createServicePrices({ query, search: priceSearch });
   async function own(id, user, c = { query }, lock = false) {
     z.uuid().parse(id);
     const trip = (
@@ -182,30 +179,22 @@ export function installTripServiceRoutes(
         const batch = body.groupMeals
           ? selectServiceBatch(pool.items, {
               ...body,
+              sort: "distance",
               kind: slot.kind,
               radius: pool.radius,
               refresh: active && body.refresh,
               excludePlaceIds: active ? body.excludePlaceIds : [],
             })
-          : { items: pool.items.slice(0, 5) };
-        if (body.groupMeals && active) {
-          // Price only this displayed batch, not every OSM row. Reuse PG across trips.
-          for (const p of batch.items) p.price = await getPrice(p, slot.anchor);
-          batch.items.sort(serviceComparator(body.sort));
-          if (pool.recommendationId)
-            await query(
-              "UPDATE trip_service_recommendations SET payload=$1 WHERE id=$2",
-              [
-                JSON.stringify({ ...pool, items: pool.items }),
-                pool.recommendationId,
-              ],
-            );
-        }
+          : {
+              items: [...pool.items]
+                .sort(serviceComparator("distance"))
+                .slice(0, 5),
+            };
         slots.push({
           ...slot,
           ...pool,
           ...batch,
-          sort: body.sort || "comprehensive",
+          sort: "distance",
         });
       }
       res.json({

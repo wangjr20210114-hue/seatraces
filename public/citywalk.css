@@ -6,7 +6,7 @@
 .walk-create { border: 0; background: #dff1dc; border-radius: 20px; padding: 10px 14px; font-weight: 750; font-size: 13px; color: #245b51; }
 .walk-carousel { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; gap: 14px; padding: 0 0 7px; position: relative; overscroll-behavior-x: contain; }
 .walk-carousel::-webkit-scrollbar { display: none; }
-.walk-slide { flex: 0 0 100%; scroll-snap-align: start; border: 2px solid #183c40; border-radius: 24px; box-shadow: 0 5px 0 #183c40; overflow: hidden; background: #c4efdd; }
+.walk-slide { flex: 0 0 100%; scroll-snap-align: start; border: 2px solid #183c40; border-radius: 24px; box-shadow: 0 2px 0 #183c4040; overflow: hidden; background: #c4efdd; }
 .walk-slide.peach { background: #f8cbb7; }
 .walk-slide.yellow { background: #f7e3a2; }
 .classic-open { display: block; width: 100%; border: 0; padding: 0; background: transparent; color: #183c40; text-align: left; position: relative; }

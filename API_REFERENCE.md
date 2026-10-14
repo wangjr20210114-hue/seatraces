@@ -117,7 +117,7 @@ operation：`{type:lock/remove/replace/add/move,day:0…29,placeId?:≤80,newPla
 
 ## 沿途餐饮和住宿
 
-实现：`server/domain/trip-services.mjs`负责位置/评分，`server/services/trip-services.mjs`负责鉴权、候选缓存、预览和保存；`public/trip-services.js`负责独立页面。无图片生成、无订餐订房。按需调用高德获取展示商家的人均消费；不调用大模型预测价格。
+实现：`server/domain/trip-services.mjs`负责位置/评分，`server/services/trip-services.mjs`负责鉴权、候选缓存、预览和保存；`public/trip-services.js`负责入口和请求复用，`public/service-map-dock.js`负责共享地图中的候选卡片与抽屉操作。只按距离排列，不获取或展示价格，无图片生成、无订餐订房。
 
 | 方法与路径（前缀 /api） | 输入 | 输出与职责 |
 |---|---|---|
@@ -138,15 +138,15 @@ Slot结构：`id,kind(dining/lunch/dinner/stay),title,anchor,next,days,radius,ci
 1. 餐饮以当天全部景点为范围，最多选4个分散的真实景点进行OSM只读检索，每处40条；按离最近景点的直线距离计算位置。住宿以连续同城日景点的medoid为中心。不是按午晚餐营业时间筛选。
 2. 候选按ID去重；同名且80米内合并为一个备选。排除无名/无坐标/错类别及明确的咖啡、酒吧、酒馆和冰淇淋。
 3. 每批最多5家。优先店间距餐饮300米、住宿500米；数据密集或稀少时逐级放宽，绝不复制凑数。`refresh:true`随机换批，`excludePlaceIds`优先排除已展示项；不足5个新项才复用。返回 `canRefresh,candidateCount`。
-4. `activeSlot`指定当前显示类别，只为该类别本批最多5家补价格。先读PostgreSQL `place_service_prices`，未命中才按名称+位置查高德 `searchAround(details:true)`。大陆以外暂无价格；不发送用户身份、偏好或行程给高德。
-5. 仅同类别、名称相似度≥0.85、距离≤250米，且前两名差距≥0.08时采用人均消费。OSM未写分店后缀时，只在100米内允许完整主店名匹配；已有分店名不去除。读取v5 `business.cost` / v3 `biz_ext.cost`；空值、数组、0、非数字或有歧义的匹配显示“人均 暂无”。不推测；酒店该字段也为人均消费，**不是某日房价或每间每晚报价**。[字段文档](https://lbs.amap.com/api/webservice/guide/api-advanced/newpoisearch)
-6. `price={status,amount,currency:CNY,unit:per_person,provider:amap,providerId?,matchedName?,matchDistanceMeters?,matchScore?,checkedAt,sourceUpdatedAt:null,cached?}`。成功/无价格/未匹配缓存24小时；暂时故障缓存5分钟，额度/服务故障暂停价格请求5分钟。名称、坐标、类别改变使旧记录失效。来源留在后端与接口，详情不显示来源链接。
-7. 默认综合成本=0.75×距离归一值 + 0.20×人均消费归一值 + 0.05×资料缺失比例，越低越优先。价格未知使用中性值；不编造评论或人气。界面“综合 / 距离 / 价格”排序当前5家，点击不重新调用高德；价格未知放最后。“换一批”从当前缓存候选池重新抽样，再获取缺失价格并按所选规则排列。
-8. `recommendationId`代表当前有效候选池；详情携带该ID和placeId进行原preview，换批不导致旧详情失效。历史午晚餐选择仍可见、可移除，新选择存 `dining:n`。保存仍做所有权、版本、有效期校验。
+4. 统一餐饮推荐固定按 `distanceMeters` 升序排列（同分按ID），返回 `sort:"distance"`。为兼容旧客户端，`sort:"price"/"comprehensive"`仍接受，但使用距离排序，不触发价格查询。旧午晚餐slot和HTTP路径保留。
+5. `activeSlot`只限定本次换批类别；`refresh:true`从已缓存候选随机抽取，再按距离排列。维持每批5家及空间分散策略，不保证这5家是全库绝对最近的5家。
+6. 推荐、换批、预览、保存均不调用价格供应商。已有 `place_service_prices` 和历史行程中的可选price字段保留，不显示、不新写，不做破坏性迁移。
+7. 点击卡片/标记后地图聚焦该地点，卡片下方抽屉展开“选这家 / 高德查看”；旧details深链接回到共享地图，候选在本批时自动选中。高德查看使用 [AMap marker URI](https://developer.amap.com/api/uri-api/guide/mobile-web/point)，携带地点名称、坐标及对应坐标系，不携带用户资料或调用商家详情收费接口。设备可打开高德客户端，否则显示网页。
+8. `recommendationId`代表当前有效候选池；选店仍调用原preview和PUT，做所有权、版本、有效期校验。历史午晚餐选择仍可见、可移除，新选择存 `dining:n`。换批等待显示旋转图标及列表呼吸效果，禁止重复提交；失败保留原批次，可重试。减少动态效果的系统偏好会停用动画。
 
 新增表 `trip_service_recommendations`：`id,trip_id,slot_id,scope_key,radius,payload,created_at,expires_at`；唯一键为trip_id+slot_id+scope_key+radius。过期缓存按该行程后续成功查询时清理。选择存入 `trips.plan.services`，同时写 `trip_versions`。不得让agent或客户端绕过预览/版本检查直接写表。
 
-新增表 `place_service_prices`：`place_id`（OSM主地点ID主键）、`fingerprint`（名称/坐标/类别摘要）、`payload`（价格与匹配来源）、`checked_at`、`expires_at`。这是所有用户共用的商家价格缓存，跨行程复用；不存JSON文件，不把高德价格写成OSM原始事实。
+新增表 `place_service_prices`：`place_id`（OSM主地点ID主键）、`fingerprint`（名称/坐标/类别摘要）、`payload`（价格与匹配来源）、`checked_at`、`expires_at`。此表保留历史缓存，当前吃住流程已停用价格查询，不再读取或新增价格记录。
 
 ## CityWalk
 
@@ -254,6 +254,6 @@ const saved = await call(path, choice, 'PUT');
 
 `#/services/:tripId?day=0&slot=lunch:0` 现在使用同一地图下方的吃住面板；`place` 参数仍打开独立详情页。餐饮、住宿保留当天景点曲线，分别叠加候选位置。点击标记或卡片调用原有 preview，选择才调用原有 PUT，移除调用 DELETE。版本冲突保留错误并提供刷新；不自动重排景点，不把虚线当作实际道路。
 
-地图通信是同源 iframe 的内部视图协议（不是新增业务HTTP接口）：原有 `seatraces-overview`/`seatraces-route` 字段保持兼容，新增可选 `kind,contextKey,services,serviceAnchor,boundary,district,clusters,wishes,focus`。`fitKey` 只控制主动适配；候选高亮不改变它。新上下文首进适配，返回恢复相机；用户移动地图后迟到的边界不会抢走视角。CityWalk继续兼容旧消息格式。坐标从WGS84转换到GCJ02一次，高德边界已为GCJ02直接绘制。
+地图通信是同源 iframe 的内部视图协议（不是新增业务HTTP接口）：原有 `seatraces-overview`/`seatraces-route` 字段保持兼容，新增可选 `kind,contextKey,services,serviceAnchor,boundary,district,clusters,wishes,focus,selectionFocus`。`selectionFocus:{key,position}`为显式选店聚焦命令，新key才移动相机；不改变候选批次fitKey。问卷地图按聚类坐标范围适配，只有无聚类时才适配行政区边界。聚类数据到达时fitKey变化，迟到边界不会再把聚类缩小；选择/取消片区不改变相机。新上下文首进适配，返回恢复相机；用户移动地图后迟到的边界不会抢走视角。CityWalk继续兼容旧消息格式。坐标从WGS84转换到GCJ02一次，高德边界已为GCJ02直接绘制。
 
 本次只新增上述一个认证只读市界接口，原72个HTTP操作的请求/响应合同与数据库表结构保持不变。地图渲染实现参考[高德 JS API 2.0 地图状态](https://developer.amap.com/api/javascript-api-v2/guide/map/state)。

@@ -3,7 +3,7 @@ import { createCityWalkHome, renderCityWalkEditor } from "./citywalk.js";
 import { createTabMotion } from "./tab-motion.js";
 import { createPageNavigation } from "./page-navigation.js";
 import { renderProfilePage } from "./profile-pages.js";
-import { mountTripServices, renderTripServicesPage } from "./trip-services.js";
+import { mountTripServices } from "./trip-services.js";
 import { mountServiceMapDock } from "./service-map-dock.js";
 import { plannerScene, serviceScene, savedServicePoints } from "./map-scene.js";
 import { toGcj, mainlandEligible } from "./coordinates.js";
@@ -237,7 +237,7 @@ const navigation = createPageNavigation({
       return;
     }
     const revision = ++pageRevision,
-      serviceView = route.page === "services" && !route.params?.place,
+      serviceView = route.page === "services",
       detail = !panels[route.page] && !serviceView;
     setBusy(false);
     if ($("#wizard").open) closeWizard();
@@ -299,8 +299,8 @@ const navigation = createPageNavigation({
             api,
             isCurrent: current,
             navigate: (path) => navigation.go(path),
-            onScene: (slot, id) => {
-              serviceMap = { slot, id };
+            onScene: (slot, id, focusRevision) => {
+              serviceMap = { slot, id, focusRevision };
               paintMap();
             },
             onTrip: (trip) => {
@@ -320,47 +320,7 @@ const navigation = createPageNavigation({
       const content = document.createElement("div");
       $("#page-content").replaceChildren(content);
       $("#detail-page").scrollTop = 0;
-      if (route.page === "services") {
-        const renderDetail = async () => {
-          try {
-            const trip =
-              state.trip?.id === route.id
-                ? state.trip
-                : await api("/api/trips/" + encodeURIComponent(route.id));
-            if (revision !== pageRevision) return;
-            const cityContext = trip.plan.cities.find(
-              (c) =>
-                c.id === trip.plan.days[Number(route.params?.day || 0)]?.cityId,
-            );
-            await renderTripServicesPage({
-              route,
-              content,
-              setTitle,
-              api,
-              cityContext,
-              isCurrent: () => revision === pageRevision,
-              navigate: (path) => navigation.go(path),
-              onTrip: (trip) => {
-                state.trip = trip;
-                const day = Number(route.params?.day || 0);
-                state.day = trip.plan.days[day] ? day : 0;
-                state.mapView = "day";
-                state.fitRevision++;
-                localStorage.setItem("seatraces-last-trip", trip.id);
-                navigation.go("/home");
-                paintTrip();
-                $("#itinerary").scrollIntoView({
-                  behavior: reducedMotion() ? "auto" : "smooth",
-                  block: "start",
-                });
-              },
-            });
-          } catch (e) {
-            if (revision === pageRevision) content.textContent = e.message;
-          }
-        };
-        void renderDetail();
-      } else if (route.page === "citywalk") {
+      if (route.page === "citywalk") {
         void renderCityWalkEditor({
           route,
           content,
@@ -979,7 +939,12 @@ function paintMap({ preserveCamera = false } = {}) {
       fitKey: "planner:blank",
     };
   else if (serviceMap)
-    payload = serviceScene(payload, serviceMap.slot, serviceMap.id);
+    payload = serviceScene(
+      payload,
+      serviceMap.slot,
+      serviceMap.id,
+      serviceMap.focusRevision,
+    );
   if (preserveCamera) payload.preserveCamera = true;
   $("#travel-map").contentWindow.postMessage(payload, location.origin);
 }

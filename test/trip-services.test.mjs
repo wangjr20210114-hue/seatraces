@@ -281,18 +281,20 @@ test(
         unified.data.slots.map((s) => s.kind),
         ["dining", "stay"],
       );
-      assert.equal(unified.data.slots[0].items[0].price.amount, null);
-      assert.equal(priceCalls, 1);
-      await req("/recommendations", {
+      assert.equal(unified.data.slots[0].sort, "distance");
+      assert.equal(priceCalls, 0);
+      const refreshed = await req("/recommendations", {
         day: 0,
         groupMeals: true,
         activeSlot: "dining:0",
         refresh: true,
+        sort: "price", // Older clients remain valid, but no longer trigger price lookups.
       });
-      assert.equal(priceCalls, 1, "unavailable price persists and is reused");
+      assert.equal(refreshed.status, 200);
+      assert.equal(refreshed.data.slots[0].sort, "distance");
+      assert.equal(priceCalls, 0, "loading and refreshing never request prices");
       const stored = await query("SELECT * FROM place_service_prices");
-      assert.equal(stored.rows.length, 1);
-      assert.equal(stored.rows[0].payload.status, "unmatched");
+      assert.equal(stored.rows.length, 0);
       await query(
         "UPDATE trip_service_recommendations SET expires_at=now()-interval '1 second'",
       );

@@ -36,7 +36,7 @@ body,
   border: 2px solid #183c40;
   border-radius: 20px;
   padding: 4px 10px 4px 4px;
-  box-shadow: 2px 3px 0 #183c40;
+  box-shadow: 1px 1px 0 #183c4040;
   white-space: nowrap;
   font: 12px system-ui;
   color: #183c40;
@@ -113,7 +113,7 @@ body,
   border: 2px solid #183c40;
   border-radius: 22px;
   background: #fffdf2;
-  box-shadow: 2px 3px 0 #183c40;
+  box-shadow: 1px 1px 0 #183c4040;
   color: #183c40;
   padding: 5px 9px 5px 5px;
   min-height: 40px;
@@ -145,7 +145,7 @@ body,
 .map-action.selected {
   background: #28cbbb;
   box-shadow:
-    2px 3px 0 #183c40,
+    1px 1px 0 #183c4040,
     0 0 0 4px #ffffffbd;
 }
 .map-action.service b {
@@ -200,7 +200,7 @@ body,
   border-radius: 9px;
   padding: 3px 7px 3px 4px;
   gap: 4px;
-  box-shadow: 1px 2px 0 #183c40;
+  box-shadow: 1px 1px 0 #183c4040;
   font-size: 12px;
 }
 .map-action.service b {
@@ -212,7 +212,7 @@ body,
 }
 .map-action.service.selected {
   box-shadow:
-    1px 2px 0 #183c40,
+    1px 1px 0 #183c4040,
     0 0 0 2px #ffffffb0;
 }
 .map-action.cluster {
@@ -230,7 +230,7 @@ body,
   border-radius: 9px;
   padding: 3px 7px 3px 3px;
   gap: 4px;
-  box-shadow: 1px 2px 0 #183c40;
+  box-shadow: 1px 1px 0 #183c4040;
 }
 .map-pin b {
   width: 19px;

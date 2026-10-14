@@ -2,7 +2,12 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import vm from "node:vm";
 import { readFile } from "node:fs/promises";
-import { scenePoint, plannerScene, serviceScene, savedServicePoints } from "../public/map-scene.js";
+import {
+  scenePoint,
+  plannerScene,
+  serviceScene,
+  savedServicePoints,
+} from "../public/map-scene.js";
 
 test("map scenes convert mainland coordinates once, preserve foreign points and provider boundaries", () => {
   const beijing = {
@@ -22,8 +27,15 @@ test("map scenes convert mainland coordinates once, preserve foreign points and 
     [139, 35],
   );
   assert.equal(scenePoint({ lat: null, lng: 100 }), null);
-  assert.deepEqual(scenePoint({...beijing,country:null},{country:'CN'}).position, scenePoint(beijing).position);
-  assert.deepEqual(scenePoint({country:'HK',lat:22.3,lng:114.1},{country:'CN'}).position, [114.1,22.3]);
+  assert.deepEqual(
+    scenePoint({ ...beijing, country: null }, { country: "CN" }).position,
+    scenePoint(beijing).position,
+  );
+  assert.deepEqual(
+    scenePoint({ country: "HK", lat: 22.3, lng: 114.1 }, { country: "CN" })
+      .position,
+    [114.1, 22.3],
+  );
   const boundary = {
     cityRings: [
       [
@@ -53,6 +65,24 @@ test("map scenes convert mainland coordinates once, preserve foreign points and 
   assert.equal(scene.clusters[0].number, 8);
   assert.equal(scene.clusters[0].selected, true);
   assert.equal(scene.wishes.length, 1);
+  const args = {
+    city: beijing,
+    boundary,
+    fitKey: "bj",
+    clusters: [{ id: "one", center: beijing, members: [] }],
+  };
+  const before = plannerScene({ ...args, clusters: [] });
+  const after = plannerScene(args);
+  assert.notEqual(
+    before.fitKey,
+    after.fitKey,
+    "late clusters trigger a new fit",
+  );
+  assert.equal(
+    after.fitKey,
+    plannerScene({ ...args, selected: ["one"], boundary: null }).fitKey,
+    "selection and boundary do not shrink cluster framing",
+  );
 });
 test("meal overlays keep daily route and saved choices; selecting a pin never changes fit key", () => {
   const p = { id: "food", country: "CN", lat: 31, lng: 121, name: "餐厅" };
@@ -82,6 +112,12 @@ test("meal overlays keep daily route and saved choices; selecting a pin never ch
   assert.equal(a.stops, base.stops);
   assert.equal(a.connections, base.connections);
   assert.equal(a.fitKey, b.fitKey);
+  assert.notEqual(a.selectionFocus.key, b.selectionFocus.key);
+  assert.notEqual(
+    a.selectionFocus.key,
+    serviceScene(base, slot, "food", 1).selectionFocus.key,
+  );
+  assert.deepEqual(a.selectionFocus.position, scenePoint(p).position);
   assert.equal(a.services.length, 2);
   assert.equal(b.services.find((p) => p.saved).selected, true);
   assert.notEqual(
@@ -90,15 +126,47 @@ test("meal overlays keep daily route and saved choices; selecting a pin never ch
   );
 });
 
-test('saved meals and multi-day lodging reappear only on their associated days', () => {
-  const trip={plan:{cities:[{id:'bj',country:'CN'}],days:[{cityId:'bj'},{cityId:'bj'}],services:{
-    'lunch:0':{slotId:'lunch:0',kind:'lunch',days:[0],candidate:{id:'meal',name:'餐厅',country:null,lat:39.9,lng:116.4}},
-    'stay:0-1':{slotId:'stay:0-1',kind:'stay',days:[0,1],candidate:{id:'hotel',name:'住宿',country:null,lat:39.91,lng:116.41}}
-  }}};
-  assert.equal(savedServicePoints(trip,0).length,2);
-  assert.equal(savedServicePoints(trip,1).length,1);
-  assert.equal(savedServicePoints(trip,1)[0].slotId,'stay:0-1');
-  assert.deepEqual(savedServicePoints(trip,0)[0].position,scenePoint({...trip.plan.services['lunch:0'].candidate,country:'CN'}).position);
+test("saved meals and multi-day lodging reappear only on their associated days", () => {
+  const trip = {
+    plan: {
+      cities: [{ id: "bj", country: "CN" }],
+      days: [{ cityId: "bj" }, { cityId: "bj" }],
+      services: {
+        "lunch:0": {
+          slotId: "lunch:0",
+          kind: "lunch",
+          days: [0],
+          candidate: {
+            id: "meal",
+            name: "餐厅",
+            country: null,
+            lat: 39.9,
+            lng: 116.4,
+          },
+        },
+        "stay:0-1": {
+          slotId: "stay:0-1",
+          kind: "stay",
+          days: [0, 1],
+          candidate: {
+            id: "hotel",
+            name: "住宿",
+            country: null,
+            lat: 39.91,
+            lng: 116.41,
+          },
+        },
+      },
+    },
+  };
+  assert.equal(savedServicePoints(trip, 0).length, 2);
+  assert.equal(savedServicePoints(trip, 1).length, 1);
+  assert.equal(savedServicePoints(trip, 1)[0].slotId, "stay:0-1");
+  assert.deepEqual(
+    savedServicePoints(trip, 0)[0].position,
+    scenePoint({ ...trip.plan.services["lunch:0"].candidate, country: "CN" })
+      .position,
+  );
 });
 test("map layer updates preserve route, user camera and context; only explicit scene fits animate", async () => {
   const source = await readFile(
@@ -239,4 +307,69 @@ test("map layer updates preserve route, user camera and context; only explicit s
     },
   });
   assert.equal(fits.length, 2); // late boundary must not steal a manually moved camera
+  const groups = [
+    { id: "c1", name: "西片", number: 1, position: [116.39, 39.9] },
+    { id: "c2", name: "东片", number: 2, position: [116.41, 39.91] },
+  ];
+  const cityBoundary = {
+    cityRings: [
+      [
+        [115, 38],
+        [118, 38],
+        [118, 41],
+      ],
+    ],
+    districts: [],
+  };
+  send({
+    kind: "planner",
+    contextKey: "city",
+    fitKey: "city:clusters",
+    clusters: groups,
+    boundary: cityBoundary,
+  });
+  assert.equal(fits.length, 3);
+  assert.equal(fits.at(-1)[0].length, 2);
+  assert.ok(
+    fits.at(-1)[0].every((p) => p.opts.content?.includes("cluster")),
+    "fit actual clusters, not the large administrative boundary",
+  );
+  send({
+    kind: "planner",
+    contextKey: "city",
+    fitKey: "city:clusters",
+    clusters: groups,
+    boundary: {
+      ...cityBoundary,
+      districts: [{ name: "一区", rings: cityBoundary.cityRings }],
+    },
+  });
+  assert.equal(
+    fits.length,
+    3,
+    "late boundary must not shrink already visible clusters",
+  );
+  const service = {
+    ...route,
+    contextKey: "service",
+    fitKey: "service:batch",
+    selectionFocus: { key: "a:1", position: [121.02, 31.01] },
+  };
+  const before = moves.length;
+  send(service);
+  assert.equal(moves.length, before + 1);
+  assert.equal(moves.at(-1)[0], 16);
+  assert.deepEqual(Array.from(moves.at(-1)[1]), [121.02, 31.01]);
+  send(service);
+  assert.equal(moves.length, before + 1, "repaint is not a new focus request");
+  listeners["#mappointerdown"]();
+  send({
+    ...service,
+    selectionFocus: { ...service.selectionFocus, key: "a:2" },
+  });
+  assert.equal(
+    moves.length,
+    before + 2,
+    "repeat selection recenters after a manual pan",
+  );
 });

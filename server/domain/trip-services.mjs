@@ -219,7 +219,7 @@ export function rankServicePlaces(
 export function selectServiceBatch(
   pool,
   {
-    sort = "comprehensive",
+    sort = "distance",
     refresh = false,
     excludePlaceIds = [],
     kind = "dining",
