@@ -4,6 +4,7 @@ COPY package.json package-lock.json ./
 RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
 COPY --chown=node:node server ./server
 COPY --chown=node:node public ./public
+COPY --chown=node:node data/editorial ./data/editorial
 USER node
 ENV NODE_ENV=production HOST=0.0.0.0 PORT=8787
 EXPOSE 8787

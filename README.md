@@ -2,6 +2,18 @@
 
 智能旅行推荐原型，2026-10-10。目标：2026“仓颉杯”综合系统赛道。
 
+## 团队共用服务
+
+2026-10-14 已上线 **https://trip.seatraces.com**。浏览器直接打开后注册/登录；API 基址为 `https://trip.seatraces.com/api`。组员使用这个地址，无需启动原开发电脑、SSH 隧道或本机 PostgreSQL。已有账号、历史行程和 CityWalk 已迁入服务器独立的 `seatraces_business` PostgreSQL 数据库，旧登录会话不迁移，需要重新登录。
+
+HarmonyOS 源码默认连接此 HTTPS 地址。已安装旧 HAP 的设备在顶部“连接设置”填入 `https://trip.seatraces.com` 并连接；本次没有重新发布 HAP。服务器运行独立前端与 API 容器，前端不依赖数据库启动；OSM 服务继续使用同机私有端口。详细结构、运维和回滚见 [部署说明](deploy/README.md)。
+
+接口调用沿用标准 Cookie 会话：`POST /api/auth/login`，JSON 为 `{"username":"自己的账号","password":"自己的密码"}`，写请求加 `X-Seatraces: 1`，后续请求保存并发送 `st_session` Cookie。Cookie 是 `HttpOnly; Secure; SameSite=Strict`，有效期 14 天。不要给前端分发数据库连接串、DeepSeek Key 或高德 Web 服务 Key。公共 API 保留鉴权，没有开放数据库或无鉴权的地点服务。
+
+浏览器页面通过同源 `/api` 调用。独立本机前端可用 `FRONTEND_API_ORIGIN=https://trip.seatraces.com npm run frontend` 的进程环境配置通过现有代理联调；PowerShell 写法为 `$env:FRONTEND_API_ORIGIN='https://trip.seatraces.com'; npm run frontend`。服务仍使用 Secure Cookie；正式验收优先使用云端 HTTPS 页面。不要添加 `Access-Control-Allow-Origin: *` 绕过登录限制。
+
+本机 `start.ps1` 仍是独立开发数据库，云端与本机不会自动双向同步。协作演示、账号和新行程统一使用上述云端入口。
+
 GitHub 仓库保存前后端源码、HarmonyOS 工程、数据库建表/迁移、测试与部署脚本。密钥、用户数据库、云端 OSM 原始数据、SSH 凭据、日志、调试截图和构建产物不随源码上传。克隆后需安装依赖，按 `.env.example` 配置自己的环境，并连接已有地点服务；不会自动包含原开发环境的账号和行程。本文及验收记录中引用的 `validation/`、`screenshots/` 为本机开发产物，不在源码仓库中。
 
 本地前端入口：**http://127.0.0.1:8788**；API 后端为 `127.0.0.1:8787`。只保留卡通版，底栏为“旅行 / 发现 / 我的”。未登录先进入独立登录/注册页；已登录的有效 Cookie 会恢复会话。已经移除自动创建演示管理员账号的入口。旅行页提供地图与逐题纸签问卷；发现为路线分享空态，收藏、浏览、旅行报告仍标记“即将开放”。旧版页面源码及 `archive/legacy-ui` 中的备份已删除；旧 URL 仅跳转首页。
@@ -101,7 +113,7 @@ GitHub 仓库保存前后端源码、HarmonyOS 工程、数据库建表/迁移�
 
 此命令先启动独立前端，再复用或启动 API 后端与现有地点库连接。只看前端（无需数据库）可运行 `./scripts/start-frontend.ps1` 或 `npm run frontend`。前端仅监听本机 8788，默认代理到 8787；可通过进程环境变量 `FRONTEND_API_ORIGIN` 指向独立后端。前端进程不加载 `.env` 或数据库凭据。
 
-模拟器每次重启后需要恢复映射：`hdc -t <设备ID> rport tcp:8788 tcp:8788`。`harmony/install-emulator.ps1` 会检查并恢复这个映射，新 HAP 默认加载 8788。旧版 8787 页面入口暂保留兼容，日常体验请使用 8788。
+本机开发模式中，模拟器每次重启后需要恢复映射：`hdc -t <设备ID> rport tcp:8788 tcp:8788`。`harmony/install-emulator.ps1` 会检查并恢复这个映射；云端模式使用 `https://trip.seatraces.com`，不需要端口映射。旧版 8787 页面入口暂保留兼容，本机体验请使用 8788。
 
 或前台启动：
 

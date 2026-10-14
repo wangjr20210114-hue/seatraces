@@ -1,6 +1,16 @@
 node_modules
 .runtime
 .env
+.env.*
+.git
+dist
+validation
+backups
+data/osm
+*.dump
+*.sql.gz
+*.pem
+*.key
 harmony
 test
 screenshots

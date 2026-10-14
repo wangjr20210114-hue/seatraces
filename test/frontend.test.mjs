@@ -51,3 +51,13 @@ test("same-origin API proxy preserves request body and session cookies", async t
   assert.match(response.headers.get("set-cookie"), /HttpOnly/);
   assert.equal((await fetch(base + "/not-an-api")).status, 404);
 });
+
+test("frontend ignores forged forwarding headers and emits its resolved client IP", async t => {
+  const backend = http.createServer((req,res) => {res.setHeader('content-type','application/json');res.end(JSON.stringify({ip:req.headers['x-forwarded-for'],proto:req.headers['x-forwarded-proto']}));});
+  const frontend = http.createServer(createFrontend({backendOrigin:await listen(backend)}));
+  const base = await listen(frontend);
+  t.after(async()=>{await close(frontend);await close(backend);});
+  const result = await (await fetch(base+'/api/health',{headers:{'x-forwarded-for':'198.51.100.99','x-forwarded-proto':'https'}})).json();
+  assert.equal(result.ip,'127.0.0.1');
+  assert.equal(result.proto,'http');
+});

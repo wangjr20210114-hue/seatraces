@@ -38,6 +38,9 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const app = express(),
   production = process.env.NODE_ENV === "production";
 app.disable("x-powered-by");
+// Only a configured, private reverse proxy may supply the client address.
+// Never use `true`: direct clients could then spoof rate-limit identities.
+app.set("trust proxy", process.env.TRUST_PROXY || false);
 app.use(
   helmet({
     contentSecurityPolicy: {

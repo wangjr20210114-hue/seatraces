@@ -1,0 +1,6 @@
+# Append a distinct site to the existing Caddyfile only after backing it up.
+# Replace the private gateway with the inspected Docker bridge gateway.
+trip.seatraces.com {
+    encode zstd gzip
+    reverse_proxy 172.18.0.1:8788
+}

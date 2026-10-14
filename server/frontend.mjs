@@ -14,12 +14,13 @@ function endToEndHeaders(headers) {
 
 // Static UI has no PostgreSQL, seed, OSM, or credential dependency. Only explicit
 // API/map-proxy paths go to one configured backend; this is not an open proxy.
-export function createFrontend({ backendOrigin = "http://127.0.0.1:8787", proxyTimeoutMs = 120000 } = {}) {
+export function createFrontend({ backendOrigin = "http://127.0.0.1:8787", proxyTimeoutMs = 120000, trustProxy = false } = {}) {
   const backend = new URL(backendOrigin);
   if (!["http:", "https:"].includes(backend.protocol) || backend.username || backend.password || backend.pathname !== "/" || backend.search || backend.hash)
     throw Error("Frontend API origin must be an HTTP(S) origin without credentials");
   const app = express();
   app.disable("x-powered-by");
+  app.set("trust proxy", trustProxy);
   app.use(helmet({ contentSecurityPolicy: { directives: {
     defaultSrc: ["'self'"], scriptSrc: ["'self'"], styleSrc: ["'self'", "'unsafe-inline'"],
     imgSrc: ["'self'", "data:"], connectSrc: ["'self'"], upgradeInsecureRequests: null,
@@ -30,7 +31,12 @@ export function createFrontend({ backendOrigin = "http://127.0.0.1:8787", proxyT
     const request = (backend.protocol === "https:" ? https : http).request({
       protocol: backend.protocol, hostname: backend.hostname, port: backend.port,
       method: req.method, path: req.originalUrl,
-      headers: { ...endToEndHeaders(req.headers), host: backend.host },
+      headers: { ...endToEndHeaders(req.headers), host: backend.host,
+        // Forward only the client address resolved through the explicitly trusted
+        // ingress. Do not pass arbitrary browser-supplied forwarding headers.
+        "x-forwarded-for": req.ip, "x-forwarded-proto": req.protocol,
+        "x-forwarded-host": req.get("host") || backend.host,
+      },
     }, upstream => {
       res.writeHead(upstream.statusCode || 502, endToEndHeaders(upstream.headers));
       upstream.on("error", () => res.destroy());
@@ -66,6 +72,6 @@ export function createFrontend({ backendOrigin = "http://127.0.0.1:8787", proxyT
 }
 
 if (process.argv[1] && pathToFileURL(path.resolve(process.argv[1])).href === import.meta.url) {
-  createFrontend({ backendOrigin: process.env.FRONTEND_API_ORIGIN || "http://127.0.0.1:8787" })
-    .listen(Number(process.env.FRONTEND_PORT || 8788), "127.0.0.1", () => console.log("SeaTraces frontend ready on http://127.0.0.1:" + (process.env.FRONTEND_PORT || 8788)));
+  createFrontend({ backendOrigin: process.env.FRONTEND_API_ORIGIN || "http://127.0.0.1:8787", trustProxy: process.env.FRONTEND_TRUST_PROXY || false })
+    .listen(Number(process.env.FRONTEND_PORT || 8788), process.env.FRONTEND_HOST || "127.0.0.1", () => console.log("SeaTraces frontend ready on port " + (process.env.FRONTEND_PORT || 8788)));
 }

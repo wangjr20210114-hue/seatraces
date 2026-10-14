@@ -1,6 +1,41 @@
-# 腾讯云部署准备
+# 腾讯云部署
 
-旅行应用尚未发布到 seatraces.com，DNS 与防火墙未改动。2026-10-10 已在用户的上海 Ubuntu-wBZE 实例部署独立 OSM 地点数据库；具体说明见下文。以下应用部署文件仍须单独验收。
+## 当前团队服务
+
+2026-10-14，旅行应用已部署到 `https://trip.seatraces.com`。原 `seatraces.com`、`www.seatraces.com`、`face.seatraces.com` 站点配置保留。用户添加了 `trip` 的 A 记录，Caddy 管理 HTTPS 证书；HTTP 跳转 HTTPS。
+
+| 部件 | 当前部署 |
+| --- | --- |
+| 外部入口 | `https://trip.seatraces.com`，业务接口 `/api`，须账号 Cookie |
+| HTTPS 入口 | 现有 `docker-caddy-1`，加载 `/opt/shiguangji/infra/docker/Caddyfile.iptest` |
+| 独立前端 | `seatraces-business-frontend-1`，仅监听 Docker 私网网关 `172.18.0.1:8788` |
+| 业务 API | `seatraces-business-backend-1`，仅监听 `127.0.0.1:8787` |
+| 用户和业务库 | 原 PostgreSQL 容器中的独立 `seatraces_business` 数据库，应用角色 `seatraces_business_app` 无建库/建表/授权权限 |
+| OSM 地点服务 | 同机 `127.0.0.1:8791`；无需经过开发电脑的 SSH 隧道 |
+| 运行目录 | `/home/ubuntu/seatraces-app`，`compose.yaml` 与私有 `.env.deploy`、`backend.env` |
+| 恢复资料 | 运行目录的 `backups/`；Caddy 原配置为 `Caddyfile.iptest.before-trip` |
+
+两个应用容器启用 `restart: unless-stopped` 和健康检查。后端停止不影响静态前端打开；API 会明确返回暂不可用。没有发布 8787、8788、8791、55432 到公网。前端信任核对过的 Caddy 网段，后端只信任回环代理，避免伪造客户端地址绕过限流。
+
+本次从本机一致性快照导入 26 张表，逐表核对行数，含 28 个账号记录、23 份历史行程、48 份行程版本、1 份 CityWalk、34,228 条业务地点/城市记录。456 万级 OSM 地点仍在原 OSM 库中，不属于此业务表计数。`sessions`、`account_tokens`、`auth_rate_limits` 不迁移；所有人重新登录。配置和数据备份不进入 Git。
+
+```sh
+cd /home/ubuntu/seatraces-app
+sudo docker compose --env-file .env.deploy ps
+sudo docker compose --env-file .env.deploy logs --tail 50 backend
+sudo docker compose --env-file .env.deploy restart backend
+curl --fail https://trip.seatraces.com/api/health
+```
+
+`deploy/compose.server.yaml` 是此次部署模板，采用 Linux host 网络访问既有回环 OSM/数据库，监听地址仍分别限制为回环与 Caddy 私网网关。不要直接替换为容器默认桥接网络，也不要把监听地址改为 `0.0.0.0`。Caddy 网络若重建并改变网关，应同步核对 `.env.deploy` 中网关、可信 CIDR 和 Caddy upstream。
+
+首次迁移工具：`node deploy/export-business.mjs` 在 `.runtime/backend-deploy` 生成私有 SQL 快照；`deploy/prepare-release.mjs` 分别准备不含凭据的源码包和私有供应商配置；`deploy/import-business.py` 校验哈希，只导入全新数据库，目标库已存在则拒绝覆盖。`deploy/verify-server.py` 核对最小权限、表计数和服务健康。应用日常数据保存在 PostgreSQL 中；这些 SQL/清单仅供部署和恢复。
+
+更新时先备份业务库并保留上一个镜像标签，再构建新标签、运行必要迁移、更新 `.env.deploy` 的 `SEATRACES_IMAGE`，执行 `sudo docker compose --env-file .env.deploy up -d`。普通应用回滚切回旧镜像；不要覆盖云端数据库为过期本机快照。只有要撤下本次站点时才恢复专门保存的 Caddy 备份，并在 reload 前检查之后是否还有其他站点改动。
+
+已通过公网 HTTPS、注册/登录会话、退出失效、匿名访问拒绝、城市检索、故宫实时检索、历史接口和 CityWalk 接口验证；未在本次重新构建 HAP 或验收真机定位。邮件服务仍待配置，高德控制台应允许 `trip.seatraces.com` 的 JS API 来源。下文旧 Compose/Nginx 步骤是其他独立环境的部署参考，不是当前服务器的执行方式。
+
+## 其他环境部署参考
 
 推荐一个独立子域，例如 `app.seatraces.com`，API 与页面同源 `/api`，减少跨域和 Cookie 配置。域名、证书和现有站点用途需先核对。数据库不开放公网 5432。
 
@@ -49,9 +84,9 @@ docker compose exec -T db psql -U seatraces_owner -d seatraces < server/postgis.
 - 单台 2 核 4 GB 实例没有多机高可用。后续若正式运营，可采用腾讯云托管 PostgreSQL 或主备实例。
 - 应用密码不具备 DDL 权限；数据库 owner 密码不提供给应用容器。
 
-## 生产验收尚待完成
+## 独立 Compose 模板的验收范围
 
-旅行应用镜像构建、应用数据库权限、HTTPS、供应商生产凭证、跨端登录和真实设备定位仍需在目标环境验证。独立 OSM 服务的实测结果见 TEST_REPORT.md，不等同于整套旅行应用已上线。
+顶部列出的 trip.seatraces.com 部署已完成应用镜像、数据库权限、HTTPS 和 Cookie 接口验收。若采用本节旧的独立数据库 Compose/Nginx 模板，仍须针对那个环境单独验证。供应商页面效果、跨端操作和真实设备定位不在本次服务器接口验收范围内。
 
 真实地图、导航、铁路、航班服务可能涉及按量费用。系统内 200 元限制使用每请求预留估算；每家供应商仍应独立设置硬额度和告警。不得把此估算当成真实账单精度。
 

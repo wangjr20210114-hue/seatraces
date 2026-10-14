@@ -7,8 +7,8 @@ import { NativeLocation, locationProxyPermission } from '../NativeLocation';
 @Component
 struct Index {
   controller: webview.WebviewController = new webview.WebviewController();
-  @State address: string = 'http://127.0.0.1:8788';
-  @State draftAddress: string = 'http://127.0.0.1:8788';
+  @State address: string = 'https://trip.seatraces.com';
+  @State draftAddress: string = 'https://trip.seatraces.com';
   @State showSettings: boolean = false;
   @State loadError: boolean = false;
   locationBridge: NativeLocation = new NativeLocation(
@@ -51,9 +51,9 @@ struct Index {
       }.width('100%').padding({ left: 16, right: 16, top: 6, bottom: 6 })
       if (this.showSettings) {
         Column({ space: 8 }) {
-          Text('本机前端地址为 http://127.0.0.1:8788，模拟器需映射 8788 端口。部署后填写 HTTPS 前端地址。')
+          Text('团队服务：https://trip.seatraces.com。本机开发可切换到 http://127.0.0.1:8788，并映射模拟器 8788 端口。')
             .fontSize(11).fontColor('#6C8174')
-          TextInput({ text: this.draftAddress, placeholder: 'https://app.seatraces.com' })
+          TextInput({ text: this.draftAddress, placeholder: 'https://trip.seatraces.com' })
             .fontSize(13).onChange((value: string) => { this.draftAddress = value; })
           Button('连接并刷新').fontSize(12).onClick(() => {
             const target = backendOrigin(this.draftAddress);
@@ -71,7 +71,7 @@ struct Index {
       if (this.loadError) {
         Column({ space: 12 }) {
           Text('旅行页面暂未连接').fontSize(18).fontColor('#183C40')
-          Text('请确认电脑前端已启动，并重新连接模拟器。').fontSize(13).fontColor('#6C8174')
+          Text('请检查网络连接；本机开发时需启动电脑前端并映射端口。').fontSize(13).fontColor('#6C8174')
           Button('重新加载 ↻').fontSize(14).fontColor('#183C40').backgroundColor('#27CFB8')
             .onClick(() => { this.loadError = false; this.controller.loadUrl(this.address); })
         }.padding(24).width('100%').backgroundColor('#FFFDF2')
