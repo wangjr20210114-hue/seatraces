@@ -1,0 +1,30 @@
+// Check the running local prototype with credentials absent. No paid provider calls.
+import assert from 'node:assert/strict';
+import { writeFile } from 'node:fs/promises';
+const base='http://127.0.0.1:8787';
+const health=await (await fetch(base+'/api/health')).json();
+assert.equal(health.ok,true);
+const status=await (await fetch(base+'/api/status')).json();
+assert.equal(status.providers.overseasMaps,'not_configured','Run only with overseas provider disabled');
+const anon=await fetch(base+'/api/maps/google/config');
+assert.equal(anon.status,401);
+const demo=await fetch(base+'/api/auth/demo',{method:'POST',headers:{'X-Seatraces':'1','Content-Type':'application/json'},body:'{}'});
+assert.equal(demo.status,200);
+const cookie=demo.headers.get('set-cookie').split(';')[0];
+const api=async(path,body)=>{
+  const response=await fetch(base+'/api'+path,{method:body?'POST':'GET',headers:{Cookie:cookie,'X-Seatraces':'1','Content-Type':'application/json'},body:body?JSON.stringify(body):undefined});
+  assert.equal(response.status,200);return response.json();
+};
+const config=await api('/maps/google/config');
+assert.deepEqual(config,{enabled:false,jsKey:null});
+const from='osm:relation/4247312',to='osm:way/173154847';
+const match=await api('/places/'+encodeURIComponent(from)+'/match',{});
+assert.equal(match.status,'not_configured');assert.equal(match.provider,'Google Maps');assert.deepEqual(match.items,[]);
+const route=await api('/routes',{from,to,mode:'transit',strategy:'fewTransfers',departure:'2026-10-12T09:00',departureTimeZone:'Asia/Tokyo'});
+assert.equal(route.status,'estimated');assert.equal(route.reason,'coverage_unavailable');
+const frame=await fetch(base+'/google-view.html');assert.equal(frame.status,200);
+const csp=frame.headers.get('content-security-policy');assert.match(csp,/maps\.googleapis\.com/);
+const coverage=await api('/catalog/coverage');
+const record={checkedAt:new Date().toISOString(),checks:{overseasDisabled:true,anonymousConfig401:true,browserConfigHasOnlyPublicFields:true,unconfiguredMatch:true,unconfiguredTransitIsEstimated:true,separateFrameCsp:true},match,routeStatus:route.status,routeReason:route.reason,coverage};
+await writeFile('validation/overseas-disabled-20261011.json',JSON.stringify(record,null,2)+'\n');
+console.log('6 disabled-provider API checks passed; cloud coverage refreshed; no external provider requested.');

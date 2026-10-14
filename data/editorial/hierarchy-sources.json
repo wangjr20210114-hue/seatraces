@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "officialHosts": ["www.dpm.org.cn", "www.hzsp.com", "hzsp.com", "www.shanghaidisneyresort.com", "www.baiyunshan.com.cn", "www.szbg.ac.cn", "cgj.sz.gov.cn"],
+  "sources": [
+    {"url":"https://www.dpm.org.cn/gesture.html","publisher":"故宫博物院","parentNames":["故宫","故宫博物院","紫禁城"],"scope":"官方导览所列建筑，仅作归属证据","fields":["relation"]},
+    {"url":"https://www.dpm.org.cn/explore/building/236465.html","publisher":"故宫博物院","parentNames":["故宫","故宫博物院","紫禁城"],"scope":"太和殿建筑介绍","fields":["relation"]},
+    {"url":"https://www.dpm.org.cn/explore/building/236434.html","publisher":"故宫博物院","parentNames":["故宫","故宫博物院","紫禁城"],"scope":"保和殿建筑介绍","fields":["relation"]},
+    {"url":"https://www.dpm.org.cn/explore/building/236464.html","publisher":"故宫博物院","parentNames":["故宫","故宫博物院","紫禁城"],"scope":"中和殿建筑介绍","fields":["relation"]},
+    {"url":"https://www.shanghaidisneyresort.com/zh-cn/experience?group=attraction","publisher":"上海迪士尼度假区","parentNames":["上海迪士尼乐园"],"scope":"乐园官方游乐项目目录，不能据此推断实时开放状态","fields":["relation"]},
+    {"url":"https://www.baiyunshan.com.cn/bys/jqzn/jqzn.shtml","publisher":"广州市白云山风景名胜区管理局","parentNames":["白云山风景名胜区","白云山"],"scope":"景区官方游览指南，经过和相邻景点须区分内部归属","fields":["relation"]},
+    {"url":"https://www.szbg.ac.cn/cn/yqds/zlyhjd/index.html","publisher":"深圳市仙湖植物园","parentNames":["仙湖植物园","深圳市仙湖植物园"],"scope":"官方专类园与景点目录","fields":["relation"]},
+    {"url":"https://cgj.sz.gov.cn/xsmh/xhzwy/index.html","publisher":"深圳市城市管理和综合执法局","parentNames":["仙湖植物园","深圳市仙湖植物园"],"scope":"仙湖植物园官方介绍","fields":["relation"]},
+    {"url":"https://www.hzsp.com/","publisher":"杭州野生动物世界","parentNames":["杭州野生动物世界"],"scope":"园区官网介绍","fields":["relation"]},
+    {"url":"https://hzsp.com/itemlist/index.shtml","publisher":"杭州野生动物世界","parentNames":["杭州野生动物世界"],"scope":"园区动物乐园目录","fields":["relation"]}
+  ]
+}

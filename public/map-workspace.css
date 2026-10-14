@@ -1,0 +1,183 @@
+/* One map, two docks. Opaque paper stays below the map, including in WebView. */
+#home.map-workspace {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  height: calc(var(--workspace-height, 100dvh) - var(--nav-height));
+}
+#home.map-workspace .map-stage {
+  height: auto;
+  min-height: 180px;
+  flex: 0 0 48%;
+}
+#home.map-workspace .topbar {
+  top: 12px;
+  left: 16px;
+  right: 16px;
+  pointer-events: none;
+}
+#home.map-workspace .brand-sub {
+  display: none;
+}
+#home.map-workspace > .home-footer,
+#home.map-workspace > #itinerary {
+  display: none;
+}
+#wizard[open] {
+  position: relative;
+  inset: auto;
+  display: block;
+  width: 100%;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: #fffdf2;
+  color: #183c40;
+  overflow: hidden;
+  flex: 1 1 0;
+  min-height: 0;
+}
+#wizard .paper {
+  height: 100%;
+  max-height: none;
+  min-height: 0;
+  border: 0;
+  border-top: 2px solid #183c40;
+  border-radius: 24px 24px 0 0;
+  box-shadow: none;
+  background: #fffdf2;
+}
+#wizard .paper::after {
+  display: none;
+}
+#wizard .paper-tools {
+  flex: none;
+  padding: 10px 18px 8px;
+  margin: 0;
+  height: auto;
+}
+#wizard .perforation {
+  flex: none;
+  margin: 0 18px;
+}
+#wizard .question {
+  flex: 1;
+  min-height: 0;
+  padding: 14px 20px 6px;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+#wizard .question h1 {
+  font-size: 22px;
+  margin: 6px 0 14px;
+}
+#wizard .question .stamp {
+  display: none;
+}
+#wizard .question .eyebrow {
+  font-size: 10px;
+}
+#wizard .paper-footer {
+  flex: none;
+  padding: 10px 20px 16px;
+  gap: 12px;
+  background: #fffdf2;
+}
+#wizard #form-error {
+  flex: none;
+  margin: 0;
+  padding: 0 20px;
+  background: #fffdf2;
+}
+#wizard .choices {
+  gap: 8px;
+}
+#wizard .choice {
+  padding: 12px;
+  min-height: 44px;
+}
+#wizard .field {
+  margin-bottom: 8px;
+}
+#wizard .cluster {
+  margin-top: 10px;
+}
+#wizard .loading {
+  min-height: 120px;
+  padding: 20px 0;
+}
+#services-panel {
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: #fffdf2;
+  border-top: 2px solid #183c40;
+  border-radius: 24px 24px 0 0;
+  overflow: hidden;
+}
+#services-panel[hidden] {
+  display: none;
+}
+.map-dock-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: none;
+  padding: 12px 18px 8px;
+}
+.map-dock-header h1 {
+  font-size: 21px;
+  margin: 0;
+  flex: 1;
+}
+.map-dock-header .round {
+  flex: none;
+}
+#services-content {
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: 0 18px 24px;
+  flex: 1;
+  min-height: 0;
+}
+#services-content .service-tabs {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #fffdf2;
+  margin: 0;
+  padding: 6px 0 10px;
+}
+@media (min-width: 780px) {
+  #home.map-workspace {
+    max-width: 1050px;
+    margin: auto;
+  }
+  #home.map-workspace .map-stage {
+    flex-basis: 54%;
+  }
+  #wizard .question,
+  #services-content {
+    padding-left: 30px;
+    padding-right: 30px;
+  }
+}
+@media (max-height: 600px) {
+  #home.map-workspace .map-stage {
+    flex-basis: 38%;
+    min-height: 120px;
+  }
+  #wizard .paper-tools {
+    padding: 5px 16px;
+  }
+  #wizard .paper-footer {
+    padding: 6px 16px;
+  }
+}
+
+#services-content .service-tabs {
+  z-index: 3;
+}

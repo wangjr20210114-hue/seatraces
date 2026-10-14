@@ -1,0 +1,36 @@
+{
+  "name": "seatraces",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node server/index.mjs",
+    "dev": "node scripts/local.mjs",
+    "frontend": "node server/frontend.mjs",
+    "test": "node --test test/*.test.mjs",
+    "import:geonames": "node scripts/import-geonames.mjs",
+    "verify:backup": "node scripts/verify-backup.mjs",
+    "check": "node --check public/discovery.js && node --check public/journey.js && node --check public/amap-view.js && node --check public/login.js && node --check public/account-page.js && node --check public/page-navigation.js && node --check public/profile-pages.js && node --check public/tab-motion.js && node --check server/auth.mjs && node --check server/mail.mjs && node --check server/index.mjs && node --check public/city-selection.js && node --check public/citywalk.js && node --check public/citywalk-route.js && node --check server/services/citywalk-service.mjs && node --check public/trip-services.js && node --check server/services/trip-services.mjs && node --check server/domain/trip-services.mjs && node --check public/map-scene.js && node --check public/service-map-dock.js && node --check server/services/journey-service.mjs",
+    "providers:status": "node scripts/check-providers.mjs",
+    "providers:check": "node scripts/check-providers.mjs --live"
+  },
+  "dependencies": {
+    "@huggingface/transformers": "4.3.1",
+    "bcryptjs": "^3.0.2",
+    "cookie-parser": "^1.4.7",
+    "dotenv": "^17.2.3",
+    "express": "^5.1.0",
+    "helmet": "^8.1.0",
+    "leaflet": "^1.9.4",
+    "lottie-web": "5.13.0",
+    "nodemailer": "10.1.0",
+    "opening_hours": "3.15.0",
+    "pg": "^8.16.3",
+    "sharp": "0.35.5",
+    "zod": "^4.1.12"
+  },
+  "devDependencies": {
+    "embedded-postgres": "18.4.0-beta.17",
+    "prettier": "^3.6.2"
+  }
+}

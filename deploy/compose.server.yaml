@@ -1,0 +1,52 @@
+# Run in /home/ubuntu/seatraces-app with .env.deploy. All app/database
+# sockets remain private. Existing Caddy is the sole public HTTPS ingress.
+name: seatraces-business
+services:
+  backend:
+    image: ${SEATRACES_IMAGE:?Build and verify the release image first}
+    network_mode: host
+    restart: unless-stopped
+    env_file: backend.env
+    environment:
+      NODE_ENV: production
+      HOST: 127.0.0.1
+      PORT: 8787
+      TRUST_PROXY: loopback
+      SKIP_MIGRATIONS: "true"
+      REQUIRE_POSTGIS: "true"
+      OSM_SERVICE_URL: http://127.0.0.1:8791
+    volumes:
+      - ./cache:/app/.runtime
+    read_only: true
+    tmpfs: [/tmp]
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    mem_limit: 640m
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8787/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+  frontend:
+    image: ${SEATRACES_IMAGE:?Build and verify the release image first}
+    network_mode: host
+    command: ["node", "server/frontend.mjs"]
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      FRONTEND_HOST: ${CADDY_BRIDGE_GATEWAY:?Use the gateway of Caddy's private Docker bridge}
+      FRONTEND_PORT: 8788
+      FRONTEND_API_ORIGIN: http://127.0.0.1:8787
+      FRONTEND_TRUST_PROXY: ${CADDY_BRIDGE_CIDR:?Trust only the verified private ingress subnet}
+    read_only: true
+    tmpfs: [/tmp]
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    mem_limit: 192m
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://'+process.env.FRONTEND_HOST+':8788/frontend-health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    # No depends_on: the page must stay available during backend maintenance.

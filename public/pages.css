@@ -1,0 +1,29 @@
+.detail-page { height: 100dvh; overflow-y: auto; overscroll-behavior: contain; background: #fffdf2; }
+.page-header { position: sticky; top: 0; z-index: 2; padding: env(safe-area-inset-top, 0px) 20px 0; background: #fffdf2; border-bottom: 1px solid #dbe2d2; }
+.page-header-inner { display: flex; align-items: center; gap: 14px; min-height: 76px; max-width: 640px; margin: auto; }
+.page-header h1 { flex: 1; margin: 0; font-size: 21px; outline: none; }
+.page-back { display: grid; place-items: center; flex: 0 0 42px; height: 42px; border: 1.5px solid #183c40; border-radius: 50%; background: #c4f0df; font-size: 25px; }
+.page-brand { color: #168473; font-size: 32px; }
+.page-content { max-width: 640px; margin: 0 auto; padding: 26px 22px max(40px, env(safe-area-inset-bottom)); overflow-wrap: anywhere; }
+.page-content > div { animation: page-enter .18s ease-out; }
+.page-status { text-align: center; margin: 32px 0; font-size: 14px; line-height: 1.8; color: #60776e; }
+.page-status:empty { display: none; }
+.page-content .feature-empty { padding: max(50px, 12dvh) 0 32px; }
+.feature-empty h2 { font-size: 22px; margin: 0 0 12px; }
+.feature-empty .primary { margin-top: 32px; }
+.history-list .history-item { position: relative; padding-right: 40px; text-decoration: none; margin: 0 0 16px; }
+.history-arrow { position: absolute; right: 14px; top: 18px; }
+.trip-detail-heading h2 { margin: 10px 0 12px; font-size: 27px; }
+.eyebrow { font-size: 11px; letter-spacing: 3px; color: #62877b; font-weight: 750; }
+.page-map-action { width: 100%; margin: 8px 0 28px; }
+.trip-day { padding: 22px 0; border-top: 1px dashed #acc4b3; }
+.trip-day header { display: flex; align-items: center; gap: 16px; }
+.day-number { background: #ffda73; border-radius: 10px; padding: 8px 12px; font-weight: 800; }
+.trip-day h3 { margin: 0 0 3px; font-size: 17px; }
+.trip-day small { color: #60776e; font-size: 12px; }
+.trip-stop-list { padding-left: 24px; margin: 22px 0 0; }
+.trip-stop-list li { padding: 0 0 18px 6px; }
+.trip-stop-list small { display: block; margin-top: 5px; }
+body.detail-open #toast, body.detail-open #connection-status { bottom: max(20px, env(safe-area-inset-bottom)); }
+@keyframes page-enter { from { opacity: .5; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .page-content > div { animation: none; } }

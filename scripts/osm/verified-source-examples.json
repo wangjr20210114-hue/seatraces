@@ -1,0 +1,8 @@
+{
+  "aliases": [],
+  "facts": [
+    {"placeId":"osm:relation/4247312","field":"openingHours","value":"2026-10-11 官网营业信息：MAIN DECK（150m）09:00–23:00；TOP DECK TOUR 09:00–22:45。其他日期与临时调整须再次核实。","sourceName":"东京塔官网当日营业信息（网页采集，非现场核验）","sourceUrl":"https://en.tokyotower.co.jp/","sourceTimestamp":"2026-10-11T05:10:35Z"},
+    {"placeId":"osm:relation/4247312","field":"lastEntry","value":"2026-10-11 官网：MAIN DECK 最后入场 22:30；TOP DECK TOUR 最后入场 22:15。","sourceName":"东京塔官网当日营业信息（网页采集，非现场核验）","sourceUrl":"https://en.tokyotower.co.jp/","sourceTimestamp":"2026-10-11T05:10:35Z"},
+    {"placeId":"osm:relation/4247312","field":"website","value":"https://en.tokyotower.co.jp/","sourceName":"东京塔官方网站","sourceUrl":"https://en.tokyotower.co.jp/","sourceTimestamp":"2026-10-11T05:10:35Z"}
+  ]
+}

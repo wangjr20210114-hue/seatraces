@@ -1,0 +1,239 @@
+html,
+body,
+#map {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  background: #d8efe4;
+}
+#status {
+  position: absolute;
+  left: 12px;
+  top: 4px;
+  right: 12px;
+  background: #fffdf0ee;
+  padding: 12px;
+  border-radius: 12px;
+  font: 13px/1.6 system-ui;
+  color: #375647;
+  z-index: 10;
+  pointer-events: none;
+}
+.home #status {
+  top: 44%;
+  left: 50%;
+  right: auto;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  border: 2px dashed #72998f;
+  padding: 20px 28px;
+}
+.map-pin {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #fffdf2;
+  border: 2px solid #183c40;
+  border-radius: 20px;
+  padding: 4px 10px 4px 4px;
+  box-shadow: 1px 1px 0 #183c4040;
+  white-space: nowrap;
+  font: 12px system-ui;
+  color: #183c40;
+}
+.zoom-controls {
+  position: absolute;
+  right: 12px;
+  bottom: 32px;
+  z-index: 30;
+  display: grid;
+  gap: 4px;
+}
+.zoom-controls button {
+  width: 32px;
+  height: 32px;
+  border: 1.5px solid #183c40;
+  border-radius: 10px;
+  background: #fffdf2;
+  color: #183c40;
+  font: bold 22px system-ui;
+  cursor: pointer;
+}
+#route-legend {
+  position: absolute;
+  bottom: 30px;
+  left: 15px;
+  margin: 0;
+  padding: 6px 10px;
+  border-radius: 12px;
+  background: #fffdf2ed;
+  color: #375647;
+  font: 12px/1.5 system-ui;
+  pointer-events: none;
+  z-index: 30;
+}
+.map-pin b {
+  border-radius: 50%;
+  background: #ffcf62;
+  width: 23px;
+  height: 23px;
+  display: grid;
+  place-items: center;
+}
+.map-callout {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.pin-stem {
+  display: block;
+  width: 2px;
+  background: #183c4080;
+}
+.pin-dot {
+  display: block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #173c40;
+  border: 1px solid #fffdf2;
+}
+.amap-logo,
+.amap-copyright {
+  z-index: 20 !important;
+}
+.home .amap-logo,
+.home .amap-copyright {
+  bottom: 6px !important;
+}
+.map-action {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  border: 2px solid #183c40;
+  border-radius: 22px;
+  background: #fffdf2;
+  box-shadow: 1px 1px 0 #183c4040;
+  color: #183c40;
+  padding: 5px 9px 5px 5px;
+  min-height: 40px;
+  font: 600 12px system-ui;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.map-action b {
+  display: grid;
+  place-items: center;
+  min-width: 26px;
+  height: 26px;
+  background: #ffdf8e;
+  border-radius: 50%;
+}
+.map-action span {
+  max-width: 110px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.map-action.cluster span {
+  display: none;
+}
+.map-action.cluster {
+  padding: 3px;
+  min-width: 40px;
+  justify-content: center;
+}
+.map-action.selected {
+  background: #28cbbb;
+  box-shadow:
+    1px 1px 0 #183c4040,
+    0 0 0 4px #ffffffbd;
+}
+.map-action.service b {
+  background: #ffdf8e;
+  font-size: 18px;
+}
+.map-action.service.selected b {
+  background: #fffdf2;
+}
+.map-action.service span {
+  display: block;
+  max-width: 104px;
+}
+.map-action:focus-visible {
+  outline: 3px solid #ed8064;
+  outline-offset: 3px;
+}
+.map-district {
+  font: 600 12px system-ui;
+  color: #315b57;
+  white-space: nowrap;
+  text-shadow:
+    0 1px 3px #fff,
+    1px 0 3px #fff;
+  pointer-events: none;
+}
+.scene-arrive {
+  animation: map-arrive 0.4s ease-out;
+}
+@keyframes map-arrive {
+  from {
+    opacity: 0.72;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .scene-arrive {
+    animation: none;
+  }
+}
+.home .amap-copyright {
+  left: auto !important;
+  right: 10px !important;
+}
+
+/* Compact named pins; click target remains generous through transparent padding. */
+.map-action.service {
+  min-height: 28px;
+  border-width: 1.5px;
+  border-radius: 9px;
+  padding: 3px 7px 3px 4px;
+  gap: 4px;
+  box-shadow: 1px 1px 0 #183c4040;
+  font-size: 12px;
+}
+.map-action.service b {
+  min-width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  font-size: 13px;
+  background: transparent;
+}
+.map-action.service.selected {
+  box-shadow:
+    1px 1px 0 #183c4040,
+    0 0 0 2px #ffffffb0;
+}
+.map-action.cluster {
+  min-height: 30px;
+  min-width: 30px;
+  padding: 2px;
+  border-width: 1.5px;
+}
+.map-action.cluster b {
+  min-width: 22px;
+  height: 22px;
+}
+.map-pin {
+  border-width: 1.5px;
+  border-radius: 9px;
+  padding: 3px 7px 3px 3px;
+  gap: 4px;
+  box-shadow: 1px 1px 0 #183c4040;
+}
+.map-pin b {
+  width: 19px;
+  height: 19px;
+  border-radius: 6px;
+}

@@ -1,0 +1,16 @@
+# Insert these locations into an existing TLS server block for your chosen
+# seatraces.com subdomain. Obtain the certificate before enabling this server.
+server {
+  listen 443 ssl;
+  server_name app.seatraces.com;
+  ssl_certificate /etc/letsencrypt/live/app.seatraces.com/fullchain.pem;
+  ssl_certificate_key /etc/letsencrypt/live/app.seatraces.com/privkey.pem;
+  client_max_body_size 2m;
+  location / {
+    proxy_pass http://127.0.0.1:8787;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-Proto https;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_read_timeout 35s;
+  }
+}
