@@ -81,8 +81,25 @@ export function mountServiceMapDock({
       button.disabled = false;
     }
   }
-  async function select(id) {
+  async function select(id, fromMap = false) {
     if (!slot || busy || !current()) return;
+    if (!fromMap && selectedId === id) {
+      selectedId = undefined;
+      ++revision;
+      for (const node of content.querySelectorAll(".service-card.is-open")) {
+        node.classList.remove("is-open");
+        node
+          .querySelector("[data-place]")
+          .setAttribute("aria-expanded", "false");
+        node.querySelector(".service-drawer").inert = true;
+        node
+          .querySelector(".service-drawer")
+          .setAttribute("aria-hidden", "true");
+      }
+      publish();
+      message("");
+      return;
+    }
     const p =
       slot.items.find((p) => p.id === id) ||
       (slot.selected?.candidate?.id === id ? slot.selected.candidate : null);
@@ -134,7 +151,7 @@ export function mountServiceMapDock({
       <div class="service-list">${slot.items
         .map((p, i) => {
           const url = servicePlaceUrl(p);
-          return `<article class="service-card" data-card="${esc(p.id)}"><button class="service-card-main" data-place="${esc(p.id)}" aria-expanded="false" aria-controls="service-drawer-${i}"><span class="service-number">${i + 1}</span><span><b>${esc(p.name)}</b><span class="service-distance">直线 ${distance(p.distanceMeters)}</span></span><span class="service-chevron" aria-hidden="true">⌄</span></button><div class="service-drawer" id="service-drawer-${i}" inert aria-hidden="true"><div><div class="service-card-actions"><button class="primary" data-save disabled>选这家 ✓</button>${url ? `<a class="service-outline" href="${esc(url)}" target="_blank" rel="noopener noreferrer">高德查看 ↗</a>` : ""}</div></div></div></article>`;
+          return `<article class="service-card" data-card="${esc(p.id)}"><button class="service-card-main" data-place="${esc(p.id)}" aria-expanded="false" aria-controls="service-drawer-${i}"><span class="service-number">${i + 1}</span><span><b>${esc(p.name)}</b><span class="service-distance">直线 ${distance(p.distanceMeters)}</span></span><span class="service-chevron" aria-hidden="true">⌄</span></button><div class="service-drawer" id="service-drawer-${i}" inert aria-hidden="true"><div><div class="service-card-actions"><button class="primary" data-save disabled>选这家 ✓</button>${url ? `<a class="service-outline" href="${esc(url)}" rel="noopener noreferrer">高德查看 ↗</a>` : ""}</div></div></div></article>`;
         })
         .join(
           "",
