@@ -7,7 +7,7 @@
 }
 #home.map-workspace .map-stage {
   height: auto;
-  min-height: 180px;
+  min-height: 0;
   flex: 0 0 48%;
 }
 #map-grip {
@@ -18,7 +18,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 22px;
+  height: 28px;
   cursor: ns-resize;
   touch-action: none;
   position: relative;
@@ -190,7 +190,7 @@
 @media (max-height: 600px) {
   #home.map-workspace .map-stage {
     flex-basis: 38%;
-    min-height: 120px;
+    min-height: 0;
   }
   #wizard .paper-tools {
     padding: 5px 16px;
@@ -202,4 +202,26 @@
 
 #services-content .service-tabs {
   z-index: 3;
+}
+
+/* Drag the panel header without taking over scrolling in the choices. */
+#home.map-workspace #wizard .paper-tools {
+  cursor: ns-resize;
+  touch-action: none;
+  user-select: none;
+}
+#map-grip:focus-visible {
+  outline: 2px solid #183c40;
+  outline-offset: -3px;
+}
+#home.resizing-map {
+  user-select: none;
+  cursor: ns-resize;
+}
+#home.resizing-map #travel-map {
+  pointer-events: none;
+}
+#home.resizing-map #map-grip::after,
+#map-grip:focus-visible::after {
+  opacity: 0.65;
 }
