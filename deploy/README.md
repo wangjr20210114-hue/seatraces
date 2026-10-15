@@ -2,6 +2,49 @@
 
 ## 当前团队服务
 
+2026-10-14 20:25（北京时间）已为 `ubuntu` 和 `seatraces_dev` 开通共享源码读写：`/srv/seatraces` 指向当前 `drawer-4c6f2f57bb8f` 发布包原有的源码目录，未另建 checkout。安装时核对了 119 个应用文件与运行容器一致，并以两个账号验证读写权限；源码和 ACL 备份位于 `/var/lib/seatraces/shared-source/`。队友未获得 sudo/Docker 管理权限，线上容器没有重启。双方通过 Remote SSH 打开 `/srv/seatraces` 才是在编辑同一批文件；各自电脑上的源码不会自动同步。
+
+2026-10-15 已在原目录补入完整 Git 历史，`/srv/seatraces` 现为真实仓库，跟踪 `main → origin/main`，远端为 `https://github.com/wangjr20210114-hue/seatraces.git`。两个账号均通过 pull 预检查，原源码保留。**发布前必须先保留服务器中的团队修改**；下面的一键发布检测到未提交修改会停止。Git pull 只更新源码，部署完成才会更新线上镜像。
+
+## Windows 本地开发 → Git → 服务器
+
+在项目根目录使用 `dev-local.cmd`。它启动本机 PostgreSQL、8787 API、8788 前端，开启 Node 热更新，并为已运行的模拟器映射 8788。首次更新客户端运行 `dev-local.cmd -Build -Install`；普通开发直接双击 `dev-local.cmd`。DevEco 路径不同时加 `-DevEco "你的安装目录"`，仅浏览器联调加 `-NoDevice`，强制重启本项目服务加 `-Restart`。
+
+模拟器顶部 **连接设置 → 本地开发** 对应 `http://127.0.0.1:8788`；**团队服务器** 对应 `https://trip.seatraces.com`。选择会保存，重启应用后仍生效。修改后端代码自动重启本机 API，修改前端后点击顶部“刷新”。`.env` 修改须重新运行 `dev-local.cmd -Restart`。只有改 ArkTS 原生壳时才需要重新构建/安装 HAP。
+
+本机与服务器使用各自的账号、Cookie、行程和业务数据库，不自动复制测试数据。OSM 可复用已授权的只读地点连接；复制 `.env` 不会自动授予地点库访问权。脚本不使用生产 `DATABASE_URL`，本机数据留在 `.runtime/pg`。
+
+### 一次性安装部署连接
+
+1. 本机安装 Node.js 24、Git for Windows、OpenSSH 客户端，配置 GitHub 推送权限；不在仓库内保存 Token。
+2. 执行 `python scripts/prepare-deploy-access.py`，生成本机专用 SSH 密钥、固定服务器主机密钥和安装命令，全部保存在忽略的 `.runtime/deploy-access/`。
+3. 由服务器管理员确认长期部署权限后，将 `.runtime/deploy-access/run-on-server.txt` 全文粘贴到以 ubuntu 登录的终端。安装器把部署程序放入 root 管理的固定位置，只开放 `check`、`deploy <main提交>`、`status <提交>` 三类命令；该密钥禁止 shell/SFTP/端口转发，不新增 sudo 或 Docker 用户组权限。
+4. 本机执行 `publish-deploy.cmd --check`。通过后即可日常双击 `publish-deploy.cmd`。
+
+密钥长期有效，直到管理员撤销。撤销时在服务器执行 `.runtime/deploy-access/revoke-on-server.txt`；它只移除这把部署公钥，保留原有登录权限。私钥仅留在本机，不通过 Git 或手机分发。新增电脑须由管理员单独配置，不能复制其他人的私钥。
+
+### 日常发布
+
+先在本地验证，将开发分支合并到本机 `main`，再运行：
+
+```bat
+publish-deploy.cmd
+```
+
+脚本列出文件，要求填写提交说明并确认，然后执行：本机/服务器预检查 → 凭据检查 → `npm run check` → commit → push main → 服务器 fetch/pull 同一个提交 → 构建独立镜像 → 备份业务库 → 切换前后端 → 健康、静态文件版本、匿名鉴权验收。失败会尝试恢复旧镜像，并核对后端健康。Git 提交和备份会保留，服务器源码可能已更新；以部署结果判断线上版本。
+
+```bat
+publish-deploy.cmd --message "修复行程展示" --yes
+publish-deploy.cmd --message "修复接口" --only server/services/example.mjs
+publish-deploy.cmd --retry 完整40位提交SHA
+```
+
+`--only` 可重复指定，本次范围外已暂存文件会阻止提交；默认提交所有未被忽略的变更。没有文件变更时直接推送并部署现有 main。脚本不会强推、自动合并开发分支或覆盖服务器未提交修改。Git 认证失败先修复账号/网络；部署连接失败发生在 commit/push 之前。
+
+**当前自动发布支持普通前后端代码更新。** `server/` 内 SQL 文件、Dockerfile 或 `.dockerignore` 变化时停止，须管理员先审查数据库迁移或构建策略；它不会自动把开发数据库覆盖到服务器，也不会把新数据库结构假装部署成功。HAP 是独立客户端产物，一键发布服务器不会替换手机已安装的 HAP。
+
+服务器部署记录：`/var/lib/seatraces/git-deploy/<提交SHA>.json` 和 `.log`，备份位于 `/home/ubuntu/seatraces-app/backups/`。并发发布会被拒绝；GitHub main 在推送/拉取期间变化时也会停止，防止部署到其他人的提交。服务器一直运行的服务仍由 Docker 管理，不依赖电脑保持在线。
+
 2026-10-14，旅行应用已部署到 `https://trip.seatraces.com`。原 `seatraces.com`、`www.seatraces.com`、`face.seatraces.com` 站点配置保留。用户添加了 `trip` 的 A 记录，Caddy 管理 HTTPS 证书；HTTP 跳转 HTTPS。
 
 | 部件 | 当前部署 |

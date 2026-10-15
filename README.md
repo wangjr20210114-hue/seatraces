@@ -4,17 +4,35 @@
 
 ## 团队共用服务
 
+Windows 开发快捷入口：双击 **`dev-local.cmd`**，模拟器顶部选择 **连接设置 → 本地开发**；首次更新客户端运行 `dev-local.cmd -Build -Install`。验证完成后运行 **`publish-deploy.cmd`** 提交、推送并部署服务器。部署连接须管理员一次性安装，完整步骤与边界见 [开发和发布流程](deploy/README.md#windows-本地开发--git--服务器)。
+
 团队后端配置已提供加密快照 [`.env.enc`](.env.enc)，解密密码单独私下分享；组员使用步骤见 [团队加密配置](TEAM_ENV.md)。公开仓库不包含明文密钥，线上服务配置不受此快照影响。
 
 2026-10-14 已上线 **https://trip.seatraces.com**。浏览器直接打开后注册/登录；API 基址为 `https://trip.seatraces.com/api`。组员使用这个地址，无需启动原开发电脑、SSH 隧道或本机 PostgreSQL。已有账号、历史行程和 CityWalk 已迁入服务器独立的 `seatraces_business` PostgreSQL 数据库，旧登录会话不迁移，需要重新登录。
 
-HarmonyOS 源码默认连接此 HTTPS 地址。已安装旧 HAP 的设备在顶部“连接设置”填入 `https://trip.seatraces.com` 并连接；本次没有重新发布 HAP。服务器运行独立前端与 API 容器，前端不依赖数据库启动；OSM 服务继续使用同机私有端口。详细结构、运维和回滚见 [部署说明](deploy/README.md)。
+HarmonyOS 首次默认连接此 HTTPS 地址。新版顶部“连接设置”提供“本地开发 / 团队服务器”，并记住选择。服务器运行独立前端与 API 容器，前端不依赖数据库启动；OSM 服务继续使用同机私有端口。详细结构、运维和回滚见 [部署说明](deploy/README.md)。
 
 接口调用沿用标准 Cookie 会话：`POST /api/auth/login`，JSON 为 `{"username":"自己的账号","password":"自己的密码"}`，写请求加 `X-Seatraces: 1`，后续请求保存并发送 `st_session` Cookie。Cookie 是 `HttpOnly; Secure; SameSite=Strict`，有效期 14 天。不要给前端分发数据库连接串、DeepSeek Key 或高德 Web 服务 Key。公共 API 保留鉴权，没有开放数据库或无鉴权的地点服务。
 
 浏览器页面通过同源 `/api` 调用。独立本机前端可用 `FRONTEND_API_ORIGIN=https://trip.seatraces.com npm run frontend` 的进程环境配置通过现有代理联调；PowerShell 写法为 `$env:FRONTEND_API_ORIGIN='https://trip.seatraces.com'; npm run frontend`。服务仍使用 Secure Cookie；正式验收优先使用云端 HTTPS 页面。不要添加 `Access-Control-Allow-Origin: *` 绕过登录限制。
 
 本机 `start.ps1` 仍是独立开发数据库，云端与本机不会自动双向同步。协作演示、账号和新行程统一使用上述云端入口。
+
+### 组员本机启动与地图排查
+
+Mac 组员按 [Mac 本地后端开发指南](MAC_LOCAL_DEVELOPMENT.md) 操作，包含加密配置、两个终端的启动命令、地图排查和 OSM 连接边界。
+
+| 使用场景 | 页面入口 | 启动与连接方式 |
+| --- | --- | --- |
+| 体验团队线上版本 | `https://trip.seatraces.com` | 浏览器直接访问；鸿蒙连接设置也填此地址，不需要本机 Node.js 或端口映射。 |
+| 本机完整开发 | `http://127.0.0.1:8788` | 项目根目录先 `npm ci`；一个终端执行 `npm run dev` 启动本机数据库和 8787 后端，另一个终端执行 `npm run frontend` 启动 8788 前端。两条命令同样适用于 macOS。 |
+| 鸿蒙模拟器连接本机开发服务 | `http://127.0.0.1:8788` | 保持上述两个进程运行，用 DevEco SDK 中的 `hdc` 执行 `hdc -t <设备ID> rport tcp:8788 tcp:8788`。设备 ID 通过 `hdc list targets` 查询。 |
+
+本机浏览器 → 8788 前端 → `/api` 与 `/_AMapService` 同源代理 → 8787 后端。8787 目前还兼容提供页面，但建议统一访问 8788；`npm run dev` 本身不会启动独立前端。模拟器映射的是“模拟器的 8788 → 电脑的 8788”，不是 8788 到 8787；普通电脑浏览器无需映射。
+
+如果页面显示“地图暂未配置”（旧版显示“地图准备中 · 可以先制订旅行方案”），其连接的后端返回了未启用地图的配置，并不是地图仍在加载。检查项目根目录、与 `package.json` 同级的 `.env` 中 `AMAP_JS_KEY` 和 `AMAP_JS_SECURITY_CODE` 是否都有值；`AMAP_KEY` 是后端 Web 服务 Key，不能替代 JS Key。团队可按 [TEAM_ENV.md](TEAM_ENV.md) 执行 `node scripts/team-env.mjs decrypt` 恢复加密配置，已有 `.env` 时按该文档先备份，不直接覆盖。修改后重启后端，再刷新页面。复制配置不会同时获得云端 OSM 连接权限。
+
+已登录后可在浏览器开发者工具的 Network 中查看 `/api/maps/config`：`enabled: false` 表示后端未启用 JS 配置，503 表示前端无法连接后端，401 表示需在当前入口重新登录；`enabled: true` 才继续排查高德脚本加载、网络和平台白名单。排查时只分享状态码和 `enabled`，不要发送完整 Key 或 `.env`。
 
 GitHub 仓库保存前后端源码、HarmonyOS 工程、数据库建表/迁移、测试与部署脚本。密钥、用户数据库、云端 OSM 原始数据、SSH 凭据、日志、调试截图和构建产物不随源码上传。克隆后需安装依赖，按 `.env.example` 配置自己的环境，并连接已有地点服务；不会自动包含原开发环境的账号和行程。本文及验收记录中引用的 `validation/`、`screenshots/` 为本机开发产物，不在源码仓库中。
 
@@ -166,10 +184,10 @@ DevEco 打开 `harmony/`，SDK 为 HarmonyOS 6.1 / API 23。
 
 已成功生成 `dist/seatraces-0.1.0-unsigned.hap`。这是 ArkUI 容器 + ArkWeb 共享界面的混合原型，业务逻辑在服务端，浏览器与手机共用完整交互界面。
 
-本次在用户处理首次软件协议后，已通过 HDC 将未签名调试包安装到本机 HarmonyOS 6.1 API 23 模拟器并启动，截图已确认 ArkWeb 正常显示“发现”页面。该模拟器允许安装此调试包；真机、其他模拟器或发布环境仍应在 DevEco 的 Signing Configs 使用自己的开发账号完成签名。设备连接后，将本机服务映射进去：
+本次在用户处理首次软件协议后，已通过 HDC 将未签名调试包安装到本机 HarmonyOS 6.1 API 23 模拟器并启动，截图已确认 ArkWeb 正常显示“发现”页面。该模拟器允许安装此调试包；真机、其他模拟器或发布环境仍应在 DevEco 的 Signing Configs 使用自己的开发账号完成签名。仅在本机开发模式下，设备连接后将电脑前端映射进去（使用自己的 SDK 路径和设备 ID）：
 
 ```powershell
-& 'D:/SWE-OpenHarmony/DevEcoStudio/sdk/default/openharmony/toolchains/hdc.exe' rport tcp:8787 tcp:8787
+& 'D:/SWE-OpenHarmony/DevEcoStudio/sdk/default/openharmony/toolchains/hdc.exe' -t '<设备ID>' rport tcp:8788 tcp:8788
 ```
 
 也可在模拟器启动后，一次完成端口映射、安装和启动（设备 ID 先用 `hdc list targets` 确认）：
@@ -182,7 +200,7 @@ DevEco 打开 `harmony/`，SDK 为 HarmonyOS 6.1 / API 23。
 
 2026-10-11 最新模拟器验收：Pura 90 已显示新版高德地图首页和“制订个性化旅行方案”按钮。该模拟器下 ArkWeb 默认异步绘制曾显示黑屏，客户端已改用 `RenderMode.SYNC_RENDER` 并重新安装验证。记录见 `validation/harmony-amap-20261011.json`；此轮只验收启动和地图首页，完整问卷流程与真机绘制需另行验收。体验时保持电脑后端和模拟器端口映射运行。
 
-端内“连接设置”默认 `http://127.0.0.1:8787`；正式部署填写 HTTPS 服务域名，不附带账号、路径、查询参数或片段。编辑地址只修改草稿，点击“连接并刷新”后才应用；关闭设置会丢弃草稿。本机 HTTP 仅允许上述回环地址。定位请求仅接受当前连接服务的同源页面，随后仍由系统向用户申请权限。
+当前端内“连接设置”默认 `https://trip.seatraces.com`；本机开发填 `http://127.0.0.1:8788`，8787 仅作为旧入口兼容。服务地址不附带账号、路径、查询参数或片段。编辑地址只修改草稿，点击“连接并刷新”后才应用；关闭设置会丢弃草稿。本机 HTTP 仅允许上述回环地址。定位请求仅接受当前连接服务的同源页面，随后仍由系统向用户申请权限。
 
 2026-10-11 已重新构建并在 Pura 90 / API 23 模拟器安装启动：地点库显示云端 4,567,502 行，实际检索外滩和 `tokyo tower`，东京塔详情可解释当日 09:00–23:00 OSM 规则并保留官网补充说明。鸿蒙返回键可从地点库返回旅行首页；设置草稿与无效地址拦截已实测。安装脚本复用本设备既有 8787 映射，并检查 HDC 输出中的实际成功信息；锁屏失败不会再误报成功。GPS、真实商业地图及完整移动流程仍待验收，详见 TEST_REPORT.md 最新一节。
 
