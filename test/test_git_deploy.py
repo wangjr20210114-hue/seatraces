@@ -35,4 +35,16 @@ class GatewayTests(unittest.TestCase):
         with patch.object(gateway,'git',return_value='100644 blob aaa\tserver/schema.sql\n100644 blob bbb\tserver/index.mjs\n100644 blob ccc\tserver/migrations/new.sql'):
             self.assertEqual(len(gateway.schema_tree('a'*40)),2)
 
+    def test_git_network_failures_are_distinguished_from_permissions(self):
+        network=gateway.git_failure('fetch','fatal: unable to access https://example.org/: Failed to connect to github.com: Connection timed out',128)
+        self.assertTrue(network.transient)
+        self.assertIn('Connection timed out',str(network))
+        permission=gateway.git_failure('fetch',"error: cannot open '.git/FETCH_HEAD': Permission denied",128)
+        self.assertFalse(permission.transient)
+        self.assertIn('FETCH_HEAD',str(permission))
+
+    def test_git_error_removes_url_passwords(self):
+        error=gateway.git_failure('fetch','fatal: unable to access https://someone:secret-placeholder@github.com/repo',128)
+        self.assertNotIn('secret-placeholder',str(error))
+
 if __name__=='__main__':unittest.main()

@@ -7,6 +7,23 @@ SOURCE=Path('/srv/seatraces')
 STATE=Path('/var/lib/seatraces/git-deploy')
 REMOTE='https://github.com/wangjr20210114-hue/seatraces.git'
 
+class GitFailure(RuntimeError):
+    def __init__(self,operation,detail,transient=False):
+        super().__init__('Git '+operation+' failed: '+detail)
+        self.transient=transient
+
+def git_failure(operation,stderr,code):
+    detail=(stderr.decode('utf8',errors='replace') if isinstance(stderr,bytes) else stderr or '').strip()
+    lower=detail.lower()
+    transient=any(value in lower for value in ('could not resolve host','failed to connect','timed out','too slow',
+                  'gnutls_handshake','tls connection','ssl_connect','connection reset','rpc failed','early eof','remote end hung up'))
+    # Git uses this fixed public remote; still strip credentials if a user's Git configuration rewrites URLs.
+    detail=re.sub(r'(https?://)[^\s/@]+:[^\s/@]+@',r'\1[redacted]@',detail)
+    detail=re.sub(r'\b(?:gh[pousr]_[A-Za-z0-9]+|github_pat_[A-Za-z0-9_]+)\b','[redacted]',detail)
+    detail=re.sub(r'-----BEGIN [\s\S]*?-----END [^\n]+-----','[redacted]',detail)
+    detail=re.sub(r'\x1b\[[0-9;]*[A-Za-z]','',detail)
+    return GitFailure(operation,'exit '+str(code)+'; '+detail[-800:],transient)
+
 def command(argv,**kwargs):
     result=subprocess.run(argv,check=True,**kwargs)
     return result.stdout
@@ -15,9 +32,15 @@ def git(*args,binary=False):
     env={k:v for k,v in os.environ.items() if not k.startswith('GIT_')}
     env.update(HOME='/home/seatraces_dev',XDG_CONFIG_HOME='/home/seatraces_dev/.config',GIT_TERMINAL_PROMPT='0')
     # Shared Git metadata is writable by the team. Never run its hooks/filters as an administrator.
-    return command(['runuser','-u','seatraces_dev','--','git','-c','core.hooksPath=/dev/null',
-                    '-c','core.fsmonitor=false','-c','credential.helper=','-c','protocol.ext.allow=never','-C',str(SOURCE),*args],
-                   env=env,capture_output=True,text=not binary,timeout=180)
+    try:
+        return command(['runuser','-u','seatraces_dev','--','git','-c','core.hooksPath=/dev/null',
+                        '-c','core.fsmonitor=false','-c','credential.helper=','-c','protocol.ext.allow=never','-C',str(SOURCE),*args],
+                       env=env,capture_output=True,text=not binary,timeout=180)
+    except subprocess.CalledProcessError as error:
+        raise git_failure(args[0],error.stderr,error.returncode) from None
+    except subprocess.TimeoutExpired:
+        # Do not automatically retry a timed-out subprocess whose descendants may still be exiting.
+        raise GitFailure(args[0],'exceeded 180 seconds; inspect server Git/network state before retrying') from None
 
 def save(path,data):
     temporary=path.with_suffix('.next-'+str(os.getpid()))
@@ -45,8 +68,10 @@ def deploy(commit):
     try:fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
     except BlockingIOError:return
     record=STATE/(commit+'.json')
-    previous={};activated=False;old_env=None;updated_env=None
+    previous={};activated=False;old_env=None;updated_env=None;progress='starting'
     def report(phase,**extra):
+        nonlocal progress
+        progress=phase
         value={'commit':commit,'phase':phase,'pid':os.getpid(),'updatedAt':time.strftime('%Y-%m-%dT%H:%M:%SZ',time.gmtime()),**extra}
         save(record,value);print(json.dumps(value),flush=True)
     try:
@@ -55,14 +80,22 @@ def deploy(commit):
         if git('remote','get-url','origin').strip()!=REMOTE:raise RuntimeError('Unexpected Git remote')
         if git('branch','--show-current').strip()!='main':raise RuntimeError('Server shared source must be on main')
         if git('status','--porcelain','--untracked-files=normal').strip():raise RuntimeError('Server has local changes; save and resolve them before deployment')
-        report('fetching')
-        git('fetch','origin','main')
+        for attempt in range(1,4):
+            report('fetching',attempt=attempt)
+            try:
+                git('fetch','origin','main');break
+            except GitFailure as error:
+                if not error.transient or attempt==3:raise
+                report('retrying_fetch',attempt=attempt,error=str(error))
+                time.sleep(3)
         if git('rev-parse','origin/main').strip()!=commit:raise RuntimeError('Requested commit is not the current origin/main tip')
         old_env=(ROOT/'.env.deploy').read_text()
         old_image=re.search(r'^SEATRACES_IMAGE=(.+)$',old_env,re.M).group(1)
         active=command(['docker','inspect','seatraces-business-backend-1','--format','{{.Config.Image}}'],capture_output=True,text=True).strip()
         if active!=old_image:raise RuntimeError('Running and configured images differ')
         candidates=[]
+        label=command(['docker','image','inspect',active,'--format','{{index .Config.Labels "org.opencontainers.image.revision"}}'],capture_output=True,text=True).strip()
+        if re.fullmatch('[a-f0-9]{40}',label):candidates.append(label)
         for p in [*(ROOT.glob('*update-status.json')),*(STATE.glob('*.json'))]:
             try:v=json.loads(p.read_text())
             except (ValueError,OSError):continue
@@ -75,7 +108,8 @@ def deploy(commit):
             content=git('show',commit+':'+name,binary=True)
             if hashlib.sha256(content).hexdigest()!=expected:raise RuntimeError('Build policy changed; administrator must review '+name)
         report('updating_source')
-        git('pull','--ff-only','origin','main')
+        # Fetch has already verified this exact commit. Merge locally instead of downloading again.
+        git('merge','--ff-only',commit)
         if git('rev-parse','HEAD').strip()!=commit:raise RuntimeError('main moved during pull; deployment stopped')
         stage=ROOT/'incoming'/('git-'+commit[:12]+'-'+str(time.time_ns()))
         stage.mkdir(mode=0o700)
@@ -137,7 +171,8 @@ def deploy(commit):
                 phase='rolled_back'
             except Exception:phase='rollback_failed'
         detail=str(error) if isinstance(error,RuntimeError) else type(error).__name__
-        report(phase,error=detail,**previous)
+        if isinstance(error,subprocess.CalledProcessError):detail='Command failed with exit '+str(error.returncode)+' during '+progress
+        report(phase,error=detail,failedPhase=progress,**previous)
 
 def write_env(contents):
     next_file=ROOT/'.env.deploy.git-next'

@@ -51,7 +51,7 @@ async function main(){
   if(!existsSync(key)||!existsSync(knownHosts))throw Error('缺少本机部署密钥或已验证的服务器主机密钥。');
   const ssh=process.platform==='win32'?path.join(process.env.WINDIR||'C:/Windows','System32/OpenSSH/ssh.exe'):'ssh';
   const sshArgs=['-i',key,'-p',String(config.port),'-o','BatchMode=yes','-o','IdentitiesOnly=yes','-o','StrictHostKeyChecking=yes','-o','HostKeyAlgorithms=ssh-ed25519','-o','UserKnownHostsFile='+knownHosts,'-o','ConnectTimeout=10',config.user+'@'+config.host];
-  const server=command=>{const answer=JSON.parse(run(ssh,[...sshArgs,command]));if(answer.error)throw Error(answer.error);return answer;};
+  const server=command=>{const answer=JSON.parse(run(ssh,[...sshArgs,command]));if(answer.error&&!answer.phase)throw Error(answer.error);return answer;};
   console.log('检查本机和部署连接…');
   const readiness=server('check');
   if(readiness.protocol!=='seatraces-git-deploy/1'||readiness.branch!=='main'||!readiness.clean)throw Error('服务器必须位于 main 且没有未提交修改。');
@@ -97,9 +97,9 @@ async function main(){
     const remoteHead=g('ls-remote','origin','refs/heads/main').split(/\s/)[0];if(remoteHead!==commit)throw Error('远端 main 已变化，未部署其他版本。');
   }
   console.log('开始部署 '+commit+' …');let result=server('deploy '+commit),last='';
-  const deadline=Date.now()+20*60*1000;
+  const deadline=Date.now()+30*60*1000;
   while(Date.now()<deadline){
-    if(result.phase!==last){console.log('服务器：'+result.phase);last=result.phase;}
+    if(result.phase!==last){console.log('服务器：'+result.phase+(result.phase==='retrying_fetch'?'；'+result.error:''));last=result.phase;}
     if(result.phase==='completed'){console.log('部署成功：https://trip.seatraces.com\n提交：'+commit);return;}
     if(['failed','rolled_back','rollback_failed'].includes(result.phase))throw Error('服务器：'+result.phase+'；'+(result.error||'请检查部署记录')+'。已推送的提交不会被删除。');
     await sleep(5000);result=server('status '+commit);
