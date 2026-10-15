@@ -13,7 +13,7 @@
 | 方法 / 路径 | 输入 | 功能 / 返回 |
 |---|---|---|
 | GET `/api/admin/overview` | 无 | 用户数、停用数、24 小时操作/错误数、数据库连接、进程运行时间、内存和日志队列状态 |
-| GET `/api/admin/users` | `q`（账号/昵称）、`limit` 1–100、`offset` | 分页账号摘要；不返回密码散列、邮件令牌、Cookie |
+| GET `/api/admin/users` | `q`（账号/昵称）、`state` all/active/disabled、`role` all/user/admin、`limit` 1–100、`offset` | 分页账号摘要；不返回密码散列、邮件令牌、Cookie |
 | PATCH `/api/admin/users/:id/status` | `disabled` 布尔、`reason` 为 support/security/requested | 停用/启用普通用户；停用删除会话；不能操作自己或管理员 |
 | GET `/api/admin/events` | `from/to` 日期、可选 `userId/kind`、分页 | 按时间倒序查询轨迹、接口操作、管理审计和系统错误 |
 | GET `/api/admin/events/export` | 同上日期及用户/类别过滤 | 下载 `seatraces-operations.log.gz`；解压后每行一个 JSON 日志；最多 31 天 / 20,000 条，超限明确拒绝，不截断 |
@@ -25,8 +25,6 @@
 不记录请求体、密码、密钥、对话文本、完整查询 URL、精确位置或设备指纹。系统异常仅记录随机请求 ID 和安全错误码。日志导出采用固定数据库查询，不读取任意服务器路径，不打包 `.env`、数据库文件或运行目录。日志暂无自动删除任务，管理员应根据实际业务与保留期限安排维护；不声称永久存储无限容量。
 
 本轮数据库迁移新增 `users.disabled_at` 与 `operation_events`，不会删除现有账号或行程。现有自动部署会拦截 SQL 变更，服务器验收前须先备份并审核迁移。
-
-## 测试
 
 ## 站内信
 
@@ -51,3 +49,11 @@
 `TEST_INBOX=1 node --test test/inbox.test.mjs` 使用隔离 schema 验证群发、并发重放、收件人权限、已读和长度限制，无 SMTP 调用。
 
 本机服务启动后，PowerShell：`$env:TEST_OPERATIONS='1'; node --test test/operations.test.mjs`。测试使用隔离 schema，结束删除测试数据；不会请求地图或模型 API。用例/结果见 `TEST_CASES_20261016.md`。
+
+## 账户与审计详情
+
+- `GET /api/admin/users/:id`：基础资料、邮箱是否已验证、操作数、最近操作、有效会话创建/到期时间（最多 100 项）。不返回密码散列、邮件地址、Cookie 或会话令牌。
+- `POST /api/admin/users/:id/sessions/revoke`：`{confirmation:"revoke",reason:"security"|"support"|"requested"}`，撤销普通用户全部会话；不删除账号或行程，不可操作管理员。并发重复只撤销已有会话一次，审计与撤销原子提交。
+- `GET /api/admin/events/:id`：日志详情、请求 ID、资源 ID、受控审计字段。
+
+后台采用独立标准管理台样式，支持窄屏横向表格和侧栏切换；消费者界面保持原有风格。不会通过界面修改用户角色或授予管理员。

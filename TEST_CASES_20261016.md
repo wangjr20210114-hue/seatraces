@@ -11,6 +11,8 @@
 | ADM-05 | 登录用户与游客 | 页面切换、读写接口、携带敏感请求体 | 登录操作可按用户/时间追溯；游客无轨迹；日志不保存输入、密码、密钥、完整 URL 查询 | P0 | 通过（operations.test.mjs） |
 | ADM-06 | 有日志 | 日期过滤导出、解压、非法日期/过大范围/超限 | 可解压、范围正确；超限明确拒绝，不能悄悄截断 | P1 | 通过（operations.test.mjs） |
 | ADM-07 | 本机隔离数据 | 并发读后台与写日志 | 无未处理异常、权限不串用；记录成功率和 P50/P95 | P1 | 通过（operations.test.mjs） |
+| ADM-08 | 管理员与普通用户 | 身份/状态筛选、用户详情、日志详情 | 过滤正确，不返回邮件地址、散列或令牌；普通用户拒绝 | P0 | 通过（admin-details.test.mjs） |
+| ADM-09 | 有会话的用户 | 缺少确认、20 并发撤销、撤销管理员会话 | 缺少确认拒绝；只撤销一次；管理员受保护；账号可再次登录 | P0 | 通过（admin-details.test.mjs） |
 | MSG-01 | 管理员、两个普通用户 | 全体群发、指定群发、重复提交 | 仅目标用户收到；幂等不重发；无 SMTP 实际发送 | P0 | 通过（inbox.test.mjs） |
 | MSG-02 | 收件人与非收件人 | 列表、阅读、重复已读、伪造消息 ID | 收件人可读；他人拒绝；已读幂等 | P0 | 通过（inbox.test.mjs） |
 | MSG-03 | 站内信内容 | HTML/script、超长标题正文 | 纯文本显示、长度校验，无脚本执行 | P0 | 通过（inbox.test.mjs） |
@@ -44,3 +46,9 @@
 - 压力样本：505 收件人一次投递 42ms，200 次读取、20 并发、0 错误，P50 40ms、P95 53ms；外部邮件调用 0。
 - 网页验证：指定测试账号草稿预览、确认发送、设置未读数、消息正文、返回后已读通过。只向本机验收管理员发送 1 条消息。截图 `validation/iteration-20261016/inbox-sent.jpg`、`inbox-read.jpg`。
 - `npm run check` 通过。
+
+## 执行记录：后台管理完善
+
+- `TEST_OPERATIONS=1 node --test test/admin-details.test.mjs test/operations.test.mjs`：10/10 通过。
+- 回归压力 400 请求、20 并发、0 错误，P50 40ms、P95 77ms、983ms 完成，日志队列无丢弃/失败。
+- 用户详情、状态筛选和日志详情网页验收完成，截图 `validation/iteration-20261016/admin-detail.jpg`。
