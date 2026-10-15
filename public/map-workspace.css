@@ -10,6 +10,28 @@
   min-height: 180px;
   flex: 0 0 48%;
 }
+#map-grip {
+  display: none;
+}
+#home.map-workspace #map-grip {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 22px;
+  cursor: ns-resize;
+  touch-action: none;
+  position: relative;
+  z-index: 5;
+}
+#home.map-workspace #map-grip::after {
+  content: "";
+  width: 56px;
+  height: 5px;
+  border-radius: 999px;
+  background: #183c40;
+  opacity: 0.22;
+}
 #home.map-workspace .topbar {
   top: 12px;
   left: 16px;

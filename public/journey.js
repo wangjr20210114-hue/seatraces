@@ -484,6 +484,7 @@ async function render() {
       searchCities(e.target.value, true);
     };
     $("#locate").onclick = () => locate(false);
+    void searchCities("", true, true);
     if (!state.origin.label)
       navigator.permissions
         ?.query({ name: "geolocation" })
@@ -969,6 +970,31 @@ function workspaceHeight() {
 window.visualViewport?.addEventListener("resize", workspaceHeight);
 window.addEventListener("resize", workspaceHeight);
 workspaceHeight();
+{
+  const grip = $("#map-grip");
+  if (grip) {
+    let dragging = false;
+    grip.addEventListener("pointerdown", (e) => {
+      e.preventDefault();
+      dragging = true;
+      grip.setPointerCapture(e.pointerId);
+    });
+    grip.addEventListener("pointermove", (e) => {
+      if (!dragging) return;
+      const stage = document.querySelector("#home .map-stage");
+      if (!stage) return;
+      const rect = $("#home").getBoundingClientRect();
+      let frac = (e.clientY - rect.top) / rect.height;
+      frac = Math.max(0.12, Math.min(0.78, frac));
+      stage.style.flexBasis = (frac * 100).toFixed(1) + "%";
+    });
+    const stop = () => {
+      dragging = false;
+    };
+    grip.addEventListener("pointerup", stop);
+    grip.addEventListener("pointercancel", stop);
+  }
+}
 window.addEventListener("message", (e) => {
   if (
     e.origin !== location.origin ||
