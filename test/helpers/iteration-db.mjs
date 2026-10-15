@@ -14,10 +14,14 @@ export async function iterationFixture({schemas=[]}={}) {
   const pool=new pg.Pool({host:'127.0.0.1',port:cfg.port,user:'seatraces',password:cfg.password,database:'seatraces',max:8,options:`-c search_path=${schema},public`});
   const query=(...args)=>pool.query(...args);
   const transaction=async fn=>{const c=await pool.connect();try{await c.query('BEGIN');const result=await fn(c);await c.query('COMMIT');return result;}catch(e){await c.query('ROLLBACK');throw e;}finally{c.release();}};
-  let server,events;
-  async function close(){await new Promise(resolve=>server?server.close(resolve):resolve());await events?.close();await query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`);await pool.end();}
+  let server,events,created=false;
+  async function close(){await new Promise(resolve=>server?server.close(resolve):resolve());await events?.close();try{if(created)await query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`);}finally{await pool.end();}}
   try{
+    // Local hot reload may restart embedded PostgreSQL between source edits and tests.
+    // Wait for readiness, but never swallow a database failure or skip a test.
+    for(let i=0;;i++){try{await query('SELECT 1');break;}catch(e){if(i>=19||!['57P03','ECONNREFUSED','ECONNRESET'].includes(e.code))throw e;await new Promise(r=>setTimeout(r,500));}}
     await query(`CREATE SCHEMA ${schema}`);
+    created=true;
     // Minimal isolated accounts; no dependency on or access to real users.
     await query(`CREATE TABLE users(id uuid PRIMARY KEY,username varchar(32) UNIQUE NOT NULL,password_hash text NOT NULL,nickname varchar(40) NOT NULL,avatar varchar(12) NOT NULL DEFAULT '🌊',role text NOT NULL DEFAULT 'user',preferences jsonb NOT NULL DEFAULT '{}',created_at timestamptz NOT NULL DEFAULT now());
       CREATE TABLE sessions(token_hash text PRIMARY KEY,user_id uuid REFERENCES users(id) ON DELETE CASCADE,expires_at timestamptz);
