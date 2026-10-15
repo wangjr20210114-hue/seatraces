@@ -39,7 +39,7 @@ export function mountAgent({
     input = node("textarea");
   input.rows = 2;
   input.maxLength = 1500;
-  input.placeholder = "想去哪，或需要我做什么？";
+  input.placeholder = "例如：明早去上海，玩两天，少走路";
   input.setAttribute("aria-label", "发给问 AI 的消息");
   const send = node("button", "primary", "发送 ↑");
   send.type = "submit";
@@ -342,11 +342,11 @@ export function mountAgent({
     bubble("我陪你把旅行安排好。");
     const examples = node("div", "agent-examples");
     for (const text of [
-      "帮我规划一次旅行",
+      "我明早从北京去上海，玩两天，少走路，想看博物馆",
       "推荐当前行程附近的餐饮",
       "打开历史行程",
       "怎么规划行程？",
-      "我喜欢人文和建筑，想慢慢逛",
+      "帮我安排去上海玩三天，喜欢建筑，避开拥挤",
     ]) {
       const b = node("button", "agent-chip", text);
       b.onclick = () => void sendMessage(text);

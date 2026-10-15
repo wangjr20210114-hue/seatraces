@@ -22,6 +22,7 @@ const patterns = {
     /^\/api\/posts$/,
     /^\/api\/posts\/[\da-f-]{36}\/(?:reactions|comments)$/,
     /^\/api\/citywalks$/,
+    /^\/api\/citywalk\/preview$/,
   ],
   PATCH: [/^\/api\/trips\/[\da-f-]{36}$/, /^\/api\/me$/],
   PUT: [

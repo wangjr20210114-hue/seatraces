@@ -1,3 +1,4 @@
+import { travelTiming, tripPreferences } from "./travel-language.mjs";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { pages, capabilities } from "./catalog.mjs";
@@ -79,6 +80,7 @@ export function createAgentEngine({
   knowledge,
   model,
   modelEnabled = () => Boolean(process.env.DEEPSEEK_API_KEY),
+  now = () => new Date(),
 }) {
   function ask(
     state,
@@ -151,10 +153,49 @@ export function createAgentEngine({
     const f = ctx.state.flow;
     if (!["create_trip", "create_citywalk"].includes(f?.kind)) return null;
     const fields = travelFields(text, key);
-    if (!Object.keys(fields).length) return null;
+    const timing =
+      f.kind === "create_trip"
+        ? travelTiming(text, {
+            now: now(),
+            timeZone: "Asia/Shanghai",
+            start: f.start,
+            days: f.durationDays,
+            questionKey: key,
+          })
+        : {};
+    const style =
+      f.kind === "create_trip"
+        ? tripPreferences(text)
+        : { values: {}, conflicts: {} };
+    if (
+      !Object.keys(fields).length &&
+      !Object.keys(timing).length &&
+      !Object.keys(style.values).length &&
+      !Object.keys(style.conflicts).length
+    )
+      return null;
+    if (timing.invalid) {
+      delete fields.start;
+      delete fields.end;
+    }
+    if (timing.start) fields.start = timing.start;
+    if (timing.end) fields.end = timing.end;
+    if (timing.days) f.durationDays = timing.days;
+    f.answers = { ...f.answers, ...style.values };
+    f.explicitAnswerKeys = [
+      ...new Set([
+        ...(f.explicitAnswerKeys || []),
+        ...Object.keys(style.values),
+      ]),
+    ];
     if (fields.start) parseDates(fields.start);
     if (fields.end) parseDates(fields.end);
-    if (f.sessionId)
+    if (
+      f.sessionId &&
+      ["originName", "destinationName", "start", "end"].some(
+        (k) => fields[k] !== undefined && fields[k] !== f[k],
+      )
+    )
       for (const k of [
         "sessionId",
         "catalog",
@@ -193,15 +234,50 @@ export function createAgentEngine({
       ])
         delete f[k];
       f.destinationName = fields.destinationName;
+      if (
+        f.kind === "create_trip" &&
+        !/(和|或|、|然后|再去)/.test(fields.destinationName)
+      )
+        f.citiesDone = true;
     }
     if (fields.start) f.start = fields.start;
     if (fields.end) f.end = fields.end;
     delete ctx.state.question;
+    if (timing.conflict) {
+      const c = timing.conflict;
+      delete f[c.key];
+      if (c.key === "duration" || c.key === "start") delete f.end;
+      delete f.durationDays;
+      return ask(
+        ctx.state,
+        c.key,
+        c.text,
+        c.options.map((value) => ({
+          label: c.key === "duration" ? value + " 天" : value,
+          data: value,
+        })),
+        { input: c.key === "duration" ? "text" : "date" },
+      );
+    }
+    const preferenceConflict = Object.entries(style.conflicts)[0];
+    if (preferenceConflict) {
+      const [dimension, values] = preferenceConflict;
+      f.styleConflict = dimension;
+      return ask(
+        ctx.state,
+        "stylePriority",
+        "这次优先满足哪一项？",
+        values.map((value) => ({ label: labelValue(value), data: value })),
+      );
+    }
     const understood = [
       fields.originName && `从${fields.originName}出发`,
       fields.destinationName && `去${fields.destinationName}`,
       fields.start && `${fields.start}出发`,
       fields.end && `${fields.end}返回`,
+      ...Object.entries(style.values).map(
+        ([k, v]) => `${styleLabels[k]}：${labelValue(v)}`,
+      ),
     ]
       .filter(Boolean)
       .join("，");
@@ -824,7 +900,10 @@ export function createAgentEngine({
       f.answers = { ...r.defaults, ...f.answers };
     }
     f.answered ||= [];
-    const q = f.questions.find((q) => !f.answered.includes(q.id));
+    const q = f.questions.find(
+      (q) =>
+        !f.answered.includes(q.id) && !f.explicitAnswerKeys?.includes(q.id),
+    );
     if (q) {
       f.answering = q.id;
       return ask(
@@ -1025,7 +1104,7 @@ export function createAgentEngine({
       return ask(
         s,
         "stopIds",
-        "选择至少两个景点。",
+        "选择至少两个地点。",
         candidates.map((p) => ({ label: p.name, data: p.id })),
         { multi: true },
       );
@@ -1039,7 +1118,7 @@ export function createAgentEngine({
       return ask(
         s,
         "startId",
-        "从哪个景点开始？",
+        "从哪个地点开始？",
         stops.map((p) => ({ label: p.name, data: p.id })),
       );
     if (!f.title)
@@ -1057,6 +1136,37 @@ export function createAgentEngine({
       );
     z.string().min(1).max(80).parse(f.title);
     const ordered = orderWalk(stops, f.startId);
+    ctx.progress?.("正在核验步行距离…");
+    const routePreview = await ctx.api("POST", "/api/citywalk/preview", {
+      draftId: f.draftId,
+      clusterIds: f.walkClusters,
+      stopIds: f.stopIds,
+      startId: f.startId,
+      ...(f.previous ? { walkId: f.previous.id } : {}),
+    });
+    if (routePreview.status === "loading")
+      return ask(s, "retryWalkRoute", "步行路线正在核验。", [
+        { label: "查看路线", data: true },
+      ]);
+    if (
+      routePreview.route?.status !== "verified" ||
+      !Number.isFinite(routePreview.route.distanceM) ||
+      routePreview.route.distanceM < 0
+    )
+      return ask(
+        s,
+        "retryWalkRoute",
+        "暂时只能预览，步行距离核验后才能保存。",
+        [{ label: "重新核验", data: true }],
+      );
+    if (routePreview.route.blocked || routePreview.route.distanceM >= 15000) {
+      delete f.stopIds;
+      delete f.startId;
+      return {
+        ...(await citywalk(ctx)),
+        text: "路线达到 15 公里，请减少地点后重新核验。",
+      };
+    }
     return prepare(
       ctx,
       f.kind,
@@ -1071,7 +1181,11 @@ export function createAgentEngine({
         ...(f.previous ? { version: f.previous.version } : {}),
       },
       f.previous ? "更新 CityWalk" : "保存 CityWalk",
-      [f.title, ordered.map((p) => p.name).join(" → ")],
+      [
+        f.title,
+        ordered.map((p) => p.name).join(" → "),
+        `实际步行 ${(routePreview.route.distanceM / 1000).toFixed(2)} 公里${routePreview.route.warning ? "，超过 10 公里建议分段走" : ""}`,
+      ],
     );
   }
   function applyAnswer(s, key, value, text) {
@@ -1120,10 +1234,32 @@ export function createAgentEngine({
       const evidence = Array.isArray(value) ? value.join("，") : value;
       f.style = explicitStyle(evidence);
       f.original = text || evidence;
+    } else if (key === "stylePriority") {
+      f.answers ||= {};
+      f.answers[f.styleConflict] = value;
+      f.explicitAnswerKeys = [
+        ...new Set([...(f.explicitAnswerKeys || []), f.styleConflict]),
+      ];
+      delete f.styleConflict;
+    } else if (key === "duration") {
+      const days = Number(value);
+      if (!Number.isInteger(days) || days < 1 || days > 30)
+        throw fail("请选择 1 至 30 天");
+      f.durationDays = days;
+      if (f.start)
+        f.end = travelTiming("玩" + days + "天", {
+          start: f.start,
+          now: now(),
+        }).end;
     } else if (["start", "end"].includes(key)) {
       const d = parseDates(value);
       if (d.length !== 1) throw fail("请填写完整日期，例如 2026-10-20");
       f[key] = d[0];
+      if (key === "start" && f.durationDays)
+        f.end = travelTiming("玩" + f.durationDays + "天", {
+          start: f.start,
+          now: now(),
+        }).end;
     } else f[key] = value;
   }
   async function message(ctx, input) {

@@ -21,7 +21,7 @@ export const workflows = {
     "预览商家",
     "确认保存",
   ],
-  create_citywalk: ["选择城市和片区", "选择景点和起点", "预览路线", "确认保存"],
+  create_citywalk: ["选择城市和片区", "选择地点和起点", "核验步行路线", "确认保存"],
   share_trip: ["读取本人行程", "预览发布", "确认发布"],
   post_reaction: ["选择可见帖子", "预览互动", "确认执行"],
   post_comment: ["选择可见帖子", "填写评论", "确认发布"],
@@ -208,6 +208,20 @@ export function workflowAllows({ state, action }, method, path, body) {
       );
     }
     case "create_citywalk":
+      if (
+        f.draftId &&
+        f.walkClusters?.length &&
+        f.stopIds?.length >= 2 &&
+        f.startId &&
+        call("POST", "/api/citywalk/preview", {
+          draftId: f.draftId,
+          clusterIds: f.walkClusters,
+          stopIds: f.stopIds,
+          startId: f.startId,
+          ...(f.previous ? { walkId: f.previous.id } : {}),
+        })
+      )
+        return true;
       return (
         (!f.walkId && call("GET", "/api/citywalks?limit=50&offset=0")) ||
         (!!f.walkId && call("GET", `/api/citywalks/${f.walkId}`)) ||

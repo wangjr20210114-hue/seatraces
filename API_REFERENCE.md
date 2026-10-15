@@ -291,7 +291,7 @@ AgentReply 的公共字段：`text,intent,conversationId,revision`。可选：`c
 | 修改行程 | 选择本人行程 → 选择天 → POST trips/:id/assistant 获取原业务修改预览 → 核对目标景点 → 展示变更 → 确认 → PATCH trips/:id 带原version。新增/替换景点受原接口业务places候选范围限制 |
 | 状态和恢复版本 | GET本人行程/versions → 展示目标状态或版本 → 确认 → 原PATCH带version |
 | 附近吃住 | GET本人行程 → 选择天和餐饮/住宿 → 原POST recommendations，`groupMeals:true,sort:distance` → 每批最多5家/换批 → 选择候选 → 原preview → 确认 → 原PUT带version；不订餐、不订房、不查询价格 |
-| CityWalk | 新建或读取本人路线 → 原citywalk/catalog异步加载 → 片区 → 多选至少2个景点 → 起点 → 标题 → 用原orderWalk预览顺序 → 确认 → 原POST或PUT citywalks，编辑携带version |
+| CityWalk | 新建或读取本人路线 → 原citywalk/catalog异步加载 → 片区 → 多选至少2个地点 → 起点 → 标题 → POST /api/citywalk/preview 核验顺序和实际步行距离 → 确认 → 原POST或PUT citywalks再次核验，编辑携带version；缺路仅预览，达到15km拒绝 |
 | 修改昵称 | 补齐昵称 → 预览并确认 → 原PATCH me；头像上传、邮箱验证、密码与退出登录交回账号页，不让模型接触凭据 |
 | 发布行程 | 选择本人行程 → 预览当前行程快照 → 确认 → 再次核对行程version → 与页面相同的POST discovery/publish，`{kind:"journey",id:tripId}`；标题正文和去重由该接口统一处理 |
 | 帖子互动 | GET posts当前可见窗口中选帖 → 预览点赞/收藏/推荐或评论 → 确认 → 原reactions/comments；不把窗口说成全量收藏 |
@@ -319,6 +319,12 @@ AgentReply 的公共字段：`text,intent,conversationId,revision`。可选：`c
 生效优先级：本次问卷明确答案 > 当前对话本次偏好 > 未过期长期确认记忆 > 用户既有配置及行为权重。长期记忆接入原travelHabit，影响片区评分和问卷默认项；既有浏览、收藏和历史行程统计仍由原逻辑提供。未说的维度保持未知，不凭停留时间推断预算、身体情况等硬约束。删除长期记忆不会删除账号原有偏好或浏览记录。
 
 ### PostgreSQL 新表与验收
+
+2026-10-16 增加 `travel-language.mjs`，使用确定性规则解析“我明早从北京去上海，玩两天，少走路，想看博物馆”等组合要求。相对日期当前按北京时间（Asia/Shanghai）计算，尚未读取用户独立时区；“明早”只确定日期，不等同于已验证上午航班或到达时间。支持明确日期、明天/后天、1–30天持续时间和明确更正；城市仍须通过原地点接口匹配。日期/天数、出发地、交通偏好相互冲突时先提问，已明确的偏好跳过重复问卷，不直接写入长期记忆。
+
+无足够依据的模糊日期仍要澄清。此实现不是任意自然语言的完整语义解析器；多任务切换、长句否定和未识别表达继续通过现有选项与受限模型复核。CityWalk 路线预览只允许访问当前草稿和当前选点，模型无后台管理工具。软件知识库同步了游客、消息和新步行限制，知识内容变更会更新版本并重新构建向量。
+
+`TEST_AGENT=1 node --test --test-timeout=30000 test/agent.test.mjs test/agent-compound.test.mjs` 覆盖组合需求、相对日期、缺项与冲突、既有权限和确认，以及 CityWalk 缺路/15km 阻止保存；分类器微基准不代表完整 HTTP/模型吞吐。
 
 - `agent_conversations`：id、user_id、state、revision、busy_until、busy_token、created_at、updated_at。
 - `agent_turns`：id、conversation_id、user_id、request_id、input、response、status、created_at；保存每轮输入与响应，用于恢复和重放。

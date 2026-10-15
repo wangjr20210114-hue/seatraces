@@ -3,6 +3,8 @@ import { capabilities, pages } from "./catalog.mjs";
 import { explicitStyle } from "./memory.mjs";
 import { isSoftwareQuestion, bypassConfirmation } from "./dialogue.mjs";
 
+import { compoundTripRequest } from "./travel-language.mjs";
+
 const capabilityIds = capabilities.map((c) => c.id);
 const software =
   /(软件|海迹|SeaTraces|界面|页面|功能|行程|CityWalk|citywalk|旅行|路线|导航|高德|景点|餐饮|住宿|酒店|餐厅|账号|昵称|头像|收藏|历史|密码|记忆|偏好|风格|推荐|地图)/i;
@@ -68,6 +70,7 @@ export function ruleIntent(text) {
       : null;
   if (/(忘掉|删除|清空).{0,10}(旅行风格|旅行偏好|记忆)/.test(text))
     return op("forget_memory");
+  if (compoundTripRequest(text)) return op("create_trip");
   if (
     Object.keys(explicitStyle(text)).length ||
     /(记住|记一下|记录).{0,15}(我|偏好|风格)/.test(text)

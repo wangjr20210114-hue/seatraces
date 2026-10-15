@@ -98,7 +98,7 @@ test("model intent is a suggestion requiring a choice, never an executable instr
   };
   const r = await e.message(ctx, { text: "请帮我调整个人称呼" });
   assert.equal(r.question.key, "capability");
-  assert.ok(r.question.options.some(o=>o.label.includes('昵称')));
+  assert.ok(r.question.options.some((o) => o.label.includes("昵称")));
   assert.equal(r.action, undefined);
   assert.equal(calls, 0);
 });
@@ -545,6 +545,16 @@ test("CityWalk uses catalog draft, validated cluster/stop choices and existing o
           },
         ],
       };
+    if (path === "/api/citywalk/preview")
+      return {
+        status: "ready",
+        route: {
+          status: "verified",
+          distanceM: 1200,
+          blocked: false,
+          warning: false,
+        },
+      };
     if (path === "/api/citywalks") return { id: body.id, title: body.title };
     throw Error(path);
   };
@@ -572,9 +582,10 @@ test("CityWalk uses catalog draft, validated cluster/stop choices and existing o
   r = await answer("江畔漫步");
   assert.ok(r.action);
   assert.equal(
-    calls.some((c) => c.method === "POST"),
+    calls.some((c) => c.method === "POST" && c.path === "/api/citywalks"),
     false,
   );
+  assert.equal(calls.at(-1).path, "/api/citywalk/preview");
   await e.execute(ctx, offers.at(-1), "confirm");
   assert.equal(calls.at(-1).path, "/api/citywalks");
   assert.equal(calls.at(-1).body.draftId, draft);
