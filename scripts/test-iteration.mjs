@@ -1,0 +1,20 @@
+// Local isolated regression. Never uses TEST_URL or the running app's user data.
+import {readdir,mkdir,writeFile} from 'node:fs/promises';
+import {spawn} from 'node:child_process';
+import {fileURLToPath} from 'node:url';
+const root=fileURLToPath(new URL('../',import.meta.url));
+const excluded=['integration.test.mjs','journey-api.test.mjs','discovery.test.mjs'];
+const files=(await readdir(new URL('../test/',import.meta.url))).filter(f=>f.endsWith('.test.mjs')&&!excluded.includes(f)).sort().map(f=>'test/'+f);
+const env={...process.env};
+delete env.TEST_URL;delete env.TEST_DISCOVERY;
+for(const key of ['ACCOUNTS','OPERATIONS','INBOX','CITYWALK','GUEST','AGENT','TRIP_SERVICES','ITERATION'])env['TEST_'+key]='1';
+console.log(`Local isolated regression: ${files.length} files; excludes live integration and discovery suites.`);
+const child=spawn(process.execPath,['--test','--test-concurrency=3','--test-timeout=30000',...files],{cwd:root,env,windowsHide:true,stdio:['ignore','pipe','pipe']});
+let output='';
+for(const stream of [child.stdout,child.stderr])stream.on('data',data=>{output+=data.toString();});
+const code=await new Promise((resolve,reject)=>{child.on('error',reject);child.on('close',resolve);});
+await mkdir(new URL('../validation/iteration-20261016/',import.meta.url),{recursive:true});
+await writeFile(new URL('../validation/iteration-20261016/final-tests.log',import.meta.url),output);
+console.log(output.split(/\r?\n/).filter(l=>/^[ℹ✖]|PRESSURE|failing tests|not ok/.test(l)).join('\n'));
+console.log('Full log: validation/iteration-20261016/final-tests.log');
+process.exitCode=code??1;

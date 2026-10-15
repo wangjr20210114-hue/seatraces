@@ -8,10 +8,13 @@ const files = [
   "server/services/trip-services.mjs",
   "server/agent/routes.mjs",
   "server/services/discovery.mjs",
+  "server/services/classic-citywalks.mjs",
+  "server/operations/routes.mjs",
+  "server/operations/inbox.mjs",
   "server/frontend.mjs",
 ];
-const reference = await readFile("API_REFERENCE.md", "utf8"),
-  endpoints = [],
+const references = await Promise.all(['API_REFERENCE.md','ADMIN.md','CITYWALK_API.md'].map(async file=>({file,text:(await readFile(file,'utf8')).replaceAll('`','')})));
+const endpoints = [],
   missing = [];
 for (const file of files) {
   const source = await readFile(file, "utf8");
@@ -29,9 +32,9 @@ for (const file of files) {
         key = method + " " + path;
       if (endpoints.some((e) => e.method + " " + e.path === key)) continue;
       const short = path.replace(/^\/api\//, "/");
+      const reference=references.find(r=>r.text.includes(method+' '+path)||r.text.includes(method+' '+short));
       if (
-        !reference.includes(method + " " + path) &&
-        !reference.includes(method + " " + short) &&
+        !reference &&
         path !== "/_AMapService/v4/map/styles"
       )
         missing.push(key);
@@ -40,7 +43,7 @@ for (const file of files) {
         path,
         source: file,
         line: source.slice(0, m.index).split("\n").length,
-        reference: "API_REFERENCE.md",
+        reference: reference?.file||"API_REFERENCE.md",
       });
     }
   }
@@ -53,7 +56,7 @@ await writeFile(
     {
       schemaVersion: "api-inventory/1",
       description:
-        "已安装的业务HTTP入口清单；参数、返回与副作用见API_REFERENCE.md。不是agent工具注册表。",
+        "已安装的业务HTTP入口清单；参数、返回与副作用见各条 reference 指向的文档。不是agent工具注册表。",
       endpoints,
     },
     null,
