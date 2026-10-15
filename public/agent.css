@@ -1,27 +1,66 @@
 #ask-ai {
   position: fixed;
   right: 18px;
-  top: max(16px, env(safe-area-inset-top));
+  bottom: calc(94px + env(safe-area-inset-bottom));
   z-index: 5;
-  padding: 10px 16px;
+  padding: 8px 13px 8px 8px;
   border: 1.5px solid #183c40;
-  border-radius: 18px;
+  border-radius: 24px;
   background: #ffda73;
   box-shadow: 0 2px 0 #183c4020;
   font-weight: 800;
   font-size: 16px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  touch-action: none;
+  user-select: none;
+  cursor: grab;
+}
+.ai-spark {
+  width: 32px;
+  height: 32px;
+  display: block;
+  animation: ai-bob 3.5s ease-in-out infinite;
+}
+.ai-spark svg {
+  width: 100%;
+  height: 100%;
+  fill: #fffdf2;
+  stroke: #183c40;
+  stroke-width: 1.5;
+}
+.ai-spark circle {
+  fill: #183c40;
+  stroke: none;
+}
+.ai-smile {
+  fill: none;
+  stroke-linecap: round;
+}
+#ask-ai.dragging {
+  cursor: grabbing;
+  box-shadow: 0 3px 8px #183c401c;
+}
+#ask-ai.dragging .ai-spark {
+  animation: none;
+}
+@keyframes ai-bob {
+  0%,
+  80%,
+  100% {
+    transform: rotate(0);
+  }
+  30% {
+    transform: translateY(-2px) rotate(-9deg);
+  }
+  50% {
+    transform: rotate(7deg);
+  }
 }
 body.auth-pending #ask-ai,
 body.agent-open #ask-ai {
   display: none;
-}
-body.detail-open #ask-ai {
-  top: 18px;
-  right: max(18px, calc((100vw - 640px) / 2));
-  padding: 9px 13px;
-}
-body.detail-open:not(.agent-open) .page-header-inner {
-  padding-right: 84px;
 }
 body.agent-open #page-content {
   padding: 14px 18px 0;
@@ -158,6 +197,50 @@ body.agent-open #detail-page {
   border-top: 1px solid #dbe2d2;
   z-index: 2;
 }
+.agent-composer[hidden] {
+  display: none;
+}
+.agent-custom {
+  border: 0;
+  background: transparent;
+  color: #28736c;
+  font: inherit;
+  padding: 10px 8px;
+  cursor: pointer;
+}
+.agent-date {
+  border: 1.5px solid #9eb8a9;
+  background: #fffdf2;
+  border-radius: 14px;
+  padding: 12px;
+  color: #183c40;
+  font: inherit;
+  min-width: 180px;
+}
+.agent-trace {
+  margin-top: 12px;
+  white-space: normal;
+  color: #386c66;
+  font-size: 14px;
+}
+.agent-trace summary {
+  cursor: pointer;
+}
+.agent-trace ol {
+  padding-left: 20px;
+  margin: 8px 0 0;
+}
+.agent-choices {
+  padding-bottom: 20px;
+}
+.agent-choices:empty {
+  display: none;
+}
+.agent-page button:focus-visible,
+#ask-ai:focus-visible {
+  outline: 3px solid #159d90;
+  outline-offset: 3px;
+}
 .agent-composer textarea {
   min-width: 0;
   width: 100%;
@@ -200,6 +283,9 @@ body.agent-open #detail-page {
   }
 }
 @media (prefers-reduced-motion: reduce) {
+  .ai-spark {
+    animation: none;
+  }
   .agent-status.thinking::before {
     animation: none;
   }

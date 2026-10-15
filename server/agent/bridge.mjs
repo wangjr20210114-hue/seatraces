@@ -13,6 +13,7 @@ const patterns = {
     /^\/api\/posts$/,
   ],
   POST: [
+    /^\/api\/discovery\/publish$/,
     /^\/api\/journey\/sessions$/,
     /^\/api\/journey\/sessions\/[\da-f-]{36}\/(?:cities\/[^/?#]+(?:\?async=1)?|questions|generate)$/,
     /^\/api\/journey\/trips\/[\da-f-]{36}\/services\/recommendations$/,

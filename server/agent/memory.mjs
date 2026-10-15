@@ -59,6 +59,7 @@ export function explicitStyle(text) {
     /(喜欢|希望|想|要|这次|平时|记住).{0,8}(充实|多安排|紧凑)/,
     "full",
   );
+  set("pace", /(我|这次|希望|想).{0,16}(不要太赶|别太赶|不想太赶)/, "relaxed");
   set("transport", /(少走路|不想走太多|尽量不走路)/, "fewWalking");
   set("transport", /(少换乘|不想转车|尽量直达)/, "fewTransfers");
   set(

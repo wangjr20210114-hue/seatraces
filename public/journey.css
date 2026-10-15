@@ -1138,3 +1138,8 @@ dialog::backdrop {
 .discovery-actions { display: flex; justify-content: flex-end; }
 .discovery-actions { flex-wrap: wrap; gap: 12px; }
 .discovery-actions [aria-pressed="true"] { background: #225d4d; color: #fffdf2; }
+.route-share {flex-shrink:0;border:1.5px solid #8eb8aa;border-radius:14px;background:#e4f4e8;color:#183c40;padding:8px 12px;font:inherit;font-size:14px;font-weight:700;box-shadow:none;cursor:pointer;}
+.route-share:disabled {opacity:.6;cursor:wait;}
+.walk-card-wrap {position:relative;}
+.walk-card-wrap .my-walk-card {padding-right:88px;}
+.walk-card-wrap .route-share {position:absolute;right:14px;top:16px;}

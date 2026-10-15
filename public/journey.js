@@ -5,6 +5,7 @@ import { createTabMotion } from "./tab-motion.js";
 import { createPageNavigation } from "./page-navigation.js";
 import { renderProfilePage } from "./profile-pages.js";
 import { mountAgent } from "./agent-page.js";
+import { mountAgentLauncher } from './agent-launcher.js';
 import { mountTripServices } from "./trip-services.js";
 import { mountServiceMapDock } from "./service-map-dock.js";
 import { plannerScene, serviceScene, savedServicePoints } from "./map-scene.js";
@@ -380,6 +381,7 @@ function selectPage(page) {
   navigation.go("/" + page);
 }
 $("#page-back").onclick = () => navigation.back();
+mountAgentLauncher($('#ask-ai'));
 $("#ask-ai").onclick = () => {
   if(agentContext.page==='home'&&state.trip)agentContext={page:'home',tripId:state.trip.id,day:state.day};
   navigation.go('/agent');
@@ -874,7 +876,7 @@ $("#next").onclick = async () => {
       setBusy(false);
       closeWizard();
       await showTrip(trip);
-      toast("行程已保存，可点击“发布到发现”分享");
+      toast("行程已保存，可点击标题右侧分享");
       state.session = null;
       state.step = 0;
       state.catalog = {};
@@ -1064,7 +1066,7 @@ function paintTrip(updateMap = true) {
     overview = state.mapView === "overview";
   $("#itinerary").hidden = false;
   $("#itinerary").innerHTML =
-    `<div class="trip-head"><h2>${esc(t.title)}</h2><span class="badge">已保存 ✓</span></div><button id="publish-trip" class="primary" type="button">发布到发现 ↗</button>
+    `<div class="trip-head"><h2>${esc(t.title)}</h2><button id="publish-trip" class="route-share" type="button" aria-label="发布这份行程到发现">分享 ↗</button></div>
     <div class="days"><button class="day" data-overview aria-pressed="${overview}">旅行总览</button>${t.plan.days.map((d, i) => `<button class="day" data-day="${i}" aria-pressed="${!overview && i === state.day}">Day ${i + 1} · ${esc(d.city)}</button>`).join("")}</div>
     <div class="stopline">${overview ? [typeof t.request.origin === "string" ? t.request.origin : t.request.origin?.label, ...t.plan.cities.map((c) => c.name)].filter(Boolean).map(esc).join(" → ") : d.stops.map((p, i) => `${i + 1}. ${esc(p.name)}`).join(" → ") || "自由时光"}</div>
     <p class="muted">${overview ? `${esc(t.request.start)} — ${esc(t.request.end)}` : esc(d.date)}${!overview && d.transferAllowance ? " · 跨城日，已预留交通时间" : ""}</p>

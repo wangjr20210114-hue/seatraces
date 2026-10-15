@@ -270,12 +270,13 @@ const saved = await call(path, choice, 'PUT');
 |---|---|---|
 | GET /api/agent/capabilities | 无 | `{version,capabilities,knowledgeVersion,confirmationRequired}`；代码注册的能力、操作类型、页面层级职责及必要参数 |
 | GET /api/agent/memory | 无 | `{items}`；仅本人旅行风格，含 `dimension,label,value,valueLabel,strength,confidence,evidence,source,version,updated_at,expires_at,active,effectiveConfidence` |
+| GET /api/agent/conversations/:id/progress | 本人对话 UUID；query `requestId:UUID` | `{requestId,status,steps,updatedAt?}`；status为idle/running/completed/failed，steps为实际执行到的简短步骤。需登录并核对对话所有者，响应不缓存；仅处理期间轮询 |
 | POST /api/agent/conversations | `{}` | 201 `{id,revision:0,messages:[],state}`；创建本人对话 |
 | GET /api/agent/conversations/:id | 本人对话 UUID | `{id,revision,state,messages,actions,busy}`；最近60轮消息和最近30个操作状态；state只公开当前流程名和待答问题，隐藏服务端候选映射及执行参数 |
 | POST /api/agent/conversations/:id/messages | `{requestId:UUID,revision:int>=0,text?:string<=1500,questionId?:UUID,optionIds?:UUID[1..100],context?:{page?,tripId?:UUID,day?:int0..29}}`；text或optionIds至少一个 | AgentReply；意图分类、检索问答、补问、候选查询或生成待确认操作，不直接执行用户数据变更 |
 | POST /api/agent/conversations/:id/actions/:actionId | `{requestId:UUID,revision:int>=0,decision:"confirm"|"cancel"}` | AgentReply + `actionResult:{id,status}`；执行数据库中已预览的固定操作，或取消。不可在此篡改参数 |
 
-AgentReply 的公共字段：`text,intent,conversationId,revision`。可选：`classification:{intent,capability,source,confidence}`、`question:{id,key,text,multi,options:[{id,label}],input}`、`workflow:string[]`、`action:{id,title,lines,screen,effect,status}`、`navigation:{route,title,level?}`、`sources:[{id,title,route,version}]`、`retrieval:"hybrid_bge"|"lexical"`、`knowledgeVersion`、`error:boolean`。客户端只按白名单站内 route 跳转，文字使用 textContent，不执行 HTML/脚本。
+AgentReply 的公共字段：`text,intent,conversationId,revision`。可选：`classification:{intent,capability,source,confidence}`、`question:{id,key,text,multi,options:[{id,label}],input}`、`understanding:string`（本轮明确提取的旅行参数摘要）、`workflow:string[]`（固定流程）、`steps:string[]`（本轮实际步骤）、`action:{id,title,lines,screen,effect,status}`、`navigation:{route,title,level?}`、`sources:[{id,title,route,version}]`、`retrieval:"hybrid_bge"|"lexical"`、`knowledgeVersion`、`error:boolean`。客户端只按白名单站内 route 跳转，文字使用 textContent，不执行 HTML/脚本。
 
 `requestId` 是客户端一次发送生成并在网络重试时复用的 UUID。服务器按对话+requestId去重，已完成请求返回原响应；对话 revision 防止旧页面覆盖新状态，同一对话同一时间只处理一轮。确认最长15分钟有效，任意新任务或取消会使旧待确认操作失效。401/403/404分别表示登录/权限/资源不存在；409表示旧版本、进行中或操作失效；410表示确认过期；429表示频率限制。流程内可纠正的输入/业务错误返回HTTP200且 `error:true`，不伪装成功。
 
@@ -292,7 +293,7 @@ AgentReply 的公共字段：`text,intent,conversationId,revision`。可选：`c
 | 附近吃住 | GET本人行程 → 选择天和餐饮/住宿 → 原POST recommendations，`groupMeals:true,sort:distance` → 每批最多5家/换批 → 选择候选 → 原preview → 确认 → 原PUT带version；不订餐、不订房、不查询价格 |
 | CityWalk | 新建或读取本人路线 → 原citywalk/catalog异步加载 → 片区 → 多选至少2个景点 → 起点 → 标题 → 用原orderWalk预览顺序 → 确认 → 原POST或PUT citywalks，编辑携带version |
 | 修改昵称 | 补齐昵称 → 预览并确认 → 原PATCH me；头像上传、邮箱验证、密码与退出登录交回账号页，不让模型接触凭据 |
-| 发布行程 | 选择本人行程 → 补齐标题正文 → 展示公开内容 → 确认 → 核对行程version → 原POST posts；重复分享仍由原接口拒绝 |
+| 发布行程 | 选择本人行程 → 预览当前行程快照 → 确认 → 再次核对行程version → 与页面相同的POST discovery/publish，`{kind:"journey",id:tripId}`；标题正文和去重由该接口统一处理 |
 | 帖子互动 | GET posts当前可见窗口中选帖 → 预览点赞/收藏/推荐或评论 → 确认 → 原reactions/comments；不把窗口说成全量收藏 |
 | 报告与浏览 | 报告调用原GET me/report；清空本人浏览历史需预览确认后调用原DELETE，不能恢复；不删除行程 |
 | 旅行风格 | 明确的第一人称偏好 → 询问“仅本次 / 长期记住” → 长期再预览确认 → 写独立memory表；查看/清除仍在问AI页面 |
@@ -301,9 +302,17 @@ AgentReply 的公共字段：`text,intent,conversationId,revision`。可选：`c
 
 ### 意图、知识与风格记忆
 
-明确表达优先规则；疑问、否定、假设和证据不足不执行。模糊表达交给现有 DeepSeek JSON 接口，只能从代码里的 capability ID 中选择。operate要求原文证据片段、明确操作表达和置信分数≥0.9；该分数是启发式门槛，不是经过标定的正确率。不满足时主动补问。当前能力不依赖新增模型厂商或付费接口。
+明确表达优先规则；疑问、否定、假设、混合多项操作和证据不足不执行。业务意图为operate/software_question/other三类；clarify是未确定意图时的补问状态，cancel为流程控制。模型建议需要原文证据、明确操作表达和启发式置信分数≥0.9，仍先让用户选择功能，不能直接启动工具。模糊需求先选择“操作／解释／聊一聊”，再选择具体功能；常用功能优先，其他功能展开。问题优先选项，日期使用日期控件，必要时可补充输入。已明确的城市、日期从原文提取，当前行程的日期可在本人行程校验后复用，不能猜测资源ID或替用户选商家。
 
-软件问答检索 `server/agent/catalog.mjs` 的版本化知识。BGE small zh q8已配置时用本地512维embedding与关键词混合检索，向量存PostgreSQL `agent_knowledge`；模型文件缺失则明确回退lexical。DeepSeek只能选取检索文档原句，服务端逐字验证quote和sourceId，拒绝虚构引用。回答返回文档ID、标题、版本、页面。闲聊使用短回答，没有工具执行通道。所有DeepSeek调用继续走现有预算及配额门，不自动重试付费请求。
+`workflow.mjs`维护固定流程与每步接口许可。除原API白名单外，还检查当前能力、准备/确认阶段、资源ID、请求体和确认后调用次数；发布必须先重新读取行程，再调用页面的发布接口。正常业务API继续执行Cookie登录、资源归属、候选成员、版本和配额检查。模型没有URL、SQL、凭据或任意函数执行权。消息和确认响应新增可选`steps`，流程回复可带`workflow`。capabilities新增`intentCategories`和`workflows`，其余接口参数保持兼容，无数据库结构变更。
+
+`dialogue.mjs`负责解释当前回答：先提取明确城市、完整日期及更正，再对难以理解的表达调用DeepSeek做受限解释。模型只能返回当前选项索引或用户原文片段；检查结构、原文证据、索引范围与启发式置信分数，不接收模型提供的工具或资源ID。置信分数不是已校准的正确率。修改城市/日期会使旧草稿的候选和问卷缓存失效；矛盾出发地和日期次序要求澄清，日期缺年份不猜测。插入软件问题时保留当前问题；切换任务先给“切换／继续”选项。“随便”不等于确定城市或授权写入。
+
+网页版语义压力验收：启动 `dev-local.cmd -NoDevice` 后运行 `node scripts/check-agent-adversarial.mjs`。脚本仅访问本机8788，在本机PostgreSQL创建并清理一次性测试账号，检查20组非标准输入的回复、保存状态和工具审计；不确认业务写入，不是并发容量压测。每组之间只重置该测试账号的频率计数时间，以免把限流与语义判断混淆。报告写入 `validation/agent-workflow/adversarial-latest.json`。权限、跨账号、重复确认、版本冲突与不确定结果另由 `TEST_AGENT=1 node --test test/agent.test.mjs` 验证。
+
+进度仅供展示，服务器内存保留最多10分钟的近期请求；重启后可为空，以PostgreSQL保存的操作状态和业务页面为准。浏览器仅请求处理中轮询，结束或离开页面即停止。界面提供可拖动动画入口，遵守系统减少动画设置。
+
+软件问答检索 `server/agent/catalog.mjs` 的版本化知识。BGE small zh q8已配置时用本地512维embedding与关键词混合检索，向量存PostgreSQL `agent_knowledge`；模型文件缺失则明确回退lexical。DeepSeek只能选取检索文档原句，服务端逐字验证quote和sourceId，拒绝虚构引用。回答返回文档ID、标题、版本、页面。无检索证据时给出功能选项继续询问。场外问题限制一句、最多60字，无工具执行通道，也不承诺预订或提供外部操作。所有DeepSeek调用继续走现有预算及配额门，不自动重试付费请求。
 
 记忆维度：`pace`=relaxed/balanced/full；`transport`=balanced/fewTransfers/fewWalking；`crowd`=avoid/balanced/lively；`revisit`=new/either；`interests`为原业务10类。保留原文证据、确认来源、版本、更新时间和180天失效时间。强度是规划参数（例如节奏0.2/0.5/0.85），不是推断的心理特征。确认记录confidence=1表示用户明确确认，effectiveConfidence以180天半衰期展示时效衰减。
 
@@ -329,7 +338,7 @@ AgentReply 的公共字段：`text,intent,conversationId,revision`。可选：`c
 | POST /api/discovery/publish | `{kind:"journey"\|"citywalk",id:UUID}`，现有登录 Cookie 和 `X-Seatraces:1` | 本人路线不存在或不属于本人返回404；返回发布后的post。初次创建帖子，再次点击更新同一帖子的路线快照，不生成重复帖子。仅主动点击发布时写posts；保存/编辑私人路线不会自动发布或刷新已发布快照。 |
 | GET /api/discovery/mine | `limit`默认12、1至50；`offset`默认0、最大1000000 | `{items,hasMore}`；本人明确发布的帖子，按创建时间和ID倒序；每项附昵称、头像和`isOwn:true`。这里的hasMore用于真实分页，与已移除的地点查询数量提示无关。 |
 
-`GET /api/posts`维持数组合同，隐藏`auto_shared=true`的旧自动帖子，新增`isOwn`。`POST /api/posts`保持原参数和201/409语义，并复用同一安全快照函数；若命中历史自动帖子可转为主动发布，重复主动发帖仍返回409。智能体发布继续调用该既有接口。
+`GET /api/posts`维持数组合同，隐藏`auto_shared=true`的旧自动帖子，新增`isOwn`。`POST /api/posts`保持原参数和201/409语义，并复用同一安全快照函数；若命中历史自动帖子可转为主动发布，重复主动发帖仍返回409。智能体发布已统一调用页面使用的`POST /api/discovery/publish`。
 
 公开快照只保留kind、城市名、每日城市与有序景点的id/name/lat/lng/category/source_url/license；CityWalk另含distance_m。出发地址、具体旅行日期、到访记录、想去标记和住宿选择不进入路线快照。标题和正文仍是用户主动公开的内容。
 

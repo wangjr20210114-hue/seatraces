@@ -22,7 +22,9 @@ export function mountAgent({
     revision = 0,
     busy = false,
     question,
-    disposed = false;
+    disposed = false,
+    progressTimer,
+    progressRequest;
   const top = node("div", "agent-toolbar"),
     fresh = node("button", "agent-chip", "＋ 新对话"),
     memory = node("button", "agent-chip", "我的旅行风格");
@@ -51,7 +53,34 @@ export function mountAgent({
     input.disabled = on;
     choices.querySelectorAll("button,input").forEach((b) => (b.disabled = on));
     status.classList.toggle("thinking", on);
-    status.textContent = on ? "想一想，再安排…" : "";
+    if (on) status.textContent = "正在连接…";
+    else {
+      stopProgress();
+      if (status.textContent.startsWith("正在")) status.textContent = "";
+    }
+  }
+  function stopProgress() {
+    progressRequest = null;
+    clearTimeout(progressTimer);
+  }
+  function watchProgress(requestId) {
+    stopProgress();
+    progressRequest = requestId;
+    const poll = async () => {
+      if (!active() || progressRequest !== requestId) return;
+      try {
+        const p = await api(
+          `/api/agent/conversations/${conversationId}/progress?requestId=${requestId}`,
+        );
+        if (!active() || progressRequest !== requestId) return;
+        if (p.steps?.length) status.textContent = p.steps.at(-1);
+      } catch {
+        /* Progress is optional; the operation response remains authoritative. */
+      }
+      if (active() && progressRequest === requestId)
+        progressTimer = setTimeout(poll, 900);
+    };
+    progressTimer = setTimeout(poll, 250);
   }
   function scroll() {
     log.lastElementChild?.scrollIntoView({
@@ -73,8 +102,23 @@ export function mountAgent({
     parent.append(b);
   }
   function showReply(reply, actionStatuses = {}) {
-    const b = bubble(reply.text || "");
+    const b = bubble(
+      [reply.understanding && `已理解：${reply.understanding}`, reply.text]
+        .filter(Boolean)
+        .join("\n"),
+    );
     if (reply.error) b.classList.add("agent-error");
+    if (reply.steps?.length || reply.workflow?.length) {
+      const trace = node("details", "agent-trace");
+      trace.append(
+        node("summary", "", reply.workflow ? "操作流程" : "处理步骤"),
+      );
+      const list = node("ol");
+      for (const label of reply.workflow || reply.steps)
+        list.append(node("li", "", label));
+      trace.append(list);
+      b.append(trace);
+    }
     if (reply.sources?.length) {
       const sources = node("details", "agent-sources");
       sources.append(node("summary", "", "软件依据"));
@@ -96,9 +140,11 @@ export function mountAgent({
           yes.disabled = no.disabled = true;
           waiting(true);
           try {
+            const requestId = crypto.randomUUID();
+            watchProgress(requestId);
             const r = await api(
               `/api/agent/conversations/${conversationId}/actions/${a.id}`,
-              { requestId: crypto.randomUUID(), revision, decision },
+              { requestId, revision, decision },
             );
             if (!active()) return;
             revision = r.revision;
@@ -151,10 +197,14 @@ export function mountAgent({
       b.append(card);
     }
     if (reply.question) renderQuestion(reply.question);
+    if (reply.action && !reply.question) form.hidden = true;
   }
   function renderQuestion(q) {
     question = q;
     choices.replaceChildren();
+    if (q) choices.setAttribute("aria-label", q.text);
+    else choices.removeAttribute("aria-label");
+    form.hidden = !!q?.options?.length || q?.input === "date";
     input.placeholder =
       q?.input === "date"
         ? "例如 2026-10-20"
@@ -198,6 +248,32 @@ export function mountAgent({
         choices.append(done);
       }
     }
+    if (q.input === "date") {
+      const date = node("input", "agent-date");
+      date.type = "date";
+      date.required = true;
+      date.setAttribute("aria-label", q.text);
+      const next = node("button", "primary", "选好了 →");
+      next.type = "button";
+      next.onclick = () => {
+        if (date.reportValidity()) void sendMessage(date.value);
+      };
+      choices.append(date, next);
+    }
+    if (form.hidden) {
+      const custom = node("button", "agent-custom", "补充说明");
+      custom.onclick = () => {
+        form.hidden = false;
+        input.placeholder = q.input
+          ? "填写你的回答…"
+          : "说明你的想法，或输入取消";
+        input.focus();
+      };
+      choices.append(custom);
+    }
+    const cancel = node("button", "agent-custom", "取消这一步");
+    cancel.onclick = () => void sendMessage("取消");
+    choices.append(cancel);
   }
   async function ensure() {
     if (!conversationId) {
@@ -210,15 +286,18 @@ export function mountAgent({
   async function sendMessage(text, optionIds, label) {
     if (busy || (!text && !optionIds?.length)) return;
     waiting(true);
+    log.querySelector(".agent-examples")?.remove();
     bubble(label || text, "user");
     try {
       await ensure();
+      const requestId = crypto.randomUUID();
+      watchProgress(requestId);
       const r = await api(
         `/api/agent/conversations/${conversationId}/messages`,
         {
-          requestId: crypto.randomUUID(),
+          requestId,
           revision,
-          text,
+          text: text || label || "",
           context,
           ...(question ? { questionId: question.id } : {}),
           ...(optionIds ? { optionIds } : {}),
@@ -244,7 +323,8 @@ export function mountAgent({
       if (active()) {
         waiting(false);
         scroll();
-        input.focus({ preventScroll: true });
+        if (!form.hidden && question?.input && !question.options?.length)
+          input.focus({ preventScroll: true });
       }
     }
   }
@@ -275,6 +355,7 @@ export function mountAgent({
     log.append(examples);
   }
   fresh.onclick = () => {
+    if (busy) return;
     conversationId = null;
     revision = 0;
     sessionStorage.removeItem(key);
@@ -354,6 +435,7 @@ export function mountAgent({
   void load();
   return () => {
     disposed = true;
+    stopProgress();
     content.classList.remove("agent-page");
   };
 }

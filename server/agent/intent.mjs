@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { capabilities, pages } from "./catalog.mjs";
 import { explicitStyle } from "./memory.mjs";
+import { isSoftwareQuestion, bypassConfirmation } from "./dialogue.mjs";
 
 const capabilityIds = capabilities.map((c) => c.id);
 const software =
@@ -8,7 +9,7 @@ const software =
 const question =
   /(怎么|如何|为什么|为何|是什么|什么区别|有什么|是否支持|能不能|可以.{0,12}吗|能.{0,12}吗|支持.{0,12}吗|流程|规则|原理|介绍|说明|请问)/;
 const imperative =
-  /(帮我|替我|给我|请(?:你)?|打开|进入|跳到|带我去|创建|新建|制订|制定|生成|规划|修改|改成|改为|换成|删除|清空|移除|标记|恢复|发布|记住|忘掉|推荐|安排|我想去|我要去)/;
+  /(帮我|替我|给我|请(?:你)?|打开|进入|跳到|带我去|创建|新建|制订|制定|生成|规划|修改|改成|改为|换成|删除|清空|移除|标记|恢复|发布|分享|转发|记住|忘掉|推荐|安排|我想去|我要去)/;
 const danger =
   /(私钥|api[_ ]?key|\.env|数据库密码|执行.{0,12}(SQL|shell|命令)|sudo|绕过.{0,8}(权限|登录|确认)|别人的.{0,8}(行程|账号)|他人的.{0,8}(行程|数据)|管理员权限)/i;
 export function pageFromText(text) {
@@ -21,8 +22,34 @@ export function pageFromText(text) {
 export function ruleIntent(text) {
   if (danger.test(text))
     return { intent: "other", blocked: true, confidence: 1, source: "policy" };
+  if (
+    /(其他|全部|所有|别的).{0,4}用户.{0,12}(行程|数据|账号)|忽略.{0,8}(规则|限制|权限)|冒充.{0,8}管理员/.test(
+      text,
+    ) ||
+    bypassConfirmation(text)
+  )
+    return { intent: "other", blocked: true, confidence: 1, source: "policy" };
   if (/^(取消|算了|停止|先不做|放弃)[。！! ]*$/.test(text))
     return { intent: "cancel", confidence: 1, source: "rule" };
+  if (
+    /(预订|订房|订餐|付款|转账|下单|买票|操作服务器|执行代码)/.test(text) &&
+    imperative.test(text)
+  )
+    return { intent: "other", blocked: true, confidence: 1, source: "policy" };
+  if (
+    /(然后|并且|同时|顺便|再帮我).{0,12}(删除|清空|修改|改为|改成|发布|创建|生成|打开|记住|预订)/.test(
+      text,
+    )
+  )
+    return { intent: "clarify", confidence: 1, source: "rule_abstain" };
+  if (isSoftwareQuestion(text))
+    return { intent: "software_question", confidence: 0.98, source: "rule" };
+  if (
+    /^(帮我|给我|请)?(改一下|改一改|处理一下|安排一下|看看|这个怎么办|这个怎么弄)[。？！!? ]*$/.test(
+      text,
+    )
+  )
+    return { intent: "clarify", confidence: 1, source: "rule_abstain" };
   if (
     /(不要|别|不想|不能|不许|无需).{0,5}(清空|删除|修改|发布|创建|生成|规划|打开|记住)|^(如果|假如|比如|例如)/.test(
       text,
@@ -53,7 +80,11 @@ export function ruleIntent(text) {
     return op("clear_history");
   if (/(昵称|名字).{0,10}(改|换)|(?:修改|改成|改为).{0,8}昵称/.test(text))
     return op("profile_update");
-  if (/(发布|分享).{0,12}(行程|旅行|路线)|发到发现/.test(text))
+  if (
+    /(发布|分享|转发).{0,12}(行程|旅行|路线|发现)|(?:行程|路线).{0,12}(发布|分享|转发)/.test(
+      text,
+    )
+  )
     return op("share_trip");
   if (/(点赞|收藏|推荐).{0,12}帖子|给.{0,20}(点个赞|点赞)/.test(text))
     return op("post_reaction");

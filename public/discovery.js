@@ -15,6 +15,7 @@ const publishing = new Set();
 export async function publishRoute({ button, kind, id, api, navigate, toast }) {
   const key = kind + ':' + id;
   if (publishing.has(key)) return;
+  const originalLabel = button.textContent;
   publishing.add(key); button.disabled = true; button.textContent = '正在发布…';
   try {
     await api('/api/discovery/publish', {kind,id});
@@ -24,7 +25,7 @@ export async function publishRoute({ button, kind, id, api, navigate, toast }) {
   } catch (error) {
     toast(error.message || '发布失败，请重试');
   } finally {
-    publishing.delete(key); button.disabled = false; button.textContent = '发布到发现 ↗';
+    publishing.delete(key); button.disabled = false; button.textContent = originalLabel;
   }
 }
 
@@ -56,7 +57,7 @@ export function mountDiscovery({ content, api }) {
         shown = Math.min(shown + 12, posts.length); hasMore = shown < posts.length;
       }
       more.hidden = !hasMore;
-      status.textContent = shown ? '' : scope === 'mine' ? '你还没有发布帖子。在最终路线下点击“发布到发现”，就能在这里看见。' : '还没有分享的路线，发布一条路线，开启新的旅行灵感。';
+      status.textContent = shown ? '' : scope === 'mine' ? '还没有发布。在路线标题右侧点击“分享”。' : '还没有分享的路线。';
     } catch (error) {
       if (!disposed && current === revision) status.textContent = `${error.message || '路线加载失败'}，请重试。`;
     } finally {

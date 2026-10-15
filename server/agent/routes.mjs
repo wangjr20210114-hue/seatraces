@@ -6,6 +6,8 @@ import { createKnowledge, knowledgeVersion } from "./knowledge.mjs";
 import { llmJSON } from "../integrations/deepseek.mjs";
 import { readMemory } from "./memory.mjs";
 import { capabilities } from "./catalog.mjs";
+import { workflows } from "./workflow.mjs";
+import { createProgress } from "./progress.mjs";
 
 const messageInput = z
   .object({
@@ -44,6 +46,7 @@ export function installAgentRoutes(
   },
 ) {
   const store = createAgentStore({ query, transaction });
+  const progress = createProgress();
   const knowledge = createKnowledge({
     query,
     model,
@@ -77,11 +80,19 @@ export function installAgentRoutes(
       capabilities,
       knowledgeVersion,
       confirmationRequired: true,
+      intentCategories: ["operate", "software_question", "other"],
+      workflows,
     }),
   );
   app.get("/api/agent/memory", auth, async (req, res) =>
     res.json({ items: await readMemory(query, req.user.id) }),
   );
+  app.get("/api/agent/conversations/:id/progress", auth, async (req, res) => {
+    const id = z.uuid().parse(req.params.id),
+      requestId = z.uuid().parse(req.query.requestId);
+    await store.own(id, req.user.id);
+    res.set("Cache-Control", "no-store").json(progress.read(id, requestId));
+  });
   app.post("/api/agent/conversations", auth, async (req, res) => {
     z.object({}).strict().parse(req.body);
     const c = await store.start(req.user.id);
@@ -136,10 +147,20 @@ export function installAgentRoutes(
       state = structuredClone(c.state),
       before = structuredClone(c.state);
     state.context = context;
+    const report = progress.start(id, b.requestId);
     try {
-      const reply = await engine.message(contextFor(req, c, state), b);
-      return res.json(await store.finish(c, req.user.id, token, state, reply));
+      const reply = await engine.message(
+        { ...contextFor(req, c, state), progress: report },
+        b,
+      );
+      const response = await store.finish(c, req.user.id, token, state, {
+        ...reply,
+        steps: progress.read(id, b.requestId).steps,
+      });
+      progress.finish(id);
+      return res.json(response);
     } catch (e) {
+      progress.finish(id, true);
       const safe =
         e instanceof z.ZodError
           ? "填写的内容不符合要求，请重新填写。"
@@ -183,6 +204,7 @@ export function installAgentRoutes(
       const { conversation: c, token } = run,
         state = structuredClone(c.state);
       let claimed = false;
+      const report = progress.start(id, b.requestId);
       try {
         // An old confirmation cannot replace the state of a newer conversation flow.
         if (state.pendingAction !== actionId)
@@ -191,7 +213,11 @@ export function installAgentRoutes(
         claimed = b.decision === "confirm" && !action.replayed;
         const result = action.replayed
           ? { state, reply: action.result.reply }
-          : await engine.execute(contextFor(req, c, state), action, b.decision);
+          : await engine.execute(
+              { ...contextFor(req, c, state), progress: report },
+              action,
+              b.decision,
+            );
         // Persist outcome before replying. Retrying a completed action never calls a business endpoint again.
         await query(
           "UPDATE agent_actions SET status=$2,result=$3,finished_at=now() WHERE id=$1 AND user_id=$4",
@@ -202,16 +228,24 @@ export function installAgentRoutes(
             req.user.id,
           ],
         );
-        return res.json(
-          await store.finish(c, req.user.id, token, result.state, {
+        const response = await store.finish(
+          c,
+          req.user.id,
+          token,
+          result.state,
+          {
             ...result.reply,
+            steps: progress.read(id, b.requestId).steps,
             actionResult: {
               id: actionId,
               status: b.decision === "confirm" ? "completed" : "cancelled",
             },
-          }),
+          },
         );
+        progress.finish(id);
+        return res.json(response);
       } catch (e) {
+        progress.finish(id, true);
         const unknown = claimed && (!e.status || e.status >= 500);
         if (claimed)
           await query(

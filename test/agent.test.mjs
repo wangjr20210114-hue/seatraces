@@ -12,6 +12,234 @@ import { allowedCall, createApiBridge } from "../server/agent/bridge.mjs";
 import { createAgentEngine, parseDates } from "../server/agent/engine.mjs";
 import { installAgentRoutes } from "../server/agent/routes.mjs";
 import { createAccounts, requireUser, hashToken } from "../server/auth.mjs";
+import { workflowAllows, guardWorkflow } from "../server/agent/workflow.mjs";
+import { createProgress } from "../server/agent/progress.mjs";
+import { travelFields, understandAnswer } from "../server/agent/dialogue.mjs";
+
+test("dialogue accepts only grounded values and current option IDs from the interpreter", async () => {
+  const q = {
+    key: "originName",
+    text: "从哪出发？",
+    input: "text",
+    options: [
+      { id: "sh", label: "上海" },
+      { id: "gz", label: "广州" },
+    ],
+  };
+  const interpret = (text, output) =>
+    understandAnswer(text, q, { enabled: true, model: async () => output });
+  const answer = {
+    kind: "answer",
+    optionIndexes: [],
+    value: "广州",
+    evidence: "我在南方",
+    confidence: 0.99,
+  };
+  assert.equal((await interpret("我在南方，猜猜看", answer)).kind, "unclear");
+  assert.equal(
+    (await interpret("我在南方，猜猜看", { ...answer, optionIndexes: [9] }))
+      .kind,
+    "unclear",
+  );
+  assert.equal(
+    (await interpret("我在南方，猜猜看", { ...answer, optionIndexes: [0, 1] }))
+      .kind,
+    "unclear",
+  );
+  assert.equal(
+    (
+      await interpret("我在南方，猜猜看", {
+        ...answer,
+        optionIndexes: [1],
+        evidence: "我在广州",
+      })
+    ).kind,
+    "unclear",
+  );
+  assert.deepEqual(
+    await interpret("广州吧，我想从那儿出发", {
+      ...answer,
+      evidence: "广州",
+      optionIndexes: [1],
+    }),
+    { kind: "answer", optionIds: ["gz"] },
+  );
+  assert.equal(
+    (await interpret("随便", { ...answer, optionIndexes: [0] })).kind,
+    "unclear",
+  );
+  assert.deepEqual(travelFields("10月20日去，22日回"), {});
+  assert.equal(travelFields("从上海出发，从广州出发").conflict, "origin");
+});
+
+test("model intent is a suggestion requiring a choice, never an executable instruction", async () => {
+  let calls = 0;
+  const e = createAgentEngine({
+    query: async () => ({ rows: [] }),
+    store: {},
+    transaction: async () => {},
+    knowledge: { search: async () => ({ documents: [] }) },
+    modelEnabled: () => true,
+    model: async () => ({
+      intent: "operate",
+      capability: "profile_update",
+      confidence: 0.99,
+      evidence: "请帮我调整个人称呼",
+    }),
+  });
+  const ctx = {
+    state: {},
+    context: {},
+    api: async () => {
+      calls++;
+    },
+    user: { id: randomUUID() },
+    c: { id: randomUUID() },
+  };
+  const r = await e.message(ctx, { text: "请帮我调整个人称呼" });
+  assert.equal(r.question.key, "capability");
+  assert.ok(r.question.options.some(o=>o.label.includes('昵称')));
+  assert.equal(r.action, undefined);
+  assert.equal(calls, 0);
+});
+
+test("workflow guard binds capability, phase, target, body and publication order", async () => {
+  const id = randomUUID(),
+    other = randomUUID();
+  const state = {
+    flow: { kind: "edit_trip", tripId: id, day: 0, edit: "移除故宫" },
+  };
+  assert.equal(
+    workflowAllows({ state }, "POST", `/api/trips/${id}/assistant`, {
+      day: 0,
+      text: "移除故宫",
+    }),
+    true,
+  );
+  for (const [m, p, b] of [
+    ["PATCH", `/api/trips/${id}`, { status: "completed" }],
+    ["POST", `/api/trips/${other}/assistant`, { day: 0, text: "移除故宫" }],
+    ["POST", "/api/discovery/publish", { kind: "journey", id }],
+  ])
+    assert.equal(workflowAllows({ state }, m, p, b), false);
+  const action = { capability: "share_trip", payload: { tripId: id } };
+  let called = 0;
+  const ctx = {
+    state: { flow: { kind: "share_trip", tripId: id } },
+    api: async () => {
+      called++;
+    },
+  };
+  await assert.rejects(
+    guardWorkflow(ctx, action).api("POST", "/api/discovery/publish", {
+      kind: "journey",
+      id,
+    }),
+    /顺序/,
+  );
+  const guarded = guardWorkflow(ctx, action);
+  await guarded.api("GET", `/api/trips/${id}`);
+  await guarded.api("POST", "/api/discovery/publish", { kind: "journey", id });
+  await assert.rejects(
+    guarded.api("POST", "/api/discovery/publish", { kind: "journey", id }),
+    /顺序/,
+  );
+  assert.equal(called, 2);
+});
+
+test("uncertain request asks choices, model suggestions cannot start tools, foreign tasks have no tools", async () => {
+  let called = 0;
+  const e = createAgentEngine({
+    query: async () => ({ rows: [] }),
+    transaction: async () => {},
+    store: {},
+    knowledge: {
+      answer: async () => ({ text: "知识库内容", intent: "software_question" }),
+      search: async () => ({ documents: [] }),
+    },
+    modelEnabled: () => false,
+  });
+  const ctx = {
+    state: {},
+    context: {},
+    api: async () => {
+      called++;
+    },
+    user: { id: randomUUID() },
+    c: { id: randomUUID() },
+  };
+  let r = await e.message(ctx, { text: "帮我改一下" });
+  assert.equal(r.question.key, "intentMode");
+  assert.equal(r.question.options.length, 3);
+  r = await e.message(ctx, {
+    text: "",
+    questionId: r.question.id,
+    optionIds: [r.question.options[0].id],
+  });
+  assert.equal(r.question.key, "capability");
+  await assert.rejects(
+    e.message(ctx, {
+      text: "",
+      questionId: r.question.id,
+      optionIds: [randomUUID()],
+    }),
+  );
+  assert.equal(
+    (await e.message(ctx, { text: "帮我预订酒店并付款" })).intent,
+    "other",
+  );
+  assert.equal(called, 0);
+  assert.equal(ruleIntent("打开历史行程然后清空浏览历史").intent, "clarify");
+});
+
+test("progress isolates requests and reports only actual steps", () => {
+  const p = createProgress(),
+    report = p.start("a", "r1");
+  report("正在识别需求…");
+  report("正在识别需求…");
+  assert.deepEqual(p.read("a", "r1").steps, ["正在识别需求…"]);
+  assert.equal(p.read("a", "r2").status, "idle");
+  p.finish("a");
+  assert.equal(p.read("a", "r1").status, "completed");
+});
+
+test("agent publication uses the same discovery endpoint as the page after owned trip preview", async () => {
+  const id = randomUUID(),
+    calls = [],
+    offers = [];
+  const ctx = {
+    state: {},
+    user: { id: randomUUID() },
+    c: { id: randomUUID() },
+    context: { tripId: id },
+    api: async (method, path, body) => {
+      calls.push({ method, path, body });
+      return { id, title: "北京之旅", version: 2 };
+    },
+  };
+  const e = createAgentEngine({
+    query: async () => ({ rows: [] }),
+    store: {
+      offer: async (c, u, capability, payload, preview) => {
+        const a = { id: randomUUID(), capability, payload, ...preview };
+        offers.push(a);
+        return a;
+      },
+    },
+    knowledge: {},
+    modelEnabled: () => false,
+  });
+  const r = await e.message(ctx, { text: "把当前行程发布到发现" });
+  assert.ok(r.action);
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].method, "GET");
+  await e.execute(ctx, offers[0], "confirm");
+  assert.deepEqual(calls.at(-1), {
+    method: "POST",
+    path: "/api/discovery/publish",
+    body: { kind: "journey", id },
+  });
+});
 
 test("intent abstains on questions, negation, hypothetical instructions and ungrounded model output", async () => {
   assert.equal(ruleIntent("帮我打开历史行程").capability, "navigate");
@@ -164,9 +392,9 @@ test("journey follows existing create → catalog → questions → generate end
     });
   };
   await answer("上海");
-  await answer("", [0]);
+  assert.equal(state.question.key, "destinationName");
   await answer("北京");
-  await answer("", [0]);
+  assert.equal(state.question.key, "cityNext");
   await answer("", [0]);
   await answer("2026-10-20");
   r = await answer("2026-10-21");
@@ -338,7 +566,6 @@ test("CityWalk uses catalog draft, validated cluster/stop choices and existing o
     });
   };
   await answer("上海");
-  await answer("", [0]);
   await answer("", [0]);
   await answer("", [0, 1]);
   await answer("", [0]);
@@ -512,6 +739,10 @@ test(
         (await req(b, "/api/agent/conversations/" + c.id)).status,
         404,
       );
+      const progressPath = `/api/agent/conversations/${c.id}/progress?requestId=${randomUUID()}`;
+      assert.equal((await req(null, progressPath)).status, 401);
+      assert.equal((await req(b, progressPath)).status, 404);
+      assert.equal((await req(a, progressPath)).data.status, "idle");
       const send = async (text, extra = {}) => {
         await query(
           "UPDATE agent_turns SET created_at=now()-interval '2 minutes'",
@@ -620,8 +851,11 @@ test(
       );
     } finally {
       if (server) await new Promise((r) => server.close(r));
-      await pool.query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`);
-      await pool.end();
+      try {
+        await pool.query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`);
+      } finally {
+        await pool.end();
+      }
     }
   },
 );

@@ -15,6 +15,12 @@ import { journeyAnswers } from "../services/journey-draft.mjs";
 import { datesBetween, interests } from "../planner.mjs";
 import { fail } from "./store.mjs";
 import { orderWalk } from "../../public/citywalk-route.js";
+import { guardWorkflow, workflows } from "./workflow.mjs";
+import {
+  travelFields,
+  understandAnswer,
+  bypassConfirmation,
+} from "./dialogue.mjs";
 
 const compactTrip = (t) => ({
   id: t.id,
@@ -65,23 +71,6 @@ export function publicState(state) {
       : null,
   };
 }
-const steps = {
-  create_trip: [
-    "确认出发地与城市",
-    "确认日期",
-    "选择城市片区",
-    "回答旅行风格",
-    "预览并生成",
-  ],
-  recommend_services: [
-    "选择本人行程",
-    "选择日期",
-    "查询推荐",
-    "预览商家",
-    "确认保存",
-  ],
-  edit_trip: ["选择本人行程", "选择日期", "提出修改", "预览变更", "带版本保存"],
-};
 
 export function createAgentEngine({
   query,
@@ -108,12 +97,132 @@ export function createAgentEngine({
     };
     return displayReply(text, {
       question: publicState(state).question,
-      workflow: steps[state.flow?.kind] || null,
+      workflow: workflows[state.flow?.kind] || null,
     });
   }
   const textQuestion = (s, key, text, input = "text") =>
     ask(s, key, text, [], { input });
+  const cityQuestion = (s, key, text) =>
+    ask(
+      s,
+      key,
+      text,
+      ["北京", "上海", "广州", "深圳", "杭州"].map((name) => ({
+        label: name,
+        data: name,
+      })),
+      { input: "text" },
+    );
+  async function softwareAnswer(ctx, text) {
+    ctx.progress?.("正在检索软件知识…");
+    const reply = await knowledge.answer(text);
+    if (reply.sources?.length === 0 && !ctx.state.question) {
+      ctx.state.flow = { kind: "software_help" };
+      return {
+        ...ask(
+          ctx.state,
+          "knowledgeTopic",
+          "你想了解哪个功能？",
+          Object.entries(pages).map(([id, p]) => ({
+            label: p.title,
+            data: id,
+          })),
+          { input: "text" },
+        ),
+        intent: "software_question",
+        retrieval: reply.retrieval,
+      };
+    }
+    return reply;
+  }
+  function switchTask(s, text) {
+    s.switchRequest = {
+      text,
+      flow: structuredClone(s.flow),
+      question: structuredClone(s.question),
+    };
+    s.flow = { kind: "switch_task" };
+    return ask(s, "switchDecision", "要先切换到这件事吗？", [
+      { label: "切换到新任务", data: "switch" },
+      { label: "继续当前任务", data: "stay" },
+    ]);
+  }
+  async function collectTravel(ctx, text, key) {
+    const f = ctx.state.flow;
+    if (!["create_trip", "create_citywalk"].includes(f?.kind)) return null;
+    const fields = travelFields(text, key);
+    if (!Object.keys(fields).length) return null;
+    if (fields.start) parseDates(fields.start);
+    if (fields.end) parseDates(fields.end);
+    if (f.sessionId)
+      for (const k of [
+        "sessionId",
+        "catalog",
+        "selections",
+        "questions",
+        "answered",
+        "answering",
+        "selectingCity",
+      ])
+        delete f[k];
+    if (fields.conflict) {
+      delete f.origin;
+      delete f.originName;
+      return ask(
+        ctx.state,
+        "originName",
+        "这句话有两个出发地，这次从哪座城市出发？",
+        fields.candidates.map((name) => ({ label: name, data: name })),
+        { input: "text" },
+      );
+    }
+    if (fields.originName) {
+      delete f.origin;
+      f.originName = fields.originName;
+    }
+    if (fields.destinationName) {
+      for (const k of [
+        "cities",
+        "citiesDone",
+        "walkCity",
+        "walkCatalog",
+        "walkClusters",
+        "stopIds",
+        "startId",
+        "draftId",
+      ])
+        delete f[k];
+      f.destinationName = fields.destinationName;
+    }
+    if (fields.start) f.start = fields.start;
+    if (fields.end) f.end = fields.end;
+    delete ctx.state.question;
+    const understood = [
+      fields.originName && `从${fields.originName}出发`,
+      fields.destinationName && `去${fields.destinationName}`,
+      fields.start && `${fields.start}出发`,
+      fields.end && `${fields.end}返回`,
+    ]
+      .filter(Boolean)
+      .join("，");
+    if (f.start && f.end && f.end < f.start) {
+      delete f.end;
+      return {
+        ...textQuestion(
+          ctx.state,
+          "end",
+          "返回日期早于出发日期，请重新选择返回日期。",
+          "date",
+        ),
+        understanding: understood,
+      };
+    }
+    return { ...(await advance(ctx)), understanding: understood };
+  }
   async function prepare(ctx, capability, payload, title, lines, after) {
+    if (!workflows[capability] || ctx.state.flow?.kind !== capability)
+      throw fail("当前流程不允许准备这项操作", 403);
+    ctx.progress?.("正在准备操作预览…");
     const action = await store.offer(
       ctx.c,
       ctx.user.id,
@@ -129,7 +238,10 @@ export function createAgentEngine({
     );
     ctx.state.pendingAction = action.id;
     delete ctx.state.question;
-    return displayReply("请确认这一步。", { action });
+    return displayReply("请确认这一步。", {
+      action,
+      workflow: workflows[capability],
+    });
   }
   async function trip(ctx) {
     const f = ctx.state.flow;
@@ -162,6 +274,13 @@ export function createAgentEngine({
     return { value };
   }
   async function needDay(ctx, t) {
+    if (
+      ctx.state.flow.day === undefined &&
+      ctx.context.tripId === t.id &&
+      Number.isInteger(ctx.context.day) &&
+      t.plan.days[ctx.context.day]
+    )
+      ctx.state.flow.day = ctx.context.day;
     if (ctx.state.flow.day === undefined || !t.plan.days[ctx.state.flow.day])
       return ask(
         ctx.state,
@@ -189,19 +308,30 @@ export function createAgentEngine({
         key,
         `没有找到“${name}”，换个城市名称试试。`,
       );
+    const cityData = (c) => ({
+      id: c.id,
+      name: c.name,
+      country: c.country,
+      lat: Number(c.lat),
+      lng: Number(c.lng),
+    });
+    const normalize = (name) => name.trim().toLowerCase().replace(/市$/, "");
+    const exact = values.filter((c) => normalize(c.name) === normalize(name));
+    if (
+      exact.length === 1 &&
+      Number.isFinite(Number(exact[0].lat)) &&
+      Number.isFinite(Number(exact[0].lng))
+    ) {
+      applyAnswer(ctx.state, key, cityData(exact[0]), name);
+      return advance(ctx);
+    }
     return ask(
       ctx.state,
       key,
       "确认一下是哪座城市。",
-      values.map((c) => ({
+      (exact.length ? exact : values).map((c) => ({
         label: `${c.name} · ${c.province || c.country}`,
-        data: {
-          id: c.id,
-          name: c.name,
-          country: c.country,
-          lat: Number(c.lat),
-          lng: Number(c.lng),
-        },
+        data: cityData(c),
       })),
     );
   }
@@ -258,7 +388,6 @@ export function createAgentEngine({
       if (ds.length >= 2) {
         f.start = ds[0];
         f.end = ds[1];
-        datesBetween(f.start, f.end);
       }
       f.originName = text.match(/从\s*([^，。\s]{1,20}?)(?:出发|到|去)/)?.[1];
       f.destinationName = text.match(
@@ -268,6 +397,17 @@ export function createAgentEngine({
         ...(await memoryPreferences(query, ctx.user.id)),
         ...(ctx.state.style || {}),
       };
+      const collected = await collectTravel(ctx, text);
+      if (collected) return collected;
+      if (f.start && f.end && f.end < f.start) {
+        delete f.end;
+        return textQuestion(
+          ctx.state,
+          "end",
+          "返回日期早于出发日期，请重新选择返回日期。",
+          "date",
+        );
+      }
     }
     return advance(ctx);
   }
@@ -275,6 +415,66 @@ export function createAgentEngine({
     const { state: s } = ctx,
       f = s.flow;
     if (!f) return displayReply("想先做哪件事？");
+    if (f.kind === "software_help") {
+      const topic = f.knowledgeTopic;
+      delete s.flow;
+      return softwareAnswer(ctx, `${pages[topic]?.title || topic}怎么使用？`);
+    }
+    if (f.kind === "clarify") {
+      if (!f.intentMode)
+        return ask(
+          s,
+          "intentMode",
+          "你希望我怎样帮忙？",
+          [
+            { label: "帮我操作软件", data: "operate" },
+            { label: "解释软件功能", data: "software_question" },
+            { label: "只是聊一聊", data: "other" },
+          ],
+          { input: "text" },
+        );
+      if (f.intentMode === "software_question") {
+        delete s.flow;
+        return softwareAnswer(ctx, f.original);
+      }
+      if (f.intentMode === "other") {
+        delete s.flow;
+        return {
+          text: "可以简单聊聊；安排旅行时，我能帮你使用海迹里的功能。",
+          intent: "other",
+        };
+      }
+      if (f.capability === "more") {
+        delete f.capability;
+        f.showAll = true;
+      }
+      if (!f.capability) {
+        const common = [
+          "create_trip",
+          "edit_trip",
+          "recommend_services",
+          "navigate",
+          "create_citywalk",
+          "memory",
+        ];
+        const choices = capabilities.filter(
+          (c) =>
+            f.showAll ||
+            (f.suggested ? c.id === f.suggested : common.includes(c.id)),
+        );
+        return ask(
+          s,
+          "capability",
+          f.suggested && !f.showAll ? "你想做的是这件事吗？" : "想做哪件事？",
+          [
+            ...choices.map((c) => ({ label: c.title, data: c.id })),
+            ...(!f.showAll ? [{ label: "其他软件操作", data: "more" }] : []),
+          ],
+          { input: "text" },
+        );
+      }
+      return start(ctx, { capability: f.capability }, f.original);
+    }
     if (f.kind === "navigate") {
       const p = pages[f.page];
       if (!p)
@@ -331,10 +531,18 @@ export function createAgentEngine({
     }
     if (f.kind === "memory") {
       if (!f.style || !Object.keys(f.style).length)
-        return textQuestion(
+        return ask(
           s,
           "style",
-          "你更喜欢怎样旅行？比如“我喜欢人文和建筑，想慢慢逛，少走路”。",
+          "你喜欢怎样旅行？",
+          [
+            { label: "慢慢逛", data: "我想慢慢逛" },
+            { label: "少走路", data: "我想少走路" },
+            { label: "避开拥挤", data: "我想避开拥挤" },
+            { label: "人文与建筑", data: "我喜欢人文和建筑" },
+            { label: "亲近自然", data: "我喜欢自然" },
+          ],
+          { multi: true, input: "text" },
         );
       if (!f.scope)
         return ask(s, "scope", "这些偏好用于哪次旅行？", [
@@ -441,12 +649,10 @@ export function createAgentEngine({
           s,
           "restoreVersion",
           "恢复到哪个版本？",
-          rows
-            .slice(0, 20)
-            .map((r) => ({
-              label: `版本 ${r.version} · ${r.reason}`,
-              data: r.version,
-            })),
+          rows.slice(0, 20).map((r) => ({
+            label: `版本 ${r.version} · ${r.reason}`,
+            data: r.version,
+          })),
         );
       }
       return prepare(
@@ -458,16 +664,12 @@ export function createAgentEngine({
       );
     }
     if (f.kind === "share_trip") {
-      if (!f.title) return textQuestion(s, "title", "帖子标题写什么？");
-      if (!f.body) return textQuestion(s, "body", "写一段想分享的内容。");
-      z.string().min(1).max(100).parse(f.title);
-      z.string().min(1).max(1500).parse(f.body);
       return prepare(
         ctx,
         f.kind,
-        { tripId: t.id, version: t.version, title: f.title, body: f.body },
+        { tripId: t.id, version: t.version },
         "发布到发现",
-        [f.title, f.body, "其他用户可看到这份行程快照"],
+        [t.title, "发布当前行程快照，其他用户可以查看"],
       );
     }
     if (f.kind === "edit_trip") {
@@ -532,16 +734,12 @@ export function createAgentEngine({
       f = s.flow;
     if (!f.origin) {
       if (!f.originName)
-        return textQuestion(s, "originName", "从哪座城市出发？");
+        return cityQuestion(s, "originName", "从哪座城市出发？");
       return findCities(ctx, f.originName, "origin");
     }
     if (!f.cities?.length) {
       if (!f.destinationName)
-        return textQuestion(
-          s,
-          "destinationName",
-          "想去哪座城市？最多可以选择五座。",
-        );
+        return cityQuestion(s, "destinationName", "想去哪座城市？");
       return findCities(ctx, f.destinationName, "city");
     }
     if (!f.citiesDone) {
@@ -778,7 +976,7 @@ export function createAgentEngine({
     }
     if (!f.walkCity) {
       if (!f.destinationName)
-        return textQuestion(
+        return cityQuestion(
           s,
           "destinationName",
           "在哪座城市画一条 CityWalk？",
@@ -844,7 +1042,19 @@ export function createAgentEngine({
         "从哪个景点开始？",
         stops.map((p) => ({ label: p.name, data: p.id })),
       );
-    if (!f.title) return textQuestion(s, "title", "给这条路线起个名字。");
+    if (!f.title)
+      return ask(
+        s,
+        "title",
+        "给路线起个名字。",
+        [
+          { label: `${f.walkCity.name}漫步`, data: `${f.walkCity.name}漫步` },
+          ...(f.previous?.title
+            ? [{ label: f.previous.title, data: f.previous.title }]
+            : []),
+        ],
+        { input: "text" },
+      );
     z.string().min(1).max(80).parse(f.title);
     const ordered = orderWalk(stops, f.startId);
     return prepare(
@@ -907,8 +1117,9 @@ export function createAgentEngine({
         delete f.placeId;
       } else f.placeId = value;
     } else if (key === "style") {
-      f.style = explicitStyle(value);
-      f.original = text;
+      const evidence = Array.isArray(value) ? value.join("，") : value;
+      f.style = explicitStyle(evidence);
+      f.original = text || evidence;
     } else if (["start", "end"].includes(key)) {
       const d = parseDates(value);
       if (d.length !== 1) throw fail("请填写完整日期，例如 2026-10-20");
@@ -916,13 +1127,19 @@ export function createAgentEngine({
     } else f[key] = value;
   }
   async function message(ctx, input) {
+    ctx = guardWorkflow(ctx);
+    ctx.progress?.("正在识别需求…");
     const text = input.text?.trim() || "",
       s = ctx.state;
     const rule = await classify(text, { enabled: false });
     if (rule.blocked)
       return {
-        text: "我只能操作你有权限使用的旅行功能。账号安全和服务器维护请在对应页面处理。",
+        text:
+          bypassConfirmation(text) && s.pendingAction
+            ? "请先核对操作卡，再点击“确认执行”。我不会跳过确认。"
+            : "这项操作不在授权范围内。我可以帮你使用海迹里的旅行功能。",
         intent: "other",
+        ...(s.question ? { question: publicState(s).question } : {}),
       };
     if (rule.intent === "cancel") {
       await query(
@@ -932,12 +1149,59 @@ export function createAgentEngine({
       delete s.flow;
       delete s.question;
       delete s.pendingAction;
+      delete s.switchRequest;
       return displayReply("已取消待执行操作。");
     }
     if (s.question) {
       const q = s.question;
       if (input.questionId && input.questionId !== q.id)
         throw fail("问题已更新，请使用当前选项", 409);
+      if (!input.optionIds?.length && rule.intent === "software_question")
+        return {
+          ...(await softwareAnswer(ctx, text)),
+          question: publicState(s).question,
+        };
+      if (!input.optionIds?.length && text && s.flow?.kind !== "switch_task") {
+        const collected = await collectTravel(ctx, text, q.key);
+        if (collected) return collected;
+        if (
+          rule.intent === "operate" &&
+          rule.capability !== s.flow?.kind &&
+          rule.capability !== "memory"
+        )
+          return switchTask(s, text);
+        if (!["clarify", "software_help"].includes(s.flow?.kind)) {
+          ctx.progress?.("正在理解你的回答…");
+          const understood = await understandAnswer(text, q, {
+            model,
+            enabled: modelEnabled(),
+          });
+          if (understood.kind === "software_question")
+            return {
+              ...(await softwareAnswer(ctx, text)),
+              question: publicState(s).question,
+            };
+          if (understood.kind === "change_task") return switchTask(s, text);
+          if (understood.kind === "other")
+            return {
+              text: "我主要帮你安排海迹里的旅行。我们也可以继续当前这一步。",
+              intent: "other",
+              question: publicState(s).question,
+            };
+          if (understood.kind === "unclear")
+            return displayReply("这一步还没确定，请选一项，或换个说法。", {
+              question: publicState(s).question,
+            });
+          if (understood.optionIds)
+            input = {
+              ...input,
+              questionId: q.id,
+              optionIds: understood.optionIds,
+            };
+          else if (understood.value !== undefined)
+            input = { ...input, answerValue: understood.value };
+        }
+      }
       let value;
       if (input.optionIds?.length) {
         if (!input.questionId) throw fail("缺少当前问题编号");
@@ -952,10 +1216,37 @@ export function createAgentEngine({
           throw fail("请选择当前问题提供的选项");
         value = q.multi ? picked.map((o) => o.data) : picked[0].data;
       } else if (q.options.length) {
-        const matched = q.options.filter((o) => o.label === text);
+        const exact = q.options.filter((o) => o.label === text);
+        const ordinal = text.match(/^第([1-9]\d?)个$/);
+        const matched = exact.length
+          ? exact
+          : ordinal
+            ? q.options.slice(Number(ordinal[1]) - 1, Number(ordinal[1]))
+            : text.length >= 2 &&
+                !q.multi &&
+                !["clarify", "software_help"].includes(s.flow?.kind)
+              ? q.options.filter((o) => o.label.includes(text))
+              : [];
         if (matched.length === 1)
           value = q.multi ? [matched[0].data] : matched[0].data;
-        else if (["origin", "city"].includes(q.key)) value = text;
+        else if (s.flow?.kind === "clarify") {
+          delete s.flow;
+          delete s.question;
+          // A clarification input is a new request, never a capability ID.
+          return message(ctx, { text });
+        } else if (
+          q.input &&
+          [
+            "originName",
+            "destinationName",
+            "origin",
+            "city",
+            "style",
+            "title",
+            "knowledgeTopic",
+          ].includes(q.key)
+        )
+          value = text;
         else if (rule.intent === "software_question")
           return {
             ...(await knowledge.answer(text)),
@@ -965,9 +1256,24 @@ export function createAgentEngine({
           return displayReply("请点选下面的选项，或发送“取消”重新开始。", {
             question: publicState(s).question,
           });
-      } else value = text;
+      } else value = input.answerValue ?? text;
+      if (!input.optionIds?.length && input.answerValue !== undefined)
+        value = input.answerValue;
       if (value === "" || value === undefined) throw fail("请先回答这个问题");
       delete s.question;
+      if (q.key === "switchDecision") {
+        const pending = s.switchRequest;
+        delete s.switchRequest;
+        if (value === "stay") {
+          s.flow = pending.flow;
+          s.question = pending.question;
+          return displayReply("继续刚才这一步。", {
+            question: publicState(s).question,
+          });
+        }
+        delete s.flow;
+        return message(ctx, { text: pending.text });
+      }
       applyAnswer(s, q.key, value, text);
       return advance(ctx);
     }
@@ -987,6 +1293,15 @@ export function createAgentEngine({
       search: knowledge.search,
       enabled: modelEnabled(),
     });
+    if (result.intent === "operate" && result.source === "model") {
+      s.flow = {
+        kind: "clarify",
+        original: text,
+        intentMode: "operate",
+        suggested: result.capability,
+      };
+      return advance(ctx);
+    }
     if (result.intent === "operate")
       return {
         ...(await start(ctx, result, text)),
@@ -997,24 +1312,26 @@ export function createAgentEngine({
           confidence: result.confidence,
         },
       };
-    if (result.intent === "software_question") return knowledge.answer(text);
-    if (result.intent === "clarify")
-      return {
-        text: "你希望我帮你操作，还是解释这个功能？可以说“打开历史行程”或“怎么规划行程”。",
-        intent: "clarify",
-      };
-    let response = "我在。想聊聊旅行，或让我帮你安排下一程？";
+    if (result.intent === "software_question") {
+      return softwareAnswer(ctx, text);
+    }
+    if (result.intent === "clarify") {
+      s.flow = { kind: "clarify", original: text };
+      return advance(ctx);
+    }
+    let response = "可以简单聊聊。我主要帮你安排海迹里的旅行。";
+    ctx.progress?.("正在简短回复…");
     if (modelEnabled())
       try {
         const r = await model(
-          '简短友好地回复闲聊，最多100字。只返回 {"reply":"文本"}。不要声称已经操作软件，不承诺预订，不编造实时旅游事实。不提供外部链接。',
+          '你是海迹软件助手。对场外问题只给一句极其简短的通用建议，最多60字。不能执行场外任务、写代码、给操作命令、提供链接或编造实时信息。不得声称已操作软件。只返回 {"reply":"文本"}。',
           { text },
-          { maxTokens: 200 },
+          { maxTokens: 120 },
         );
         if (
           typeof r.reply === "string" &&
-          r.reply.length <= 150 &&
-          !/(已(?:经)?(?:保存|删除|修改|预订|付款)|https?:|执行成功)/.test(
+          r.reply.length <= 60 &&
+          !/(已(?:经)?(?:保存|删除|修改|预订|付款)|https?:|执行成功|```|sudo|curl |rm -)/.test(
             r.reply,
           )
         )
@@ -1025,6 +1342,15 @@ export function createAgentEngine({
     return { text: response, intent: "other" };
   }
   async function execute(ctx, action, decision) {
+    if (
+      !workflows[action.capability] ||
+      ctx.state.flow?.kind !== action.capability
+    )
+      throw fail("待确认操作与当前流程不一致", 409);
+    ctx = guardWorkflow(ctx, action);
+    ctx.progress?.(
+      decision === "confirm" ? "正在检查操作范围…" : "正在取消操作…",
+    );
     const { state: s } = ctx;
     if (action.replayed) return action.result;
     delete s.pendingAction;
@@ -1096,7 +1422,7 @@ export function createAgentEngine({
         delete s.flow;
         break;
       case "create_citywalk": {
-        const { updating, ...body } = p;
+        const { updating, after, ...body } = p;
         data = await ctx.api(
           updating ? "PUT" : "POST",
           updating ? `/api/citywalks/${p.id}` : "/api/citywalks",
@@ -1127,10 +1453,9 @@ export function createAgentEngine({
         const current = await ctx.api("GET", `/api/trips/${p.tripId}`);
         if (current.version !== p.version)
           throw fail("行程已改变，请重新预览后发布", 409);
-        await ctx.api("POST", "/api/posts", {
-          tripId: p.tripId,
-          title: p.title,
-          body: p.body,
+        await ctx.api("POST", "/api/discovery/publish", {
+          kind: "journey",
+          id: p.tripId,
         });
         reply = displayReply("行程帖子已发布。");
         delete s.flow;
