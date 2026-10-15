@@ -33,3 +33,13 @@
 ## 距离限制
 
 比较供应商返回的未取整实际米数：`distanceM > 10000` 提醒，`distanceM >= 15000` 阻止。无有效高德步行路段时返回 `status:preview,distanceM:null` 和单独的几何估算，不冒充实际距离。已核验返回 `status:verified,legs,distanceM,durationSeconds,checkedAt,warning,blocked`。这里只对返回的步行备选取最短，不声称证明了整个道路网络的全局最短路线。
+
+## 自建步行路线（2026-10-16）
+
+- `GET /api/citywalk/catalog/:cityId`：登录后创建本人地点草稿；返回 `202 loading` 或 `draftId, city, clusters, coverage, inventory`。细分步行圈以 500m 近邻连接、距种子不超过 850m、单组最多 60 个候选。孤立点不强行组团。类别包含 attraction/heritage/nature/leisure/food/shopping，已知 private/no 排除；未知营业/开放状态不能保证可进入。
+- `POST /api/citywalk/drafts/:id/nearby`：`{clusterIds, anchorId, walkId?}`，本人草稿内起点；补充 650m 内游览/餐饮/购物候选并写入该草稿。返回 `202 loading` 或 `{status:'ready',items}`。`walkId` 只能引用本人已保存路线。
+- `POST /api/citywalk/preview`：`{draftId,clusterIds,stopIds,startId,walkId?}`，服务端解析坐标、几何近邻+2-opt 缩短顺序，再核验每段高德实际步行线路。返回 `202 loading` 或 `{status:'ready',stops,route}`。这是近似短路线，不保证任意点集全局最优。
+- `POST /api/citywalks`、`PUT /api/citywalks/:id` 保留原参数，新增保存前实际步行距离核验，返回 `verified_route`。缺路 503，仅预览；达到 15000m 为 422；版本冲突 409、草稿过期/非本人 410；相同创建 ID 幂等返回。服务端不信任前端自报距离或坐标。
+- 图上密集候选用紧凑标记和 35m 间距筛选；列表保留全部当前候选。相同类别、相同规范名称且 40m 内的对象只在推荐视图合并，源数据库不修改。
+- 商业地点是中心采样加按需近邻补充，不宣称覆盖整座城市所有店铺。公共边界并不保证可步行连通，最终以高德实际线路为准。
+- 步行段数据库缓存 1 天；失败短暂冷却 60 秒，预览任务缓存 30 秒。重试不会无限自动调用收费接口。

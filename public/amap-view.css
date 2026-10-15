@@ -237,3 +237,5 @@ body,
   height: 19px;
   border-radius: 6px;
 }
+
+.walk-edit .map-action.service{padding:3px;gap:0;border-radius:50%;min-width:28px;height:28px;box-shadow:0 1px 2px #183c4020}.walk-edit .map-action.service span,.walk-edit .map-action.service small{display:none}.walk-edit .map-action.service:hover span,.walk-edit .map-action.service:focus-visible span{display:block;position:absolute;bottom:34px;left:50%;transform:translateX(-50%);padding:5px 8px;background:#fffdf2;border:1px solid #527f72;border-radius:8px;white-space:nowrap;pointer-events:none}.walk-edit .map-action.service.selected{background:#20c8b6;border-width:2px}
