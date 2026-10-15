@@ -120,6 +120,7 @@ function toast(s) {
   toastTimer = setTimeout(() => ($("#toast").hidden = true), 4500);
 }
 function syncProfile() {
+  $('#admin-entry').hidden=me?.user?.role!=='admin';
   $("#profile-name").textContent = me?.user?.nickname || "旅行者";
   const avatar = $("#profile-avatar");
   avatar.replaceChildren();
@@ -236,6 +237,7 @@ const navigation = createPageNavigation({
       behavior: reducedMotion() ? "auto" : "smooth",
     }),
   onChange: (route, { animate }) => {
+    if(me?.user) void fetch('/api/activity',{method:'POST',headers:{'Content-Type':'application/json','X-Seatraces':'1'},body:JSON.stringify({page:route.page,action:'open'})}).catch(()=>{});
     if(route.page!=='agent')agentContext={page:route.page,...(['history','services'].includes(route.page)&&route.id?{tripId:route.id,...(route.params?.day?{day:Number(route.params.day)}:{})}:state.trip?{tripId:state.trip.id,day:state.day}:{})};
     document.body.classList.toggle('agent-open',route.page==='agent');
     if (!me?.user) {

@@ -1,0 +1,48 @@
+import pg from 'pg';
+import {readFile} from 'node:fs/promises';
+import {randomBytes,randomUUID} from 'node:crypto';
+import bcrypt from 'bcryptjs';
+import express from 'express';
+import cookieParser from 'cookie-parser';
+import {createAccounts,hashToken,requireUser} from '../../server/auth.mjs';
+import {createEventRecorder} from '../../server/operations/events.mjs';
+import {installOperationsRoutes} from '../../server/operations/routes.mjs';
+
+export async function iterationFixture({schemas=[]}={}) {
+  const cfg=JSON.parse(await readFile(new URL('../../.runtime/local.json',import.meta.url),'utf8'));
+  const schema='iteration_'+randomBytes(8).toString('hex');
+  const pool=new pg.Pool({host:'127.0.0.1',port:cfg.port,user:'seatraces',password:cfg.password,database:'seatraces',max:8,options:`-c search_path=${schema},public`});
+  const query=(...args)=>pool.query(...args);
+  const transaction=async fn=>{const c=await pool.connect();try{await c.query('BEGIN');const result=await fn(c);await c.query('COMMIT');return result;}catch(e){await c.query('ROLLBACK');throw e;}finally{c.release();}};
+  let server,events;
+  async function close(){await new Promise(resolve=>server?server.close(resolve):resolve());await events?.close();await query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`);await pool.end();}
+  try{
+    await query(`CREATE SCHEMA ${schema}`);
+    // Minimal isolated accounts; no dependency on or access to real users.
+    await query(`CREATE TABLE users(id uuid PRIMARY KEY,username varchar(32) UNIQUE NOT NULL,password_hash text NOT NULL,nickname varchar(40) NOT NULL,avatar varchar(12) NOT NULL DEFAULT '🌊',role text NOT NULL DEFAULT 'user',preferences jsonb NOT NULL DEFAULT '{}',created_at timestamptz NOT NULL DEFAULT now());
+      CREATE TABLE sessions(token_hash text PRIMARY KEY,user_id uuid REFERENCES users(id) ON DELETE CASCADE,expires_at timestamptz);
+      CREATE TABLE import_jobs(id uuid PRIMARY KEY,source text,rows_count integer,status text,created_at timestamptz DEFAULT now());`);
+    for(const file of ['auth-schema.sql','operations/schema.sql',...schemas])await query(await readFile(new URL('../../server/'+file,import.meta.url),'utf8'));
+    events=createEventRecorder({query,intervalMs:60000});
+    const accounts=createAccounts({query,transaction});
+    const app=express();app.use(express.json(),cookieParser());
+    app.use('/api',(req,res,next)=>!['GET','HEAD'].includes(req.method)&&req.get('X-Seatraces')!=='1'?res.status(403).json({error:'source'}):next());
+    app.use('/api',accounts.attach,events.middleware,accounts.gate,accounts.router);
+    installOperationsRoutes(app,{auth:requireUser,query,transaction,events});
+    const users={};
+    const password='Iteration-fixture-Password!';
+    const digest=await bcrypt.hash(password,4);
+    for(const [name,role] of [['admin','admin'],['user','user'],['other','user']]){
+      const id=randomUUID(),token=randomBytes(32).toString('hex');
+      await query('INSERT INTO users(id,username,password_hash,nickname,role) VALUES($1,$2,$3,$2,$4)',[id,'fixture_'+name,digest,role]);
+      await query("INSERT INTO sessions(token_hash,user_id,expires_at) VALUES($1,$2,now()+interval '1 hour')",[hashToken(token),id]);
+      users[name]={id,username:'fixture_'+name,cookie:'st_session='+token};
+    }
+    return {app,users,password,query,transaction,events,auth:requireUser,schema,
+      async start(){app.use((err,req,res,next)=>{events.systemError(req,err);res.status(err.status||(err.name==='ZodError'?400:500)).json({error:err.status?err.message:err.name==='ZodError'?'invalid':'internal'});});server=app.listen(0,'127.0.0.1');await new Promise(resolve=>server.once('listening',resolve));return server.address().port;},
+      async request(path,{user='admin',body,method,headers={}}={}){
+        const r=await fetch('http://127.0.0.1:'+server.address().port+path,{method:method||(body?'POST':'GET'),headers:{'Content-Type':'application/json','X-Seatraces':'1',...(user?{Cookie:users[user].cookie}:{}),...headers},...(body?{body:JSON.stringify(body)}:{})});
+        const data=r.headers.get('content-type')?.includes('json')?await r.json():Buffer.from(await r.arrayBuffer());return {status:r.status,data,headers:r.headers};
+      },close};
+  }catch(e){await close();throw e;}
+}

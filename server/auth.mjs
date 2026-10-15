@@ -39,6 +39,7 @@ export function createAccounts({ query, transaction, production = false, mailer 
       if (typeof token === 'string' && /^[a-f0-9]{64}$/.test(token)) {
         req.user = (await query(userSql + ` JOIN sessions s ON s.user_id=u.id WHERE s.token_hash=$1 AND s.expires_at>now()`, [hashToken(token)])).rows[0];
         if (!req.user) res.clearCookie('st_session', cookieOptions);
+        if (req.user?.disabled_at) { req.user=undefined; res.clearCookie('st_session',cookieOptions); }
         if (isLegacyGuest(req.user)) { req.guest = req.user; req.user = undefined; }
         if (req.user) req.user.preferences = currentPreferences(req.user.preferences);
       }
@@ -113,12 +114,15 @@ export function createAccounts({ query, transaction, production = false, mailer 
     const u = (await query('SELECT * FROM users WHERE lower(username)=$1', [b.username])).rows[0];
     const matches = await bcrypt.compare(b.password, u?.password_hash || await dummyHash);
     if (!u || !matches || isLegacyGuest(u)) throw failure(401, '账号或密码不正确');
+    if(u.disabled_at) throw failure(403,'账号已停用，请联系管理员');
     const token = await transaction(async c => {
-      const locked = (await c.query('SELECT password_hash FROM users WHERE id=$1 FOR UPDATE', [u.id])).rows[0];
+      const locked = (await c.query('SELECT password_hash,disabled_at FROM users WHERE id=$1 FOR UPDATE', [u.id])).rows[0];
+      if(locked?.disabled_at) throw failure(403,'账号已停用，请联系管理员');
       if (locked.password_hash !== u.password_hash) throw failure(401, '密码已变更，请重新登录');
       return newSession(c, req, u.id);
     });
     await query('DELETE FROM auth_rate_limits WHERE key_hash=$1', [hashToken('login:' + b.username)]);
+    req.auditUserId=u.id;
     setSession(res, token);
     res.json({ user: publicUser(await userById(u.id)) });
   });

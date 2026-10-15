@@ -55,7 +55,7 @@ $('#login-form').onsubmit = async e => {
     const body = mode === 'verify' ? { token } : mode === 'reset' ? { token, password: fields.get('password') } : Object.fromEntries([...fields].filter(([k]) => !['confirm','claimGuest'].includes(k)));
     if (mode === 'register') body.claimGuest = fields.has('claimGuest');
     const result = await api(paths[mode], body);
-    if (['login','register'].includes(mode)) { localStorage.removeItem('seatraces-last-trip'); location.replace('/'); return; }
+    if (['login','register'].includes(mode)) { localStorage.removeItem('seatraces-last-trip'); location.replace(new URLSearchParams(location.search).get('next')==='admin'?'/admin.html':'/'); return; }
     form.reset();
     busy = false;
     if (mode === 'reset' || mode === 'verify') setMode('login');
@@ -69,5 +69,5 @@ void api('me').then(data => {
   guestAvailable = data.guestAvailable;
   $('#guest-field').hidden = !(mode === 'register' && guestAvailable);
   $('[name="claimGuest"]').disabled = mode !== 'register' || !guestAvailable;
-  if (data.user && !token && new URLSearchParams(location.search).get('switch') !== '1') location.replace('/');
+  if (data.user && !token && new URLSearchParams(location.search).get('switch') !== '1') location.replace(new URLSearchParams(location.search).get('next')==='admin'?'/admin.html':'/');
 }).catch(() => { $('#login-error').textContent = '暂时连不上服务，连接恢复后可重试登录。'; });

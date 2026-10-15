@@ -1,6 +1,7 @@
 -- Additive migration: existing account IDs, profiles and trips stay intact.
 CREATE UNIQUE INDEX IF NOT EXISTS users_username_normalized ON users (lower(username));
 ALTER TABLE users ADD COLUMN IF NOT EXISTS password_changed_at timestamptz NOT NULL DEFAULT now();
+ALTER TABLE users ADD COLUMN IF NOT EXISTS disabled_at timestamptz;
 -- Existing legacy choices are left as historical data and no longer read as switches.
 -- Do not rewrite them to true and misrepresent a user action.
 ALTER TABLE users ALTER COLUMN preferences SET DEFAULT '{"interests":["人文","自然"],"pace":"balanced"}'::jsonb;

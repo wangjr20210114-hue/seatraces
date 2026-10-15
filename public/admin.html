@@ -1,0 +1,7 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>海迹 · 管理后台</title><link rel="stylesheet" href="/admin.css"><script type="module" src="/admin.js"></script></head>
+<body><header class="admin-header"><a href="/">← 返回海迹</a><h1>海迹 · 管理后台</h1><span id="admin-name"></span></header>
+<div class="admin-layout"><nav aria-label="后台导航"><button data-section="overview" aria-current="page">总览</button><button data-section="users">用户</button><button data-section="events">操作日志</button><button data-section="tasks">任务</button></nav>
+<main><div class="admin-toolbar"><h2 id="section-title">总览</h2><button id="refresh">刷新 ↻</button></div><p id="admin-status" role="status">正在打开…</p><section id="admin-content"></section></main></div>
+<dialog id="admin-confirm"><form method="dialog"><h2 id="confirm-title"></h2><label>操作原因<select id="status-reason"><option value="support">账号维护</option><option value="security">安全处理</option><option value="requested">用户申请</option></select></label><div class="actions"><button value="cancel">取消</button><button class="primary" value="confirm">确认</button></div></form></dialog>
+</body></html>

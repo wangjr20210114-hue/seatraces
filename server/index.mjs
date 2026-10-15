@@ -6,6 +6,8 @@ import cookieParser from "cookie-parser";
 import { randomUUID } from "node:crypto";
 import { createAccounts, requireUser as auth } from "./auth.mjs";
 import { createMailer } from "./mail.mjs";
+import { createEventRecorder } from './operations/events.mjs';
+import { installOperationsRoutes } from './operations/routes.mjs';
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { z } from "zod";
@@ -84,7 +86,10 @@ app.use("/api", (req, res, next) => {
 });
 const accounts = createAccounts({ query, transaction, production, mailer: createMailer() });
 app.use(['/api','/_AMapService'], accounts.attach);
+const operationEvents=createEventRecorder({query});
+app.use('/api',operationEvents.middleware);
 app.use('/api', accounts.gate, accounts.router);
+installOperationsRoutes(app,{auth,query,transaction,events:operationEvents});
 app.use('/_AMapService', auth);
 const admin = (req, res, next) => req.user?.role === 'admin'
   ? next() : res.status(403).json({ error: '需要管理员权限' });
@@ -843,6 +848,7 @@ app.get('/google-view.html',helmet.contentSecurityPolicy({directives:{
 app.get(["/legacy.html", "/catalog.html"], (req, res) => res.redirect(302, "/"));
 app.use(express.static(path.join(root, "public"), { maxAge: 0 }));
 app.use((err, req, res, next) => {
+  operationEvents.systemError(req,err);
   if (err instanceof z.ZodError)
     return res
       .status(400)
@@ -852,7 +858,7 @@ app.use((err, req, res, next) => {
       });
   if (err.code === "23503")
     return res.status(404).json({ error: "关联的记录不存在" });
-  console.error(req.method, req.path, err.message);
+  console.error('Request failed',req.operationRequestId||'unknown',err.status||500);
   res
     .status(err.status || 500)
     .json({
