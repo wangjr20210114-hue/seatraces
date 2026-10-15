@@ -28,4 +28,26 @@
 
 ## 测试
 
+## 站内信
+
+管理员创建草稿、预览收件范围后确认发送；用户在“我的 → 设置 → 消息”查看。所有内容按纯文本显示。管理员只能修改自己创建的草稿；已发消息不可编辑或撤回。停用账号不接收群发，发送事务固定当时的有效收件人，之后注册者不会补收旧消息。外部邮件通道尚未启用。
+
+| 方法 / 路径 | 输入 | 返回 / 行为 |
+|---|---|---|
+| GET `/api/admin/messages` | `limit/offset` | 本人草稿与发送记录、收件/已读人数 |
+| POST `/api/admin/messages` | UUID `id`、`title`≤80、`body`≤4000、`audience` all/selected、`recipientIds`≤500 | 创建草稿；相同 ID 和内容幂等；指定用户必须有效 |
+| GET `/api/admin/messages/:id/preview` | 消息 ID | 正文、草稿版本、有效收件人数、指定用户标签 |
+| PUT `/api/admin/messages/:id` | 创建参数及 `version` | 乐观锁修改草稿，旧版本 409 |
+| POST `/api/admin/messages/:id/send` | `version`、`recipientCount`、`confirmation: "send"` | 确认并发送；收件人数变化 409；重复发送不重复投递 |
+| POST `/api/admin/messages/:id/cancel` | `{}` | 幂等取消草稿，已发送拒绝 |
+| GET `/api/me/messages` | `limit/offset` | 本人消息与未读数量 |
+| GET `/api/me/messages/:id` | 消息 ID | 本人消息正文；非收件人 404 |
+| POST `/api/me/messages/:id/read` | `{}` | 幂等标记已读 |
+
+数据存入 PostgreSQL `inbox_campaigns` 和 `inbox_messages`，不是 JSON 文件。发送、投递记录、管理审计在同一事务；异常全部回滚。日志不复制消息正文或收件人名单。
+
+## 站内信测试
+
+`TEST_INBOX=1 node --test test/inbox.test.mjs` 使用隔离 schema 验证群发、并发重放、收件人权限、已读和长度限制，无 SMTP 调用。
+
 本机服务启动后，PowerShell：`$env:TEST_OPERATIONS='1'; node --test test/operations.test.mjs`。测试使用隔离 schema，结束删除测试数据；不会请求地图或模型 API。用例/结果见 `TEST_CASES_20261016.md`。

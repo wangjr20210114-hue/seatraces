@@ -8,6 +8,7 @@ import { createAccounts, requireUser as auth } from "./auth.mjs";
 import { createMailer } from "./mail.mjs";
 import { createEventRecorder } from './operations/events.mjs';
 import { installOperationsRoutes } from './operations/routes.mjs';
+import { installInboxRoutes } from './operations/inbox.mjs';
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { z } from "zod";
@@ -90,6 +91,7 @@ const operationEvents=createEventRecorder({query});
 app.use('/api',operationEvents.middleware);
 app.use('/api', accounts.gate, accounts.router);
 installOperationsRoutes(app,{auth,query,transaction,events:operationEvents});
+installInboxRoutes(app,{auth,query,transaction,events:operationEvents});
 app.use('/_AMapService', auth);
 const admin = (req, res, next) => req.user?.role === 'admin'
   ? next() : res.status(403).json({ error: '需要管理员权限' });

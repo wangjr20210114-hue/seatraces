@@ -6,6 +6,7 @@ import { createPageNavigation } from "./page-navigation.js";
 import { renderProfilePage } from "./profile-pages.js";
 import { mountAgent } from "./agent-page.js";
 import { mountAgentLauncher } from './agent-launcher.js';
+import { renderInbox } from './inbox.js';
 import { mountTripServices } from "./trip-services.js";
 import { mountServiceMapDock } from "./service-map-dock.js";
 import { plannerScene, serviceScene, savedServicePoints } from "./map-scene.js";
@@ -328,7 +329,9 @@ const navigation = createPageNavigation({
       const content = document.createElement("div");
       $("#page-content").replaceChildren(content);
       $("#detail-page").scrollTop = 0;
-      if (route.page === 'agent') {
+      if (['settings','messages'].includes(route.page)) {
+        void renderInbox({route,content,setTitle,api,navigate:path=>navigation.go(path),isCurrent:()=>revision===pageRevision});
+      } else if (route.page === 'agent') {
         pageCleanup = mountAgent({content,setTitle,api,userId:me.user.id,context:agentContext,isCurrent:()=>revision===pageRevision,navigate:path=>navigation.go(path)});
       } else if (route.page === "citywalk") {
         void renderCityWalkEditor({

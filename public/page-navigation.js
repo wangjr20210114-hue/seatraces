@@ -10,6 +10,8 @@ const pages = new Set([
   "citywalk",
   "services",
   "agent",
+  "settings",
+  "messages",
 ]);
 
 function parseRoute(hash) {
@@ -17,7 +19,7 @@ function parseRoute(hash) {
   const parts = pathname.split("/");
   const page = pages.has(parts[0]) ? parts[0] : "home";
   let id = "";
-  if (["history", "citywalk", "services"].includes(page) && parts[1]) {
+  if (["history", "citywalk", "services", "messages"].includes(page) && parts[1]) {
     try {
       id = decodeURIComponent(parts[1]);
     } catch {
@@ -88,7 +90,7 @@ export function createPageNavigation({ onChange, onRepeat }) {
       if (history.state?.seatracesPage?.depth > 0) history.back();
       else
         go(
-          ["citywalk", "services"].includes(current?.page)
+          current?.page==='messages' ? current.id?'/messages':'/settings' : ["citywalk", "services"].includes(current?.page)
             ? "/home"
             : current?.id
               ? "/history"
