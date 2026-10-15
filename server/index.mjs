@@ -1,3 +1,4 @@
+import {guestMapStyle} from '../public/guest-policy.js';
 import {installClassicWalkRoutes,seedClassicWalks} from './services/classic-citywalks.mjs';
 import { installDiscoveryRoutes, publicRoute } from "./services/discovery.mjs";
 import "dotenv/config";
@@ -93,7 +94,13 @@ app.use('/api',operationEvents.middleware);
 app.use('/api', accounts.gate, accounts.router);
 installOperationsRoutes(app,{auth,query,transaction,events:operationEvents});
 installInboxRoutes(app,{auth,query,transaction,events:operationEvents});
-app.use('/_AMapService', auth);
+app.use('/_AMapService', (req,res,next)=>{
+  if(!guestMapStyle(req.path,req.method))return auth(req,res,next);
+  const key=req.ip+':map',now=Date.now();let v=rate.get(key);
+  if(!v||v.until<now)v={count:0,until:now+60000};rate.set(key,v);
+  if(++v.count>120)return res.status(429).json({error:'地图请求过快，请稍后重试'});
+  next();
+});
 const admin = (req, res, next) => req.user?.role === 'admin'
   ? next() : res.status(403).json({ error: '需要管理员权限' });
 app.get('/api/health', async (req, res) => {

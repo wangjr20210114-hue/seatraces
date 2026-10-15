@@ -1,4 +1,5 @@
 import { mountDiscovery, publishRoute } from "./discovery.js";
+import {guestPage} from './guest-policy.js';
 import { uniqueCities } from "./city-selection.js";
 import { createCityWalkHome, renderCityWalkEditor } from "./citywalk.js";
 import { createTabMotion } from "./tab-motion.js";
@@ -228,6 +229,7 @@ function keepTrip(trip) {
 }
 const cityWalkHome = createCityWalkHome({
   api,
+  authenticated:()=>Boolean(me?.user),
   navigate: (path) => navigation.go(path),
   toast,
 });
@@ -241,7 +243,7 @@ const navigation = createPageNavigation({
     if(me?.user) void fetch('/api/activity',{method:'POST',headers:{'Content-Type':'application/json','X-Seatraces':'1'},body:JSON.stringify({page:route.page,action:'open'})}).catch(()=>{});
     if(route.page!=='agent')agentContext={page:route.page,...(['history','services'].includes(route.page)&&route.id?{tripId:route.id,...(route.params?.day?{day:Number(route.params.day)}:{})}:state.trip?{tripId:state.trip.id,day:state.day}:{})};
     document.body.classList.toggle('agent-open',route.page==='agent');
-    if (!me?.user) {
+    if (!me?.user && !guestPage(route)) {
       location.replace("/login.html");
       return;
     }
@@ -1236,10 +1238,6 @@ $("#history").onclick = () => selectPage("history");
 async function boot() {
   try {
     me = await api("/api/me");
-    if (!me.user) {
-      location.replace("/login.html");
-      return;
-    }
     syncProfile();
     document.body.classList.remove("auth-pending");
     $("#auth-loading").hidden = true;
@@ -1247,7 +1245,7 @@ async function boot() {
     $("#travel-map").src = $("#travel-map").dataset.src;
     const bootRevision = pageRevision;
     const last = localStorage.getItem("seatraces-last-trip");
-    if (last && !location.hash.startsWith("#/services/")) {
+    if (me.user && last && !location.hash.startsWith("#/services/")) {
       try {
         const t = await api("/api/trips/" + encodeURIComponent(last));
         if (
@@ -1267,7 +1265,7 @@ async function boot() {
 }
 $("#auth-retry").onclick = boot;
 window.addEventListener("pageshow", (e) => {
-  if (e.persisted) void ensureUser().catch(() => {});
+  if (e.persisted && me?.user) void ensureUser().catch(() => {});
 });
 document.addEventListener("visibilitychange", () => {
   if (!document.hidden && me?.user) void ensureUser().catch(() => {});

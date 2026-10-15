@@ -21,7 +21,7 @@ function walkArt(motif) {
   return `<svg class="walk-art" viewBox="0 0 320 170" aria-hidden="true"><circle cx="274" cy="36" r="18" fill="#ffcf63"/><path d="M12 135Q60 91 83 121T155 149T298 145" fill="none" stroke="#fffdf2" stroke-width="15"/><path d="M12 135Q60 91 83 121T155 149T298 145" fill="none" stroke="#1c655e" stroke-width="2" stroke-dasharray="5 7"/><g stroke="#183c40" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">${landmark}<path d="M64 115V87m-12 19q-22-30 0-37 26-9 25 25" fill="#65bd96"/><circle cx="83" cy="121" r="7" fill="#ffda73"/><circle cx="155" cy="149" r="7" fill="#fffdf2"/><path d="m22 42 5-9 5 9-5 9zM102 40h9m-4-4v8" fill="#fffdf2"/></g></svg>`;
 }
 
-export function createCityWalkHome({ api, navigate, toast }) {
+export function createCityWalkHome({ api, navigate, toast, authenticated=()=>true }) {
   const rail = document.querySelector("#classic-walks"),
     dots = document.querySelector("#walk-dots");
   const list = document.querySelector("#my-walk-list"),
@@ -151,6 +151,7 @@ export function createCityWalkHome({ api, navigate, toast }) {
   };
   async function refresh() {
     const revision = ++request;
+    if(!authenticated()){list.replaceChildren();more.hidden=true;return;}
     try {
       const walks = [];
       for (let offset = 0; offset < limit + 1; offset += 50) {

@@ -4,6 +4,7 @@ import sharp from 'sharp';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { interests } from './planner.mjs';
+import {guestApiRead} from '../public/guest-policy.js';
 
 export const hashToken = value => createHash('sha256').update(value).digest('hex');
 const account = z.string().trim().regex(/^[a-zA-Z0-9_]{3,32}$/).transform(s => s.toLowerCase());
@@ -213,6 +214,7 @@ export function createAccounts({ query, transaction, production = false, mailer 
   const publicPaths = new Set(['/health','/me','/auth/config','/auth/login','/auth/register','/auth/logout','/auth/forgot-password','/auth/reset-password','/auth/verify-email']);
   function gate(req, res, next) {
     if (publicPaths.has(req.path)) return next();
+    if (guestApiRead(req.path,req.method)) return next();
     return requireUser(req, res, next);
   }
   return { router, attach, gate };

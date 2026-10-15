@@ -77,3 +77,5 @@ body.auth-pending > :not(#auth-loading) { visibility: hidden; }
   .account-pass h2 { font-size: 19px; }
   .account-secondary { gap: 5px; font-size: 13px; }
 }
+
+.guest-entry{display:block;text-align:center;margin-top:24px;padding:13px 10px;border:1.5px solid #a4c9b8;border-radius:16px;text-decoration:none;color:#28796a;background:#edf7e8;font-weight:700}
