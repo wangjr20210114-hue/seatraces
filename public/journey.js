@@ -486,6 +486,7 @@ async function render() {
       searchCities(e.target.value, true);
     };
     $("#locate").onclick = () => locate(false);
+    void searchCities("", true, true);
     if (!state.origin.label)
       navigator.permissions
         ?.query({ name: "geolocation" })
@@ -971,6 +972,64 @@ function workspaceHeight() {
 window.visualViewport?.addEventListener("resize", workspaceHeight);
 window.addEventListener("resize", workspaceHeight);
 workspaceHeight();
+{
+  const home = $("#home");
+  const stage = home.querySelector(".map-stage");
+  const grip = $("#map-grip");
+  const handles = [grip, $("#wizard .paper-tools")].filter(Boolean);
+  let drag = null;
+  function bounds() {
+    const height = home.clientHeight;
+    const minimum = Math.min(120, height * 0.3);
+    // Keep the questionnaire header, choices and next button reachable.
+    const maximum = Math.max(minimum, Math.min(height * 0.78, height - grip.offsetHeight - 220));
+    return { height, minimum, maximum };
+  }
+  function resizeMap(pixels) {
+    const { height, minimum, maximum } = bounds();
+    if (!height) return;
+    const size = Math.max(minimum, Math.min(maximum, pixels));
+    stage.style.flexBasis = `${(size / height) * 100}%`;
+    grip.setAttribute("aria-valuemin", Math.round(minimum / height * 100));
+    grip.setAttribute("aria-valuemax", Math.round(maximum / height * 100));
+    grip.setAttribute("aria-valuenow", Math.round(size / height * 100));
+    grip.setAttribute("aria-valuetext", `地图占 ${Math.round(size / height * 100)}%`);
+  }
+  for (const handle of handles) {
+    handle.addEventListener("pointerdown", (event) => {
+      if (!home.classList.contains("map-workspace") || drag || !event.isPrimary || event.button !== 0 ||
+          event.target.closest("button, a, input, select, textarea")) return;
+      event.preventDefault();
+      drag = { pointerId: event.pointerId, y: event.clientY, height: stage.getBoundingClientRect().height };
+      handle.setPointerCapture(event.pointerId);
+      home.classList.add("resizing-map");
+    });
+    handle.addEventListener("pointermove", (event) => {
+      if (drag?.pointerId !== event.pointerId) return;
+      resizeMap(drag.height + event.clientY - drag.y);
+    });
+    const stop = (event) => {
+      if (drag?.pointerId !== event.pointerId) return;
+      drag = null;
+      home.classList.remove("resizing-map");
+      if (handle.hasPointerCapture(event.pointerId)) handle.releasePointerCapture(event.pointerId);
+    };
+    for (const type of ["pointerup", "pointercancel", "lostpointercapture"]) handle.addEventListener(type, stop);
+  }
+  grip.addEventListener("keydown", (event) => {
+    if (!home.classList.contains("map-workspace")) return;
+    const { minimum, maximum } = bounds();
+    const height = stage.getBoundingClientRect().height;
+    const sizes = { ArrowUp: height - 24, ArrowDown: height + 24, Home: minimum, End: maximum };
+    if (!(event.key in sizes)) return;
+    event.preventDefault();
+    resizeMap(sizes[event.key]);
+  });
+  new ResizeObserver(() => {
+    if (home.classList.contains("map-workspace") && home.clientHeight) resizeMap(stage.getBoundingClientRect().height);
+  }).observe(home);
+}
+
 window.addEventListener("message", (e) => {
   if (
     e.origin !== location.origin ||

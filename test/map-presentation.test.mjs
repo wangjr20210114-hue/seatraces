@@ -38,6 +38,7 @@ test("day fit excludes city/road overlays; user zoom switches layers without ref
     }
     clearMap() {}
     add() {}
+    remove() {}
     getZoom() {
       return this.zoom;
     }
@@ -54,6 +55,7 @@ test("day fit excludes city/road overlays; user zoom switches layers without ref
     console,
     innerWidth: 390,
     innerHeight: 440,
+    matchMedia: () => ({ matches: true }),
     location: { origin: "http://local", search: "?mode=home" },
     parent: { postMessage: (value) => messages.push(value) },
     window: {
@@ -163,5 +165,5 @@ test("day fit excludes city/road overlays; user zoom switches layers without ref
   const count = messages.length;
   listeners.wheel(); map.zoom = 6; mapEvents.zoomend();
   assert.equal(messages.length, count, 'zooming a CityWalk must not switch to an empty overview');
-  assert.equal(element('#route-legend').textContent, 'CityWalk · 顺序连线');
+  assert.equal(fits.at(-1).items.length, 3, 'CityWalk fits its two stops and connecting curve');
 });
