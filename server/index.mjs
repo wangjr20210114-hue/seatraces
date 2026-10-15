@@ -1,3 +1,4 @@
+import {installClassicWalkRoutes,seedClassicWalks} from './services/classic-citywalks.mjs';
 import { installDiscoveryRoutes, publicRoute } from "./services/discovery.mjs";
 import "dotenv/config";
 import express from "express";
@@ -282,6 +283,7 @@ async function travelHabit(user) {
 installJourneyRoutes(app,{auth,travelHabit});
 installTripServiceRoutes(app,{auth});
 installCityWalkRoutes(app,{auth,travelHabit});
+installClassicWalkRoutes(app,{auth,events:operationEvents});
 installDiscoveryRoutes(app,{auth});
 installAgentRoutes(app,{auth,query,transaction,port:()=>server.address().port});
 app.get("/api/questions", auth, async (req, res) =>
@@ -877,6 +879,7 @@ if (
     "Production requires PostGIS; apply server/postgis.sql first",
   );
 await seed();
+await seedClassicWalks();
 export const server = app.listen(
   Number(process.env.PORT || 8787),
   process.env.HOST || "127.0.0.1",

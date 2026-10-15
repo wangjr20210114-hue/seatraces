@@ -81,3 +81,5 @@
 .walk-editor button:disabled { opacity: .45; cursor: default; }
 @media(min-width: 700px) { .walk-art { height: 200px; } .walk-caption h3 { font-size: 24px; } .walk-sights { grid-template-columns: 1fr 1fr; } }
 @media(prefers-reduced-motion: reduce) { .walk-dots button::after { transition: none; } }
+
+.classic-route-heading{display:grid;gap:10px}.classic-route-heading h2{margin:0;font-size:26px}.classic-city{color:#28796a;font-weight:750}.classic-route-heading>b{font-size:15px}.classic-map{height:clamp(320px,52vh,620px);margin-top:20px}.classic-stops{padding-left:32px}.classic-stops li{padding:14px 6px;border-bottom:1px dashed #bdcdb9;font-size:15px}.classic-stops li::marker{font-weight:800;color:#28796a}.classic-stops a{float:right;color:#28796a;font-size:13px;text-decoration:none}.classic-stops li:after{content:'';display:block;clear:both}

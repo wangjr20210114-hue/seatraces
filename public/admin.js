@@ -1,9 +1,10 @@
+import {mountAdminCityWalks} from './admin-citywalks.js';
 import {createAdminDetails} from './admin-details.js';
 import {mountAdminMessages} from './admin-messages.js';
 const $=s=>document.querySelector(s);
 export const escapeText=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const esc=escapeText;
-const names={overview:'总览',users:'用户',events:'操作日志',tasks:'任务',messages:'站内信'};
+const names={overview:'总览',users:'用户',events:'操作日志',tasks:'任务',messages:'站内信',classics:'经典 CityWalk'};
 let section='overview',offset=0,revision=0,userQuery='',userState='all',userRole='all',filters={};
 const content=$('#admin-content'),status=$('#admin-status');
 async function api(url,body,method) {
@@ -51,6 +52,8 @@ async function render(){
     }else if(section==='messages'){
       await mountAdminMessages({content,status,api,isCurrent:()=>revision===own});
       return;
+    }else if(section==='classics'){
+      await mountAdminCityWalks({content,status,api,isCurrent:()=>revision===own});return;
     }else if(section==='tasks'){
       const v=await api('/api/admin/tasks');if(own!==revision)return;
       content.innerHTML=table(['来源','条数','状态','创建时间'],v.items.map(j=>`<tr><td>${esc(j.source)}</td><td>${j.rows_count}</td><td>${esc(j.status)}</td><td>${time(j.created_at)}</td></tr>`));

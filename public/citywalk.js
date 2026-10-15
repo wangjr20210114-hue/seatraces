@@ -1,5 +1,6 @@
+import {renderClassicWalk} from './classic-walk-view.js';
 import { publishRoute } from "./discovery.js";
-import { classicWalks } from "./citywalk-classics.js";
+import { classicWalks, loadClassicWalks } from "./citywalk-classics.js";
 import { boundarySvg, uniqueCities } from "./city-selection.js";
 import { orderWalk, routeMetres, walkName } from "./citywalk-route.js";
 import { schematicConnections } from "./route-curves.js";
@@ -39,6 +40,7 @@ export function createCityWalkHome({ api, navigate, toast }) {
     request = 0,
     limit = 10;
   let paused = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  function paintClassics(){
   rail.innerHTML = classicWalks
     .map(
       (w, i) =>
@@ -51,11 +53,14 @@ export function createCityWalkHome({ api, navigate, toast }) {
         `<button data-walk-dot="${i}" aria-label="查看${esc(w.city)}路线" aria-current="${i === 0}"></button>`,
     )
     .join("");
+  }
+  void loadClassicWalks(api).then(paintClassics).catch(()=>{rail.textContent="经典路线暂未加载";});
   function syncAuto() {
     auto.textContent = paused ? "▶" : "Ⅱ";
     auto.setAttribute("aria-label", paused ? "开启自动轮播" : "暂停自动轮播");
   }
   function go(i, manual = false) {
+    if(!classicWalks.length||!rail.children[i])return;
     index = i;
     rail.scrollTo({
       left: rail.children[i].offsetLeft - rail.firstElementChild.offsetLeft,
@@ -100,7 +105,7 @@ export function createCityWalkHome({ api, navigate, toast }) {
     { passive: true },
   );
   rail.addEventListener("keydown", (e) => {
-    if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
+    if (classicWalks.length && (e.key === "ArrowRight" || e.key === "ArrowLeft")) {
       e.preventDefault();
       go(
         (index + (e.key === "ArrowRight" ? 1 : -1) + classicWalks.length) %
@@ -209,6 +214,7 @@ export async function renderCityWalkEditor({
   isCurrent,
   toast,
 }) {
+  if(route.id?.startsWith('classic-'))return renderClassicWalk({route,content,setTitle,api,isCurrent});
   let template = classicWalks.find((w) => "classic-" + w.id === route.id);
   const editing = route.id && route.id !== "new" && !template;
   const state = {
