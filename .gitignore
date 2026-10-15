@@ -30,3 +30,7 @@ archive/
 *.sqlite3
 *.dump
 *.osm.pbf
+
+# Local macOS / DevEco metadata
+.DS_Store
+harmony/.idea/

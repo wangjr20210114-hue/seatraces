@@ -59,6 +59,8 @@ test("full API workflow, ownership, concurrency, privacy, community and unavaila
   let t = created.body;
   assert.ok(t.plan.days[0].stops.length > 0);
   assert.equal((await b("/trips/" + t.id)).status, 404);
+  assert.equal((await b("/posts")).body.filter(p => p.trip_id === t.id).length, 0,
+    "saving a route must not publish it");
   assert.equal(
     (await b("/trips/" + t.id, { version: 1, status: "completed" }, "PATCH"))
       .status,
@@ -118,6 +120,14 @@ test("full API workflow, ownership, concurrency, privacy, community and unavaila
     })
   ).body;
   assert.ok(post.id);
+  const published = await a("/discovery/publish", {kind:"journey",id:t.id});
+  assert.equal(published.status,200);
+  assert.equal(published.body.id,post.id);
+  assert.equal((await b("/posts")).body.filter(p => p.id===post.id).length,1);
+  assert.ok((await a("/discovery/mine")).body.items.some(p => p.id===post.id && p.isOwn));
+  assert.ok(!(await b("/discovery/mine")).body.items.some(p => p.id===post.id));
+  assert.equal((await b("/discovery/publish", {kind:"journey",id:t.id})).status,404);
+
   assert.equal(post.snapshot.days[0].anchor, undefined);
   assert.equal(
     (await a("/posts", { tripId: t.id, title: "重复分享", body: "不应重复" }))

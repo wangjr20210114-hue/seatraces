@@ -1,3 +1,4 @@
+import { publishRoute } from "./discovery.js";
 import { classicWalks } from "./citywalk-classics.js";
 import { boundarySvg, uniqueCities } from "./city-selection.js";
 import { orderWalk, routeMetres, walkName } from "./citywalk-route.js";
@@ -140,6 +141,11 @@ export function createCityWalkHome({ api, navigate, toast }) {
   document.querySelector("#create-walk").onclick = () =>
     navigate("/citywalk/new");
   list.onclick = (e) => {
+    const publish = e.target.closest("[data-publish-walk]");
+    if (publish) {
+      void publishRoute({ button: publish, kind: "citywalk", id: publish.dataset.publishWalk, api, navigate, toast });
+      return;
+    }
     const b = e.target.closest("[data-edit-walk]");
     if (b) navigate("/citywalk/" + b.dataset.editWalk);
   };
@@ -159,7 +165,7 @@ export function createCityWalkHome({ api, navigate, toast }) {
           .slice(0, limit)
           .map(
             (w) =>
-              `<button class="my-walk-card" data-edit-walk="${esc(w.id)}"><span class="walk-pin" aria-hidden="true">↗</span><span><small>${esc(w.city.name)} · ${w.stops.length} 个地点</small><b>${esc(w.title)}</b><span class="walk-stop-names">${w.stops.map((p) => esc(p.name)).join(" → ")}</span></span><span aria-hidden="true">›</span></button>`,
+              `<button class="my-walk-card" data-edit-walk="${esc(w.id)}"><span class="walk-pin" aria-hidden="true">↗</span><span><small>${esc(w.city.name)} · ${w.stops.length} 个地点</small><b>${esc(w.title)}</b><span class="walk-stop-names">${w.stops.map((p) => esc(p.name)).join(" → ")}</span></span><span aria-hidden="true">›</span></button><button type="button" class="loadmore" data-publish-walk="${esc(w.id)}">发布到发现 ↗</button>`,
           )
           .join("") ||
         '<div class="walk-empty"><span aria-hidden="true">〰</span><p>把想逛的地方，连成自己的路线。</p><button class="walk-create" data-empty-create>开始画路线 ↗</button></div>';

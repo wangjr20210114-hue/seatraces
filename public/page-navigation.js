@@ -9,6 +9,7 @@ const pages = new Set([
   "report",
   "citywalk",
   "services",
+  "agent",
 ]);
 
 function parseRoute(hash) {

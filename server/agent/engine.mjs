@@ -1,0 +1,1184 @@
+import { randomUUID } from "node:crypto";
+import { z } from "zod";
+import { pages, capabilities } from "./catalog.mjs";
+import { classify, pageFromText } from "./intent.mjs";
+import {
+  explicitStyle,
+  styleSchema,
+  styleLabels,
+  labelValue,
+  readMemory,
+  memoryPreferences,
+  saveMemory,
+} from "./memory.mjs";
+import { journeyAnswers } from "../services/journey-draft.mjs";
+import { datesBetween, interests } from "../planner.mjs";
+import { fail } from "./store.mjs";
+import { orderWalk } from "../../public/citywalk-route.js";
+
+const compactTrip = (t) => ({
+  id: t.id,
+  title: t.title,
+  start: t.request?.start,
+  end: t.request?.end,
+});
+const option = (label, data) => ({
+  id: randomUUID(),
+  label: String(label).slice(0, 180),
+  data,
+});
+const displayReply = (text, extra = {}) => ({
+  text,
+  intent: "operate",
+  ...extra,
+});
+export function cleanContext(input = {}) {
+  return z
+    .object({
+      page: z.enum([...Object.keys(pages), "agent", "services"]).optional(),
+      tripId: z.uuid().optional(),
+      day: z.number().int().min(0).max(29).optional(),
+    })
+    .strict()
+    .parse(input);
+}
+export function parseDates(text) {
+  const dates = [
+    ...text.matchAll(/(\d{4})[-年/.](\d{1,2})[-月/.](\d{1,2})日?/g),
+  ].map((m) => `${m[1]}-${m[2].padStart(2, "0")}-${m[3].padStart(2, "0")}`);
+  for (const d of dates) datesBetween(d, d);
+  return dates;
+}
+export function publicState(state) {
+  const q = state.question;
+  return {
+    flow: state.flow?.kind || null,
+    question: q
+      ? {
+          id: q.id,
+          key: q.key,
+          text: q.text,
+          multi: q.multi || false,
+          options: q.options.map(({ id, label }) => ({ id, label })),
+          input: q.input || null,
+        }
+      : null,
+  };
+}
+const steps = {
+  create_trip: [
+    "确认出发地与城市",
+    "确认日期",
+    "选择城市片区",
+    "回答旅行风格",
+    "预览并生成",
+  ],
+  recommend_services: [
+    "选择本人行程",
+    "选择日期",
+    "查询推荐",
+    "预览商家",
+    "确认保存",
+  ],
+  edit_trip: ["选择本人行程", "选择日期", "提出修改", "预览变更", "带版本保存"],
+};
+
+export function createAgentEngine({
+  query,
+  transaction,
+  store,
+  knowledge,
+  model,
+  modelEnabled = () => Boolean(process.env.DEEPSEEK_API_KEY),
+}) {
+  function ask(
+    state,
+    key,
+    text,
+    options = [],
+    { multi = false, input = null } = {},
+  ) {
+    state.question = {
+      id: randomUUID(),
+      key,
+      text,
+      options: options.map((o) => option(o.label, o.data)),
+      multi,
+      input,
+    };
+    return displayReply(text, {
+      question: publicState(state).question,
+      workflow: steps[state.flow?.kind] || null,
+    });
+  }
+  const textQuestion = (s, key, text, input = "text") =>
+    ask(s, key, text, [], { input });
+  async function prepare(ctx, capability, payload, title, lines, after) {
+    const action = await store.offer(
+      ctx.c,
+      ctx.user.id,
+      capability,
+      { ...payload, after },
+      {
+        title,
+        lines,
+        screen:
+          capabilities.find((c) => c.id === capability)?.screen || "问 AI",
+        effect: capability,
+      },
+    );
+    ctx.state.pendingAction = action.id;
+    delete ctx.state.question;
+    return displayReply("请确认这一步。", { action });
+  }
+  async function trip(ctx) {
+    const f = ctx.state.flow;
+    if (!f.tripId) {
+      const rows = await ctx.api(
+        "GET",
+        "/api/trips?summary=1&limit=20&offset=0",
+      );
+      if (!rows.length) {
+        delete ctx.state.flow;
+        return {
+          reply: displayReply("还没有保存的行程。可以先制订一份。", {
+            navigation: { route: "/home", title: "旅行" },
+          }),
+        };
+      }
+      return {
+        reply: ask(
+          ctx.state,
+          "tripId",
+          "要处理哪份行程？",
+          rows.map((t) => ({
+            label: `${t.title} · ${t.request?.start || ""}`,
+            data: t.id,
+          })),
+        ),
+      };
+    }
+    const value = await ctx.api("GET", `/api/trips/${f.tripId}`);
+    return { value };
+  }
+  async function needDay(ctx, t) {
+    if (ctx.state.flow.day === undefined || !t.plan.days[ctx.state.flow.day])
+      return ask(
+        ctx.state,
+        "day",
+        "选择哪一天？",
+        t.plan.days.map((d, i) => ({
+          label: `Day ${i + 1} · ${d.date} · ${d.city}`,
+          data: i,
+        })),
+      );
+  }
+  async function findCities(ctx, name, key) {
+    const rows = await ctx.api(
+      "GET",
+      "/api/places?category=city&q=" + encodeURIComponent(name),
+    );
+    const unique = new Map();
+    for (const c of rows)
+      if (!unique.has(c.country + ":" + c.name.replace(/市$/, "")))
+        unique.set(c.country + ":" + c.name.replace(/市$/, ""), c);
+    const values = [...unique.values()].slice(0, 12);
+    if (!values.length)
+      return textQuestion(
+        ctx.state,
+        key,
+        `没有找到“${name}”，换个城市名称试试。`,
+      );
+    return ask(
+      ctx.state,
+      key,
+      "确认一下是哪座城市。",
+      values.map((c) => ({
+        label: `${c.name} · ${c.province || c.country}`,
+        data: {
+          id: c.id,
+          name: c.name,
+          country: c.country,
+          lat: Number(c.lat),
+          lng: Number(c.lng),
+        },
+      })),
+    );
+  }
+  async function start(ctx, intent, text) {
+    ctx.state.flow = { kind: intent.capability, original: text };
+    const f = ctx.state.flow;
+    if (
+      [
+        "edit_trip",
+        "trip_status",
+        "trip_restore",
+        "recommend_services",
+        "share_trip",
+      ].includes(f.kind) &&
+      ctx.context.tripId &&
+      /(当前|这份|这次|这个|附近|沿途)/.test(text)
+    )
+      f.tripId = ctx.context.tripId;
+    if (f.kind === "recommend_services")
+      f.serviceKind = /(住宿|酒店|旅店|民宿)/.test(text)
+        ? "stay"
+        : /(餐饮|餐厅|饭店|吃饭)/.test(text)
+          ? "dining"
+          : undefined;
+    const day = text.match(/(?:第\s*|Day\s*)(\d{1,2})(?:\s*天)?/i);
+    if (day && Number(day[1]) > 0) f.day = Number(day[1]) - 1;
+    if (f.kind === "profile_update")
+      f.nickname = text
+        .match(
+          /(?:改成|改为|叫做|设为)\s*[“"「]?([^”"」。，！!?？]{1,40})/,
+        )?.[1]
+        ?.trim();
+    if (f.kind === "trip_status")
+      f.status = /已完成|完成了/.test(text)
+        ? "completed"
+        : /计划中/.test(text)
+          ? "planned"
+          : undefined;
+    if (f.kind === "navigate")
+      f.page = intent.page || pageFromText(text) || ctx.context.page;
+    if (f.kind === "memory") f.style = explicitStyle(text);
+    if (f.kind === "create_citywalk")
+      f.walkMode = /(编辑|修改)/.test(text) ? "edit" : "create";
+    if (f.kind === "post_reaction") {
+      f.reaction = /收藏/.test(text)
+        ? "save"
+        : /推荐/.test(text)
+          ? "recommend"
+          : "like";
+      f.active = !/取消/.test(text);
+    }
+    if (f.kind === "create_trip") {
+      const ds = parseDates(text);
+      if (ds.length >= 2) {
+        f.start = ds[0];
+        f.end = ds[1];
+        datesBetween(f.start, f.end);
+      }
+      f.originName = text.match(/从\s*([^，。\s]{1,20}?)(?:出发|到|去)/)?.[1];
+      f.destinationName = text.match(
+        /(?:到|去)\s*([^，。\s\d]{1,20}?)(?:旅游|旅行|游玩|玩|出发|[，。\s]|$)/,
+      )?.[1];
+      f.answers = {
+        ...(await memoryPreferences(query, ctx.user.id)),
+        ...(ctx.state.style || {}),
+      };
+    }
+    return advance(ctx);
+  }
+  async function advance(ctx) {
+    const { state: s } = ctx,
+      f = s.flow;
+    if (!f) return displayReply("想先做哪件事？");
+    if (f.kind === "navigate") {
+      const p = pages[f.page];
+      if (!p)
+        return ask(
+          s,
+          "page",
+          "要去哪个页面？",
+          Object.entries(pages).map(([id, p]) => ({
+            label: p.title,
+            data: id,
+          })),
+        );
+      delete s.flow;
+      return displayReply(`打开${p.title}。`, {
+        navigation: { route: p.route, title: p.title, level: p.level },
+      });
+    }
+    if (f.kind === "account_secure") {
+      delete s.flow;
+      return displayReply("请在账号页面完成这一步。", {
+        navigation: { route: "/account", title: "我的账号", level: 2 },
+        handoff: true,
+      });
+    }
+    if (f.kind === "profile_update") {
+      if (!f.nickname) return textQuestion(s, "nickname", "想把昵称改成什么？");
+      z.string().trim().min(1).max(40).parse(f.nickname);
+      return prepare(ctx, f.kind, { nickname: f.nickname }, "修改昵称", [
+        `新昵称：${f.nickname}`,
+      ]);
+    }
+    if (f.kind === "clear_history")
+      return prepare(ctx, f.kind, {}, "清空浏览历史", [
+        "删除本人全部浏览记录",
+        "此操作无法恢复，已保存的行程不受影响",
+      ]);
+    if (f.kind === "forget_memory") {
+      const rows = await readMemory(query, ctx.user.id);
+      if (!rows.length) {
+        delete s.flow;
+        return displayReply("目前没有长期旅行记忆。");
+      }
+      return prepare(
+        ctx,
+        f.kind,
+        {
+          versions: Object.fromEntries(
+            rows.map((r) => [r.dimension, r.version]),
+          ),
+        },
+        "清除旅行风格记忆",
+        rows.map((r) => `${r.label}：${r.valueLabel}`),
+      );
+    }
+    if (f.kind === "memory") {
+      if (!f.style || !Object.keys(f.style).length)
+        return textQuestion(
+          s,
+          "style",
+          "你更喜欢怎样旅行？比如“我喜欢人文和建筑，想慢慢逛，少走路”。",
+        );
+      if (!f.scope)
+        return ask(s, "scope", "这些偏好用于哪次旅行？", [
+          { label: "仅这次对话的行程", data: "trip" },
+          { label: "长期记住", data: "long_term" },
+        ]);
+      if (f.scope === "trip") {
+        s.style = { ...s.style, ...f.style };
+        delete s.flow;
+        return displayReply("记在这次对话里了。", { style: s.style });
+      }
+      const rows = await readMemory(query, ctx.user.id);
+      return prepare(
+        ctx,
+        f.kind,
+        {
+          style: f.style,
+          evidence: f.original,
+          versions: Object.fromEntries(
+            rows.map((r) => [r.dimension, r.version]),
+          ),
+        },
+        "记住旅行风格",
+        Object.entries(f.style).map(
+          ([k, v]) => `${styleLabels[k]}：${labelValue(v)}`,
+        ),
+      );
+    }
+    if (f.kind === "report") {
+      const r = await ctx.api("GET", "/api/me/report");
+      delete s.flow;
+      return displayReply(
+        r.summary ||
+          `已完成 ${r.completed || 0} 次旅行，计划中 ${r.planned || 0} 次。`,
+        {
+          facts: {
+            completed: r.completed,
+            planned: r.planned,
+            cities: r.cities,
+            interests: r.interests,
+          },
+        },
+      );
+    }
+    if (f.kind === "create_trip") return journey(ctx);
+    if (f.kind === "create_citywalk") return citywalk(ctx);
+    if (["post_comment", "post_reaction"].includes(f.kind)) {
+      const posts = await ctx.api("GET", "/api/posts");
+      if (!f.postId) {
+        if (!posts.length) {
+          delete s.flow;
+          return displayReply("还没有可选择的帖子。");
+        }
+        return ask(
+          s,
+          "postId",
+          "选择一个帖子。",
+          posts.slice(0, 20).map((p) => ({ label: p.title, data: p.id })),
+        );
+      }
+      const post = posts.find((p) => p.id === f.postId);
+      if (!post) throw fail("帖子已不在当前可见列表，请重新选择");
+      if (f.kind === "post_comment") {
+        if (!f.comment) return textQuestion(s, "comment", "想留下什么评论？");
+        z.string().min(1).max(500).parse(f.comment);
+        return prepare(
+          ctx,
+          f.kind,
+          { postId: post.id, body: f.comment },
+          "发布评论",
+          [post.title, f.comment, "其他用户可以看到这条评论"],
+        );
+      }
+      return prepare(
+        ctx,
+        f.kind,
+        { postId: post.id, kind: f.reaction, active: f.active },
+        (f.active ? "" : "取消") +
+          { like: "点赞", save: "收藏", recommend: "推荐" }[f.reaction],
+        [post.title],
+      );
+    }
+    const found = await trip(ctx);
+    if (found.reply) return found.reply;
+    const t = found.value;
+    if (f.kind === "trip_status") {
+      if (!f.status)
+        return ask(s, "status", "标记为什么状态？", [
+          { label: "已完成", data: "completed" },
+          { label: "计划中", data: "planned" },
+        ]);
+      return prepare(
+        ctx,
+        f.kind,
+        { tripId: t.id, version: t.version, status: f.status },
+        "更新行程状态",
+        [t.title, f.status === "completed" ? "已完成" : "计划中"],
+      );
+    }
+    if (f.kind === "trip_restore") {
+      if (!f.restoreVersion) {
+        const rows = await ctx.api("GET", `/api/trips/${t.id}/versions`);
+        return ask(
+          s,
+          "restoreVersion",
+          "恢复到哪个版本？",
+          rows
+            .slice(0, 20)
+            .map((r) => ({
+              label: `版本 ${r.version} · ${r.reason}`,
+              data: r.version,
+            })),
+        );
+      }
+      return prepare(
+        ctx,
+        f.kind,
+        { tripId: t.id, version: t.version, restoreVersion: f.restoreVersion },
+        "恢复行程版本",
+        [t.title, `恢复版本 ${f.restoreVersion}，当前版本 ${t.version}`],
+      );
+    }
+    if (f.kind === "share_trip") {
+      if (!f.title) return textQuestion(s, "title", "帖子标题写什么？");
+      if (!f.body) return textQuestion(s, "body", "写一段想分享的内容。");
+      z.string().min(1).max(100).parse(f.title);
+      z.string().min(1).max(1500).parse(f.body);
+      return prepare(
+        ctx,
+        f.kind,
+        { tripId: t.id, version: t.version, title: f.title, body: f.body },
+        "发布到发现",
+        [f.title, f.body, "其他用户可看到这份行程快照"],
+      );
+    }
+    if (f.kind === "edit_trip") {
+      const prompt = await needDay(ctx, t);
+      if (prompt) return prompt;
+      if (!f.edit)
+        return textQuestion(
+          s,
+          "edit",
+          `Day ${f.day + 1}：${t.plan.days[f.day].stops.map((p) => p.name).join("、")}。具体怎么改？`,
+        );
+      const r = await ctx.api("POST", `/api/trips/${t.id}/assistant`, {
+        day: f.day,
+        text: f.edit,
+      });
+      if (!r.operation)
+        return textQuestion(
+          s,
+          "edit",
+          r.message || "请明确要修改的景点和操作。",
+        );
+      const op = r.operation;
+      if (op.day !== f.day) throw fail("修改日期不一致");
+      const stops = t.plan.days[f.day].stops,
+        old = stops.find((p) => p.id === op.placeId);
+      if (["remove", "replace", "move", "lock"].includes(op.type) && !old)
+        throw fail("修改目标不在这一天的行程中");
+      // New IDs come from the existing assistant endpoint, never this agent model.
+      let next;
+      if (op.newPlaceId) {
+        const candidates = await ctx.api(
+          "GET",
+          "/api/places?category=attraction&city=" +
+            encodeURIComponent(t.plan.days[f.day].city),
+        );
+        next = candidates.find((p) => p.id === op.newPlaceId);
+        if (!next) throw fail("新景点尚未在候选中核对，请在行程页调整");
+      }
+      const names = {
+        remove: "移除",
+        replace: "替换",
+        add: "添加",
+        move: "调整顺序",
+        lock: "锁定",
+      };
+      return prepare(
+        ctx,
+        f.kind,
+        { tripId: t.id, version: t.version, operation: op },
+        "修改行程",
+        [
+          t.title,
+          `Day ${f.day + 1}：${names[op.type] || op.type} ${old?.name || ""}${next ? " → " + next.name : ""}${op.type === "move" ? " → 第 " + (op.to + 1) + " 位" : ""}`,
+        ],
+      );
+    }
+    if (f.kind === "recommend_services") return services(ctx, t);
+    throw fail("此功能还没有配置自动执行流程");
+  }
+  async function journey(ctx) {
+    const s = ctx.state,
+      f = s.flow;
+    if (!f.origin) {
+      if (!f.originName)
+        return textQuestion(s, "originName", "从哪座城市出发？");
+      return findCities(ctx, f.originName, "origin");
+    }
+    if (!f.cities?.length) {
+      if (!f.destinationName)
+        return textQuestion(
+          s,
+          "destinationName",
+          "想去哪座城市？最多可以选择五座。",
+        );
+      return findCities(ctx, f.destinationName, "city");
+    }
+    if (!f.citiesDone) {
+      if (f.destinationName) return findCities(ctx, f.destinationName, "city");
+      return ask(s, "cityNext", "还想增加目的城市吗？", [
+        { label: "城市选好了", data: "done" },
+        ...(f.cities.length < 5 ? [{ label: "再加一座", data: "more" }] : []),
+      ]);
+    }
+    if (!f.start)
+      return textQuestion(s, "start", "哪天出发？请填写完整年月日。", "date");
+    if (!f.end) return textQuestion(s, "end", "哪天返回？", "date");
+    const ds = datesBetween(f.start, f.end);
+    if (ds.length < f.cities.length)
+      throw fail("每座城市至少留一天，请调整日期");
+    if (!f.sessionId)
+      return prepare(
+        ctx,
+        "create_trip",
+        {
+          request: {
+            origin: {
+              label: f.origin.name,
+              lat: f.origin.lat,
+              lng: f.origin.lng,
+            },
+            cityIds: f.cities.map((c) => c.id),
+            start: f.start,
+            end: f.end,
+          },
+        },
+        "开始选择旅行片区",
+        [
+          `从 ${f.origin.name} 出发`,
+          f.cities.map((c) => c.name).join(" → "),
+          `${f.start} 至 ${f.end}`,
+        ],
+        "journey_session",
+      );
+    const city = f.cities.find((c) => !f.selections?.[c.id]?.length);
+    if (city) {
+      if (!f.catalog?.[city.id]) {
+        const result = await ctx.api(
+          "POST",
+          `/api/journey/sessions/${f.sessionId}/cities/${encodeURIComponent(city.id)}?async=1`,
+          {},
+        );
+        if (result.status === "loading")
+          return ask(s, "retryCity", `${city.name}的片区正在准备。`, [
+            { label: "查看片区", data: true },
+          ]);
+        f.catalog ||= {};
+        f.catalog[city.id] = result.clusters.map((g) => ({
+          id: g.id,
+          name: g.name,
+          memberCount: g.memberCount,
+          members: g.members.slice(0, 5).map((p) => p.name),
+        }));
+      }
+      const groups = f.catalog[city.id];
+      if (!groups.length)
+        throw fail("这座城市暂时没有可用片区，请重新选择城市");
+      f.selectingCity = city.id;
+      return ask(
+        s,
+        "clusters",
+        `想逛${city.name}的哪些片区？`,
+        groups.map((g) => ({
+          label: `${g.name} · ${g.memberCount} 处 · ${g.members.slice(0, 3).join("、")}`,
+          data: g.id,
+        })),
+        { multi: true },
+      );
+    }
+    if (!f.questions) {
+      const r = await ctx.api(
+        "POST",
+        `/api/journey/sessions/${f.sessionId}/questions`,
+        {},
+      );
+      f.questions = r.questions;
+      f.answers = { ...r.defaults, ...f.answers };
+    }
+    f.answered ||= [];
+    const q = f.questions.find((q) => !f.answered.includes(q.id));
+    if (q) {
+      f.answering = q.id;
+      return ask(
+        s,
+        "preference",
+        q.title,
+        q.options.map((o) =>
+          typeof o === "string"
+            ? { label: o, data: o }
+            : { label: o.label, data: o.value },
+        ),
+        { multi: q.type === "multi" },
+      );
+    }
+    return prepare(
+      ctx,
+      "create_trip",
+      {
+        sessionId: f.sessionId,
+        selections: f.selections,
+        answers: journeyAnswers.parse(f.answers),
+      },
+      "生成并保存旅行方案",
+      [
+        f.cities.map((c) => c.name).join(" → "),
+        `${f.start} 至 ${f.end}`,
+        ...Object.entries(f.answers).map(
+          ([k, v]) => `${styleLabels[k] || k}：${labelValue(v)}`,
+        ),
+      ],
+      "journey_generate",
+    );
+  }
+  async function services(ctx, t) {
+    const s = ctx.state,
+      f = s.flow,
+      prompt = await needDay(ctx, t);
+    if (prompt) return prompt;
+    if (!f.serviceKind)
+      return ask(s, "serviceKind", "想找餐饮还是住宿？", [
+        { label: "餐饮", data: "dining" },
+        { label: "住宿", data: "stay" },
+      ]);
+    if (!f.recommendation) {
+      const r = await ctx.api(
+        "POST",
+        `/api/journey/trips/${t.id}/services/recommendations`,
+        {
+          day: f.day,
+          groupMeals: true,
+          sort: "distance",
+          ...(f.refresh
+            ? {
+                refresh: true,
+                activeSlot: f.refreshSlot,
+                excludePlaceIds: f.exclude || [],
+              }
+            : {}),
+        },
+      );
+      const slot = r.slots.find((sl) => sl.kind === f.serviceKind);
+      if (!slot || !slot.items?.length) {
+        delete s.flow;
+        return displayReply(
+          "这一段暂时没有可用推荐。可以在地图上扩大范围再看看。",
+          {
+            navigation: {
+              route: `/services/${t.id}?day=${f.day}`,
+              title: "沿途吃住",
+            },
+          },
+        );
+      }
+      f.recommendation = {
+        version: r.version,
+        id: slot.recommendationId,
+        slot: slot.id,
+        items: slot.items.map((p) => ({
+          id: p.id,
+          name: p.name,
+          distanceM: p.distanceMeters,
+          lat: p.lat,
+          lng: p.lng,
+        })),
+      };
+    }
+    const r = f.recommendation;
+    if (!f.placeId)
+      return ask(s, "servicePlace", "想选哪一家？", [
+        ...r.items.map((p) => ({
+          label:
+            p.name +
+            (Number.isFinite(p.distanceM)
+              ? ` · ${Math.round(p.distanceM)} 米`
+              : ""),
+          data: p.id,
+        })),
+        { label: "换一批", data: "refresh" },
+      ]);
+    const selection = {
+      version: r.version,
+      recommendationId: r.id,
+      placeId: f.placeId,
+    };
+    const p = await ctx.api(
+      "POST",
+      `/api/journey/trips/${t.id}/services/${encodeURIComponent(r.slot)}/preview`,
+      selection,
+    );
+    return prepare(
+      ctx,
+      "recommend_services",
+      { tripId: t.id, slot: r.slot, selection },
+      "选入行程",
+      [
+        t.title,
+        `Day ${f.day + 1} · ${p.candidate.name}`,
+        f.serviceKind === "stay"
+          ? "保存为住宿备选，不产生预订"
+          : "保存为餐饮备选，不产生预订",
+      ],
+    );
+  }
+  async function citywalk(ctx) {
+    const s = ctx.state,
+      f = s.flow;
+    if (f.walkMode === "edit" && !f.walkId) {
+      const rows = await ctx.api("GET", "/api/citywalks?limit=50&offset=0");
+      if (!rows.length) {
+        delete s.flow;
+        return displayReply("还没有保存的 CityWalk，可以先创建一条。");
+      }
+      return ask(
+        s,
+        "walkId",
+        "编辑哪条 CityWalk？",
+        rows.map((w) => ({ label: w.title + " · " + w.city.name, data: w.id })),
+      );
+    }
+    if (f.walkId && !f.previous) {
+      const w = await ctx.api("GET", `/api/citywalks/${f.walkId}`);
+      f.previous = {
+        id: w.id,
+        version: w.version,
+        city: w.city,
+        title: w.title,
+      };
+      f.walkCity = w.city;
+    }
+    if (!f.walkCity) {
+      if (!f.destinationName)
+        return textQuestion(
+          s,
+          "destinationName",
+          "在哪座城市画一条 CityWalk？",
+        );
+      return findCities(ctx, f.destinationName, "city");
+    }
+    if (!f.walkCatalog) {
+      const r = await ctx.api(
+        "GET",
+        `/api/citywalk/catalog/${encodeURIComponent(f.walkCity.id)}`,
+      );
+      if (r.status === "loading")
+        return ask(s, "retryCity", "正在准备这座城市的片区。", [
+          { label: "查看片区", data: true },
+        ]);
+      f.draftId = r.draftId;
+      f.walkCatalog = r.clusters.map((g) => ({
+        id: g.id,
+        name: g.name,
+        members: g.members.map((p) => ({
+          id: p.id,
+          name: p.name,
+          lat: p.lat,
+          lng: p.lng,
+        })),
+      }));
+    }
+    if (!f.walkCatalog.length) throw fail("这座城市暂时没有可用片区");
+    if (!f.walkClusters)
+      return ask(
+        s,
+        "walkClusters",
+        "选择想逛的片区。",
+        f.walkCatalog.map((g) => ({ label: g.name, data: g.id })),
+        { multi: true },
+      );
+    const candidates = [
+      ...new Map(
+        f.walkCatalog
+          .filter((g) => f.walkClusters.includes(g.id))
+          .flatMap((g) => g.members)
+          .map((p) => [p.id, p]),
+      ).values(),
+    ];
+    if (!f.stopIds)
+      return ask(
+        s,
+        "stopIds",
+        "选择至少两个景点。",
+        candidates.map((p) => ({ label: p.name, data: p.id })),
+        { multi: true },
+      );
+    if (f.stopIds.length < 2) {
+      delete f.stopIds;
+      return citywalk(ctx);
+    }
+    const stops = f.stopIds.map((id) => candidates.find((p) => p.id === id));
+    if (stops.some((p) => !p)) throw fail("景点选项已变化，请重新开始");
+    if (!f.startId)
+      return ask(
+        s,
+        "startId",
+        "从哪个景点开始？",
+        stops.map((p) => ({ label: p.name, data: p.id })),
+      );
+    if (!f.title) return textQuestion(s, "title", "给这条路线起个名字。");
+    z.string().min(1).max(80).parse(f.title);
+    const ordered = orderWalk(stops, f.startId);
+    return prepare(
+      ctx,
+      f.kind,
+      {
+        updating: !!f.previous,
+        id: f.previous?.id || randomUUID(),
+        draftId: f.draftId,
+        title: f.title,
+        clusterIds: f.walkClusters,
+        stopIds: f.stopIds,
+        startId: f.startId,
+        ...(f.previous ? { version: f.previous.version } : {}),
+      },
+      f.previous ? "更新 CityWalk" : "保存 CityWalk",
+      [f.title, ordered.map((p) => p.name).join(" → ")],
+    );
+  }
+  function applyAnswer(s, key, value, text) {
+    const f = s.flow;
+    if (key === "origin") {
+      if (typeof value === "string") {
+        f.originName = value;
+        return;
+      }
+      f.origin = value;
+    } else if (key === "city") {
+      if (typeof value === "string") {
+        f.destinationName = value;
+        return;
+      }
+      if (f.kind === "create_citywalk") {
+        f.walkCity = value;
+        delete f.destinationName;
+        return;
+      }
+      f.cities ||= [];
+      if (f.cities.some((c) => c.id === value.id))
+        throw fail("这座城市已经选过了");
+      if (f.cities.length >= 5) throw fail("最多选择五座城市");
+      f.cities.push(value);
+      delete f.destinationName;
+    } else if (key === "cityNext") {
+      if (value === "done") f.citiesDone = true;
+      else delete f.destinationName;
+    } else if (key === "clusters") {
+      f.selections ||= {};
+      f.selections[f.selectingCity] = value;
+    } else if (key === "preference") {
+      f.answers[f.answering] = value;
+      f.answered.push(f.answering);
+    } else if (key === "retryCity") {
+    } else if (key === "servicePlace") {
+      if (value === "refresh") {
+        f.exclude = f.recommendation.items.map((p) => p.id);
+        f.refreshSlot = f.recommendation.slot;
+        f.refresh = true;
+        delete f.recommendation;
+        delete f.placeId;
+      } else f.placeId = value;
+    } else if (key === "style") {
+      f.style = explicitStyle(value);
+      f.original = text;
+    } else if (["start", "end"].includes(key)) {
+      const d = parseDates(value);
+      if (d.length !== 1) throw fail("请填写完整日期，例如 2026-10-20");
+      f[key] = d[0];
+    } else f[key] = value;
+  }
+  async function message(ctx, input) {
+    const text = input.text?.trim() || "",
+      s = ctx.state;
+    const rule = await classify(text, { enabled: false });
+    if (rule.blocked)
+      return {
+        text: "我只能操作你有权限使用的旅行功能。账号安全和服务器维护请在对应页面处理。",
+        intent: "other",
+      };
+    if (rule.intent === "cancel") {
+      await query(
+        "UPDATE agent_actions SET status='cancelled',finished_at=now() WHERE conversation_id=$1 AND user_id=$2 AND status='pending'",
+        [ctx.c.id, ctx.user.id],
+      );
+      delete s.flow;
+      delete s.question;
+      delete s.pendingAction;
+      return displayReply("已取消待执行操作。");
+    }
+    if (s.question) {
+      const q = s.question;
+      if (input.questionId && input.questionId !== q.id)
+        throw fail("问题已更新，请使用当前选项", 409);
+      let value;
+      if (input.optionIds?.length) {
+        if (!input.questionId) throw fail("缺少当前问题编号");
+        const picked = input.optionIds.map((id) =>
+          q.options.find((o) => o.id === id),
+        );
+        if (
+          picked.some((o) => !o) ||
+          new Set(input.optionIds).size !== picked.length ||
+          (!q.multi && picked.length !== 1)
+        )
+          throw fail("请选择当前问题提供的选项");
+        value = q.multi ? picked.map((o) => o.data) : picked[0].data;
+      } else if (q.options.length) {
+        const matched = q.options.filter((o) => o.label === text);
+        if (matched.length === 1)
+          value = q.multi ? [matched[0].data] : matched[0].data;
+        else if (["origin", "city"].includes(q.key)) value = text;
+        else if (rule.intent === "software_question")
+          return {
+            ...(await knowledge.answer(text)),
+            question: publicState(s).question,
+          };
+        else
+          return displayReply("请点选下面的选项，或发送“取消”重新开始。", {
+            question: publicState(s).question,
+          });
+      } else value = text;
+      if (value === "" || value === undefined) throw fail("请先回答这个问题");
+      delete s.question;
+      applyAnswer(s, q.key, value, text);
+      return advance(ctx);
+    }
+    if (input.optionIds?.length) throw fail("当前没有待回答的选择题", 409);
+    if (s.pendingAction) {
+      if (/^(确认|执行|好的|可以|好|确定)[。！! ]*$/.test(text))
+        return displayReply("请使用操作卡上的“确认执行”，以确认具体内容。");
+      await query(
+        "UPDATE agent_actions SET status='cancelled',finished_at=now() WHERE id=$1 AND user_id=$2 AND status='pending'",
+        [s.pendingAction, ctx.user.id],
+      );
+      delete s.pendingAction;
+      delete s.flow;
+    }
+    const result = await classify(text, {
+      model,
+      search: knowledge.search,
+      enabled: modelEnabled(),
+    });
+    if (result.intent === "operate")
+      return {
+        ...(await start(ctx, result, text)),
+        classification: {
+          intent: result.intent,
+          capability: result.capability,
+          source: result.source,
+          confidence: result.confidence,
+        },
+      };
+    if (result.intent === "software_question") return knowledge.answer(text);
+    if (result.intent === "clarify")
+      return {
+        text: "你希望我帮你操作，还是解释这个功能？可以说“打开历史行程”或“怎么规划行程”。",
+        intent: "clarify",
+      };
+    let response = "我在。想聊聊旅行，或让我帮你安排下一程？";
+    if (modelEnabled())
+      try {
+        const r = await model(
+          '简短友好地回复闲聊，最多100字。只返回 {"reply":"文本"}。不要声称已经操作软件，不承诺预订，不编造实时旅游事实。不提供外部链接。',
+          { text },
+          { maxTokens: 200 },
+        );
+        if (
+          typeof r.reply === "string" &&
+          r.reply.length <= 150 &&
+          !/(已(?:经)?(?:保存|删除|修改|预订|付款)|https?:|执行成功)/.test(
+            r.reply,
+          )
+        )
+          response = r.reply;
+      } catch {
+        response = "我在。可以先帮你找页面、了解功能，或聊聊想怎样旅行。";
+      }
+    return { text: response, intent: "other" };
+  }
+  async function execute(ctx, action, decision) {
+    const { state: s } = ctx;
+    if (action.replayed) return action.result;
+    delete s.pendingAction;
+    delete s.question;
+    if (decision === "cancel") {
+      delete s.flow;
+      return { state: s, reply: displayReply("已取消，没有执行这项操作。") };
+    }
+    const p = action.payload;
+    let data, reply;
+    switch (action.capability) {
+      case "create_trip":
+        if (p.after === "journey_session") {
+          data = await ctx.api("POST", "/api/journey/sessions", p.request);
+          s.flow.sessionId = data.id;
+          s.flow.cities = data.cities;
+          // The saved session is the committed effect. Loading candidates is a separate turn.
+          reply = ask(s, "retryCity", "旅行信息已存好，接着选片区。", [
+            { label: "选择片区", data: true },
+          ]);
+          break;
+        }
+        if (p.after !== "journey_generate") throw fail("无效的行程操作");
+        data = await ctx.api(
+          "POST",
+          `/api/journey/sessions/${p.sessionId}/generate`,
+          { selections: p.selections, answers: p.answers },
+        );
+        reply = displayReply("旅行方案已保存。", {
+          navigation: { route: `/history/${data.id}`, title: data.title },
+          tripId: data.id,
+        });
+        delete s.flow;
+        break;
+      case "edit_trip":
+      case "trip_status":
+      case "trip_restore":
+        data = await ctx.api("PATCH", `/api/trips/${p.tripId}`, {
+          version: p.version,
+          ...(p.operation
+            ? { operation: p.operation }
+            : p.restoreVersion
+              ? { restoreVersion: p.restoreVersion }
+              : { status: p.status }),
+        });
+        reply = displayReply("行程已更新。", {
+          navigation: { route: `/history/${data.id}`, title: data.title },
+          tripId: data.id,
+        });
+        delete s.flow;
+        break;
+      case "recommend_services":
+        data = await ctx.api(
+          "PUT",
+          `/api/journey/trips/${p.tripId}/services/${encodeURIComponent(p.slot)}`,
+          p.selection,
+        );
+        reply = displayReply("已保存到行程。", {
+          navigation: { route: `/history/${p.tripId}`, title: "查看行程" },
+          tripId: p.tripId,
+        });
+        delete s.flow;
+        break;
+      case "profile_update":
+        await ctx.api("PATCH", "/api/me", { nickname: p.nickname });
+        reply = displayReply("昵称已更新。", {
+          navigation: { route: "/account", title: "我的账号" },
+        });
+        delete s.flow;
+        break;
+      case "create_citywalk": {
+        const { updating, ...body } = p;
+        data = await ctx.api(
+          updating ? "PUT" : "POST",
+          updating ? `/api/citywalks/${p.id}` : "/api/citywalks",
+          body,
+        );
+        reply = displayReply("CityWalk 已保存。", {
+          navigation: { route: `/citywalk/${data.id}`, title: data.title },
+        });
+        delete s.flow;
+        break;
+      }
+      case "post_reaction":
+        await ctx.api("POST", `/api/posts/${p.postId}/reactions`, {
+          kind: p.kind,
+          active: p.active,
+        });
+        reply = displayReply("帖子互动已更新。");
+        delete s.flow;
+        break;
+      case "post_comment":
+        await ctx.api("POST", `/api/posts/${p.postId}/comments`, {
+          body: p.body,
+        });
+        reply = displayReply("评论已发布。");
+        delete s.flow;
+        break;
+      case "share_trip": {
+        const current = await ctx.api("GET", `/api/trips/${p.tripId}`);
+        if (current.version !== p.version)
+          throw fail("行程已改变，请重新预览后发布", 409);
+        await ctx.api("POST", "/api/posts", {
+          tripId: p.tripId,
+          title: p.title,
+          body: p.body,
+        });
+        reply = displayReply("行程帖子已发布。");
+        delete s.flow;
+        break;
+      }
+      case "clear_history":
+        await ctx.api("DELETE", "/api/me/history", {});
+        reply = displayReply("浏览历史已清空。");
+        delete s.flow;
+        break;
+      case "memory":
+        await saveMemory(
+          transaction,
+          ctx.user.id,
+          p.style,
+          p.evidence,
+          p.versions,
+        );
+        reply = displayReply("旅行风格已记住，以后的推荐会参考它。");
+        delete s.flow;
+        break;
+      case "forget_memory":
+        await transaction(async (db) => {
+          await db.query("SELECT id FROM users WHERE id=$1 FOR UPDATE", [
+            ctx.user.id,
+          ]);
+          const rows = (
+            await db.query(
+              "SELECT dimension,version FROM user_travel_memory WHERE user_id=$1",
+              [ctx.user.id],
+            )
+          ).rows;
+          if (
+            rows.length !== Object.keys(p.versions).length ||
+            rows.some((r) => p.versions[r.dimension] !== r.version)
+          )
+            throw fail("记忆已更新，请重新确认", 409);
+          await db.query("DELETE FROM user_travel_memory WHERE user_id=$1", [
+            ctx.user.id,
+          ]);
+        });
+        reply = displayReply("长期旅行风格记忆已清除。");
+        delete s.flow;
+        break;
+      default:
+        throw fail("此操作不允许自动执行", 403);
+    }
+    return { state: s, reply };
+  }
+  return { message, execute, advance };
+}

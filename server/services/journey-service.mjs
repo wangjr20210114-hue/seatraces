@@ -361,6 +361,9 @@ export function installJourneyRoutes(app, { auth, travelHabit }) {
       r.defaults = journeyAnswers.parse({
         interests: habit.interests || [],
         pace: habit.pace || "balanced",
+        transport: habit.transport || "balanced",
+        crowd: habit.crowd || "balanced",
+        revisit: habit.revisit || "new",
       });
       await query(
         "UPDATE journey_sessions SET questions=$2,updated_at=now() WHERE id=$1",

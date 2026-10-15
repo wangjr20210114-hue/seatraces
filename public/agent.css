@@ -1,0 +1,206 @@
+#ask-ai {
+  position: fixed;
+  right: 18px;
+  top: max(16px, env(safe-area-inset-top));
+  z-index: 5;
+  padding: 10px 16px;
+  border: 1.5px solid #183c40;
+  border-radius: 18px;
+  background: #ffda73;
+  box-shadow: 0 2px 0 #183c4020;
+  font-weight: 800;
+  font-size: 16px;
+}
+body.auth-pending #ask-ai,
+body.agent-open #ask-ai {
+  display: none;
+}
+body.detail-open #ask-ai {
+  top: 18px;
+  right: max(18px, calc((100vw - 640px) / 2));
+  padding: 9px 13px;
+}
+body.detail-open:not(.agent-open) .page-header-inner {
+  padding-right: 84px;
+}
+body.agent-open #page-content {
+  padding: 14px 18px 0;
+  max-width: 760px;
+}
+body.agent-open #detail-page {
+  scroll-padding-top: 90px;
+  scroll-padding-bottom: 150px;
+}
+.agent-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: calc(100dvh - 110px);
+}
+.agent-toolbar {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+.agent-chip,
+.agent-choice {
+  border: 1.5px solid #183c40;
+  border-radius: 16px;
+  padding: 10px 14px;
+  background: #fffdf2;
+  font-size: 15px;
+  line-height: 1.5;
+  box-shadow: 0 2px 0 #183c4012;
+  text-align: left;
+}
+.agent-log {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  flex: 1;
+}
+.agent-bubble {
+  background: #fffdf2;
+  border: 1.5px solid #c4d8cb;
+  border-radius: 22px 22px 22px 6px;
+  padding: 16px 18px;
+  max-width: 94%;
+  line-height: 1.8;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 16px;
+  align-self: flex-start;
+}
+.agent-bubble.user {
+  align-self: flex-end;
+  background: #c4f0df;
+  border-color: #95c9ba;
+  border-radius: 22px 22px 6px 22px;
+}
+.agent-bubble.agent-error {
+  border-color: #e6a28e;
+  background: #ffefe7;
+}
+.agent-bubble > .agent-chip {
+  display: block;
+  margin-top: 12px;
+  background: #ffdf86;
+}
+.agent-examples {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.agent-action {
+  white-space: normal;
+  background: #fff3c6;
+  border: 1.5px solid #d9c781;
+  border-radius: 16px;
+  padding: 16px;
+  margin-top: 14px;
+}
+.agent-action h3 {
+  font-size: 18px;
+  margin: 0 0 12px;
+}
+.agent-action p {
+  margin: 8px 0;
+}
+.agent-action-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 18px;
+}
+.agent-action .primary,
+.agent-choices .primary {
+  font-size: 16px;
+  padding: 10px 18px;
+  box-shadow: 0 2px 0 #183c4020;
+  border-radius: 14px;
+}
+.agent-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.agent-choice[aria-pressed="true"] {
+  background: #9ee6cf;
+  box-shadow: inset 0 0 0 1px #183c40;
+}
+.agent-question-label {
+  flex-basis: 100%;
+  font-weight: 700;
+  margin: 0 0 4px;
+}
+.agent-status {
+  margin: 0;
+  font-size: 15px;
+  min-height: 0;
+}
+.agent-status:empty {
+  display: none;
+}
+.agent-status.thinking::before {
+  content: "✦";
+  display: inline-block;
+  margin-right: 10px;
+  animation: agent-think 1.3s ease-in-out infinite;
+}
+.agent-composer {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  background: #fffdf2;
+  padding: 14px 0 max(18px, env(safe-area-inset-bottom));
+  border-top: 1px solid #dbe2d2;
+  z-index: 2;
+}
+.agent-composer textarea {
+  min-width: 0;
+  width: 100%;
+  resize: vertical;
+  min-height: 64px;
+  max-height: 140px;
+  background: #f9f3df;
+  border: 1.5px solid #9eb8a9;
+  border-radius: 18px;
+  padding: 12px;
+  font: inherit;
+  font-size: 16px;
+  color: #183c40;
+}
+.agent-composer .primary {
+  flex-shrink: 0;
+  font-size: 16px;
+  border-radius: 16px;
+  padding: 13px 18px;
+  box-shadow: 0 2px 0 #183c4020;
+}
+.agent-memory {
+  margin: 14px 0;
+  padding-bottom: 12px;
+  border-bottom: 1px dashed #bad1c2;
+}
+.agent-memory p {
+  margin: 6px 0;
+}
+.agent-sources {
+  margin-top: 14px;
+}
+.agent-sources .agent-chip {
+  margin-top: 8px;
+}
+@keyframes agent-think {
+  50% {
+    transform: rotate(90deg) scale(0.75);
+    opacity: 0.5;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .agent-status.thinking::before {
+    animation: none;
+  }
+}

@@ -6,6 +6,8 @@ const files = [
   "server/services/journey-service.mjs",
   "server/services/citywalk-service.mjs",
   "server/services/trip-services.mjs",
+  "server/agent/routes.mjs",
+  "server/services/discovery.mjs",
   "server/frontend.mjs",
 ];
 const reference = await readFile("API_REFERENCE.md", "utf8"),

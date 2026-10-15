@@ -43,6 +43,9 @@ export async function migrate() {
     ),
   );
   await transaction(async (c) =>
+    c.query(await readFile(new URL("./discovery-schema.sql", import.meta.url), "utf8")),
+  );
+  await transaction(async (c) =>
     c.query(
       await readFile(
         new URL("./trip-services-schema.sql", import.meta.url),
@@ -57,6 +60,9 @@ export async function migrate() {
         "utf8",
       ),
     ),
+  );
+  await transaction(async (c) =>
+    c.query(await readFile(new URL('./agent/schema.sql', import.meta.url), 'utf8')),
   );
 }
 export async function savePlace(p, c = pool) {

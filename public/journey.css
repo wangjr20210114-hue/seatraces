@@ -1127,3 +1127,14 @@ dialog::backdrop {
     scroll-behavior: auto !important;
   }
 }
+
+/* Shared route feed */
+.discovery-route { margin: 16px 0; padding: 24px; border: 1px solid #c5d9c8; border-radius: 22px; background: #fffdf2; overflow-wrap: anywhere; }
+.discovery-route h2 { margin: 10px 0; font-size: 22px; }
+.discovery-route p, .discovery-route li { line-height: 1.8; }
+.discovery-route summary { cursor: pointer; color: #225d4d; padding: 12px 0; font-weight: 600; }
+.discovery-route h3 { font-size: 16px; }
+.discovery-route ol { padding-left: 24px; }
+.discovery-actions { display: flex; justify-content: flex-end; }
+.discovery-actions { flex-wrap: wrap; gap: 12px; }
+.discovery-actions [aria-pressed="true"] { background: #225d4d; color: #fffdf2; }

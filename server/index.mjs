@@ -1,3 +1,4 @@
+import { installDiscoveryRoutes, publicRoute } from "./services/discovery.mjs";
 import "dotenv/config";
 import express from "express";
 import helmet from "helmet";
@@ -16,6 +17,8 @@ import { nearbyRecommendations } from './services/nearby-recommendations.mjs';
 import { installJourneyRoutes } from './services/journey-service.mjs';
 import { installCityWalkRoutes } from './services/citywalk-service.mjs';
 import { installTripServiceRoutes } from './services/trip-services.mjs';
+import { installAgentRoutes } from './agent/routes.mjs';
+import { memoryPreferences } from './agent/memory.mjs';
 import { openingOnDate, validateOpeningDate } from './opening-hours.mjs';
 import { createRouteSelection, routingProvider } from './route-selection.mjs';
 const routeSelections = createRouteSelection();
@@ -226,8 +229,10 @@ app.get("/api/nearby", async (req, res) => {
   res.json({ place: candidates[0] || null });
 });
 async function travelHabit(user) {
+  const remembered = await memoryPreferences(query,user.id);
+  const preferences = {...user.preferences,...remembered};
   const weights = {};
-  for (const tag of user.preferences.interests || []) weights[tag] = 5;
+  for (const tag of preferences.interests || []) weights[tag] = 5;
   const completed = (
     await query(
       "SELECT request->'interests' tags FROM trips WHERE user_id=$1 AND status='completed'",
@@ -258,7 +263,7 @@ async function travelHabit(user) {
       weights[tag] =
         (weights[tag] || 0) + Math.min(row.dwell_seconds / 120, 0.5);
   return {
-    ...user.preferences,
+    ...preferences,
     tagWeights: Object.fromEntries(
       Object.entries(weights)
         .sort((a, b) => b[1] - a[1])
@@ -270,6 +275,8 @@ async function travelHabit(user) {
 installJourneyRoutes(app,{auth,travelHabit});
 installTripServiceRoutes(app,{auth});
 installCityWalkRoutes(app,{auth,travelHabit});
+installDiscoveryRoutes(app,{auth});
+installAgentRoutes(app,{auth,query,transaction,port:()=>server.address().port});
 app.get("/api/questions", auth, async (req, res) =>
   res.json(await personalizedQuestions(await travelHabit(req.user))),
 );
@@ -567,25 +574,12 @@ app.post("/api/posts", auth, async (req, res) => {
       })
       .parse(req.body),
     t = await ownTrip(b.tripId, req.user.id);
-  const snapshot = {
-    demo: true,
-    cities: t.plan.cities.map((x) => x.name),
-    days: t.plan.days.map((d) => ({
-      date: d.date,
-      city: d.city,
-      stops: d.stops.map((p) => ({
-        id: p.id,
-        name: p.name,
-        lat: p.lat,
-        lng: p.lng,
-        category: p.category,
-        tags: p.tags,
-      })),
-    })),
-  };
+  const snapshot = publicRoute("journey", t);
   try {
     const r = await query(
-      "INSERT INTO posts(id,user_id,trip_id,title,body,tags,snapshot) VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING *",
+      `INSERT INTO posts(id,user_id,trip_id,title,body,tags,snapshot) VALUES($1,$2,$3,$4,$5,$6,$7)
+       ON CONFLICT(user_id,trip_id) DO UPDATE SET title=excluded.title,body=excluded.body,tags=excluded.tags,snapshot=excluded.snapshot,auto_shared=false
+       WHERE posts.auto_shared RETURNING *`,
       [
         randomUUID(),
         req.user.id,
@@ -596,6 +590,7 @@ app.post("/api/posts", auth, async (req, res) => {
         JSON.stringify(snapshot),
       ],
     );
+    if (!r.rowCount) return res.status(409).json({ error: "这条行程已经发布过了" });
     res.status(201).json(r.rows[0]);
   } catch (e) {
     if (e.code === "23505")
@@ -606,7 +601,7 @@ app.post("/api/posts", auth, async (req, res) => {
 async function recommended(user) {
   const posts = (
     await query(
-      `SELECT p.*,u.nickname,u.avatar,(SELECT count(*)::int FROM reactions r WHERE r.post_id=p.id AND kind='like') likes,(SELECT count(*)::int FROM reactions r WHERE r.post_id=p.id AND kind='save') saves,(SELECT count(*)::int FROM comments c WHERE c.post_id=p.id) comments FROM posts p JOIN users u ON p.user_id=u.id ORDER BY p.created_at DESC LIMIT 200`,
+      `SELECT p.*,u.nickname,u.avatar,(SELECT count(*)::int FROM reactions r WHERE r.post_id=p.id AND kind='like') likes,(SELECT count(*)::int FROM reactions r WHERE r.post_id=p.id AND kind='save') saves,(SELECT count(*)::int FROM comments c WHERE c.post_id=p.id) comments FROM posts p JOIN users u ON p.user_id=u.id WHERE NOT p.auto_shared ORDER BY p.created_at DESC LIMIT 200`,
     )
   ).rows;
   let reactions = [],
@@ -656,6 +651,7 @@ async function recommended(user) {
   return posts
     .map((p) => ({
       ...p,
+      isOwn: p.user_id === user?.id,
       mine: reactions.filter((r) => r.post_id === p.id).map((r) => r.kind),
       score:
         p.tags.reduce((s, t) => s + (weights[t] || 0), 0) +

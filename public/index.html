@@ -14,10 +14,12 @@
     <link rel="stylesheet" href="/citywalk.css" />
     <link rel="stylesheet" href="/trip-services.css" />
     <link rel="stylesheet" href="/map-workspace.css" />
+    <link rel="stylesheet" href="/agent.css" />
     <script defer src="/vendor/lottie_light.min.js"></script>
     <script type="module" src="/journey.js"></script>
   </head>
   <body class="auth-pending">
+    <button id="ask-ai" aria-label="打开问 AI">✦ 问 AI</button>
     <div id="auth-loading"><b>≈ SeaTraces</b><span>正在打开你的旅行…</span><button id="auth-retry" class="primary" hidden>重新连接</button><a href="/login.html">前往登录</a></div>
     <main id="home" class="app-page" aria-label="旅行">
       <div class="map-stage">
@@ -38,6 +40,7 @@
         </div>
         <div class="perforation"></div>
         <div id="question" class="question"></div>
+        <p class="muted">路线生成后可点击“发布到发现”分享，仅展示城市和景点，不公开具体出行日期与出发地址。</p>
         <p id="form-error" class="error" role="alert"></p>
         <div class="paper-footer">
           <span id="progress"></span
@@ -66,28 +69,8 @@
     <section id="discover-page" class="app-page shell-page" aria-labelledby="discover-title" hidden>
       <div class="shell-content">
         <header class="shell-heading"><span class="mini-mark" aria-hidden="true">✦</span><div><h1 id="discover-title">发现</h1><p>好路线，一起走。</p></div></header>
-        <article class="discovery-card">
-          <span class="coming-soon">即将开放</span>
-          <svg class="discovery-art" viewBox="0 0 320 230" aria-hidden="true">
-            <ellipse cx="164" cy="201" rx="122" ry="13" fill="#d6e6c9"/>
-            <g stroke="#183c40" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M50 56 249 37 267 179 68 199Z" fill="#fffdf2"/>
-              <path d="m62 64 175-16 11 112-175 18Z" fill="#bbeedc"/>
-              <circle cx="203" cy="81" r="17" fill="#ffda73"/>
-              <path d="m72 161 44-68 37 44 30-26 63 49-171 15Z" fill="#60c4a4"/>
-              <path d="m97 123 19-30 21 25-15-4-10 11Z" fill="#fffdf2"/>
-              <path d="M179 131c-42 16 36 21-18 38" fill="none" stroke="#fffdf2" stroke-width="6"/>
-              <path d="m83 184 52-5m15-1 18-2"/>
-              <circle cx="258" cy="168" r="31" fill="#ffda73"/>
-              <path d="m244 180 9-28 19 5-10 28Z" fill="#fffdf2" transform="rotate(18 258 167)"/>
-              <path d="m253 152 5 16 14-11" fill="#ed8064"/>
-              <path d="m38 102-9 3m236-41 11-8m-15-29 3-11M45 169l-11 7" fill="none"/>
-            </g>
-          </svg>
-          <h2>下一段灵感，在路上</h2>
-          <p>把喜欢的路线，分享给同路人。</p>
-          <button class="primary" data-open-travel>先去看看地图 ↗</button>
-        </article>
+        <p class="muted">把喜欢的路线发布到这里，也可以在“我的发布”查看自己分享的帖子。</p>
+        <div id="discovery-content" aria-live="polite"></div>
       </div>
     </section>
     <section id="profile-page" class="app-page shell-page" aria-labelledby="profile-title" hidden>

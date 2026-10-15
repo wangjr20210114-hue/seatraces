@@ -257,3 +257,80 @@ const saved = await call(path, choice, 'PUT');
 地图通信是同源 iframe 的内部视图协议（不是新增业务HTTP接口）：原有 `seatraces-overview`/`seatraces-route` 字段保持兼容，新增可选 `kind,contextKey,services,serviceAnchor,boundary,district,clusters,wishes,focus,selectionFocus`。`selectionFocus:{key,position}`为显式选店聚焦命令，新key才移动相机；不改变候选批次fitKey。问卷地图按聚类坐标范围适配，只有无聚类时才适配行政区边界。聚类数据到达时fitKey变化，迟到边界不会再把聚类缩小；选择/取消片区不改变相机。新上下文首进适配，返回恢复相机；用户移动地图后迟到的边界不会抢走视角。CityWalk继续兼容旧消息格式。坐标从WGS84转换到GCJ02一次，高德边界已为GCJ02直接绘制。
 
 本次只新增上述一个认证只读市界接口，原72个HTTP操作的请求/响应合同与数据库表结构保持不变。地图渲染实现参考[高德 JS API 2.0 地图状态](https://developer.amap.com/api/javascript-api-v2/guide/map/state)。
+
+## 全局智能体 agent/1（2026-10-14）
+
+入口为所有已登录页面的“问 AI”，地址 `#/agent`。此节描述新增实现；上面“后续 agent / 未接入”的内容是此前版本记录。原业务 HTTP 参数保持不变。新表迁移在 `server/agent/schema.sql`，独立于 OSM 地点库。
+
+### 对话与执行接口
+
+所有接口要求现有 `st_session` Cookie。写请求继续要求 `X-Seatraces: 1` 且拒绝跨站来源；客户端不能传 userId、角色、工具 URL、HTTP 方法或待执行 payload。
+
+| 方法与路径 | 输入 | 输出与职责 |
+|---|---|---|
+| GET /api/agent/capabilities | 无 | `{version,capabilities,knowledgeVersion,confirmationRequired}`；代码注册的能力、操作类型、页面层级职责及必要参数 |
+| GET /api/agent/memory | 无 | `{items}`；仅本人旅行风格，含 `dimension,label,value,valueLabel,strength,confidence,evidence,source,version,updated_at,expires_at,active,effectiveConfidence` |
+| POST /api/agent/conversations | `{}` | 201 `{id,revision:0,messages:[],state}`；创建本人对话 |
+| GET /api/agent/conversations/:id | 本人对话 UUID | `{id,revision,state,messages,actions,busy}`；最近60轮消息和最近30个操作状态；state只公开当前流程名和待答问题，隐藏服务端候选映射及执行参数 |
+| POST /api/agent/conversations/:id/messages | `{requestId:UUID,revision:int>=0,text?:string<=1500,questionId?:UUID,optionIds?:UUID[1..100],context?:{page?,tripId?:UUID,day?:int0..29}}`；text或optionIds至少一个 | AgentReply；意图分类、检索问答、补问、候选查询或生成待确认操作，不直接执行用户数据变更 |
+| POST /api/agent/conversations/:id/actions/:actionId | `{requestId:UUID,revision:int>=0,decision:"confirm"|"cancel"}` | AgentReply + `actionResult:{id,status}`；执行数据库中已预览的固定操作，或取消。不可在此篡改参数 |
+
+AgentReply 的公共字段：`text,intent,conversationId,revision`。可选：`classification:{intent,capability,source,confidence}`、`question:{id,key,text,multi,options:[{id,label}],input}`、`workflow:string[]`、`action:{id,title,lines,screen,effect,status}`、`navigation:{route,title,level?}`、`sources:[{id,title,route,version}]`、`retrieval:"hybrid_bge"|"lexical"`、`knowledgeVersion`、`error:boolean`。客户端只按白名单站内 route 跳转，文字使用 textContent，不执行 HTML/脚本。
+
+`requestId` 是客户端一次发送生成并在网络重试时复用的 UUID。服务器按对话+requestId去重，已完成请求返回原响应；对话 revision 防止旧页面覆盖新状态，同一对话同一时间只处理一轮。确认最长15分钟有效，任意新任务或取消会使旧待确认操作失效。401/403/404分别表示登录/权限/资源不存在；409表示旧版本、进行中或操作失效；410表示确认过期；429表示频率限制。流程内可纠正的输入/业务错误返回HTTP200且 `error:true`，不伪装成功。
+
+执行状态为 `pending → executing → completed`，或 `cancelled / failed / unknown`。网络超时、进程故障等不能证明写入失败时，显示待核对，不自动重试。数据库记录 action 与业务接口之间没有分布式事务；不得承诺网络故障下“绝对恰好一次”。requestId重放、状态原子领取、业务版本校验共同防止正常重复提交。重启后旧 executing 状态需到业务页面核对，不能直接再次提交。
+
+### 能力与固定业务顺序
+
+| 能力 | 执行顺序与边界 |
+|---|---|
+| 页面定位 | 一级旅行/发现/我的，二级账号/历史行程/收藏/浏览/报告/CityWalk；生成站内导航，不花费地图 API |
+| 创建个性化行程 | GET places 校验出发城市与1～5个目的城市 → 完整起止日期 → 确认 → POST journey/sessions → 逐城 POST cities?async=1 → 用户多选片区 → POST questions → 用户回答 → 预览并确认 → POST generate；不自动替用户勾选片区 |
+| 修改行程 | 选择本人行程 → 选择天 → POST trips/:id/assistant 获取原业务修改预览 → 核对目标景点 → 展示变更 → 确认 → PATCH trips/:id 带原version。新增/替换景点受原接口业务places候选范围限制 |
+| 状态和恢复版本 | GET本人行程/versions → 展示目标状态或版本 → 确认 → 原PATCH带version |
+| 附近吃住 | GET本人行程 → 选择天和餐饮/住宿 → 原POST recommendations，`groupMeals:true,sort:distance` → 每批最多5家/换批 → 选择候选 → 原preview → 确认 → 原PUT带version；不订餐、不订房、不查询价格 |
+| CityWalk | 新建或读取本人路线 → 原citywalk/catalog异步加载 → 片区 → 多选至少2个景点 → 起点 → 标题 → 用原orderWalk预览顺序 → 确认 → 原POST或PUT citywalks，编辑携带version |
+| 修改昵称 | 补齐昵称 → 预览并确认 → 原PATCH me；头像上传、邮箱验证、密码与退出登录交回账号页，不让模型接触凭据 |
+| 发布行程 | 选择本人行程 → 补齐标题正文 → 展示公开内容 → 确认 → 核对行程version → 原POST posts；重复分享仍由原接口拒绝 |
+| 帖子互动 | GET posts当前可见窗口中选帖 → 预览点赞/收藏/推荐或评论 → 确认 → 原reactions/comments；不把窗口说成全量收藏 |
+| 报告与浏览 | 报告调用原GET me/report；清空本人浏览历史需预览确认后调用原DELETE，不能恢复；不删除行程 |
+| 旅行风格 | 明确的第一人称偏好 → 询问“仅本次 / 长期记住” → 长期再预览确认 → 写独立memory表；查看/清除仍在问AI页面 |
+
+头像、密码、邮件验证仍使用现有页面的完整流程；管理员导入、服务器运维、任意SQL/Shell、支付预订不注册为工具。页面上的发现/收藏等空壳状态仍如上文所述，不能把智能体接通后端等同于这些页面已经补齐。
+
+### 意图、知识与风格记忆
+
+明确表达优先规则；疑问、否定、假设和证据不足不执行。模糊表达交给现有 DeepSeek JSON 接口，只能从代码里的 capability ID 中选择。operate要求原文证据片段、明确操作表达和置信分数≥0.9；该分数是启发式门槛，不是经过标定的正确率。不满足时主动补问。当前能力不依赖新增模型厂商或付费接口。
+
+软件问答检索 `server/agent/catalog.mjs` 的版本化知识。BGE small zh q8已配置时用本地512维embedding与关键词混合检索，向量存PostgreSQL `agent_knowledge`；模型文件缺失则明确回退lexical。DeepSeek只能选取检索文档原句，服务端逐字验证quote和sourceId，拒绝虚构引用。回答返回文档ID、标题、版本、页面。闲聊使用短回答，没有工具执行通道。所有DeepSeek调用继续走现有预算及配额门，不自动重试付费请求。
+
+记忆维度：`pace`=relaxed/balanced/full；`transport`=balanced/fewTransfers/fewWalking；`crowd`=avoid/balanced/lively；`revisit`=new/either；`interests`为原业务10类。保留原文证据、确认来源、版本、更新时间和180天失效时间。强度是规划参数（例如节奏0.2/0.5/0.85），不是推断的心理特征。确认记录confidence=1表示用户明确确认，effectiveConfidence以180天半衰期展示时效衰减。
+
+生效优先级：本次问卷明确答案 > 当前对话本次偏好 > 未过期长期确认记忆 > 用户既有配置及行为权重。长期记忆接入原travelHabit，影响片区评分和问卷默认项；既有浏览、收藏和历史行程统计仍由原逻辑提供。未说的维度保持未知，不凭停留时间推断预算、身体情况等硬约束。删除长期记忆不会删除账号原有偏好或浏览记录。
+
+### PostgreSQL 新表与验收
+
+- `agent_conversations`：id、user_id、state、revision、busy_until、busy_token、created_at、updated_at。
+- `agent_turns`：id、conversation_id、user_id、request_id、input、response、status、created_at；保存每轮输入与响应，用于恢复和重放。
+- `agent_actions`：id、conversation_id、user_id、capability、payload、preview、result、status、created_at、expires_at、finished_at。
+- `agent_tool_calls`：id、conversation_id、user_id、method、path、status、created_at；不记录Cookie、凭据或完整业务响应。
+- `user_travel_memory`：user_id、dimension、value、strength、confidence、evidence、source、version、updated_at、expires_at。
+- `agent_knowledge`：id、version、title、content、route、embedding、embedding_model、updated_at。
+
+自动验收：`node --test test/agent.test.mjs`；设置 `TEST_AGENT=1` 后额外使用本机PostgreSQL一次性schema测试登录隔离、Cookie业务调用、预览确认、重放、版本冲突、结果未知及记忆隔离，结束删除该测试schema。不使用生产数据库。`node scripts/check-api-reference.mjs`检查新旧接口文档覆盖。
+
+## 发现路线与主动发布（2026-10-15 dev 合并）
+
+发现页已接入“发现路线”“我的发布”、刷新、分批展开以及城市/景点顺序详情。以上旧版“发现空壳”的说明由本节替代；评论/点赞等接口仍沿用既有实现，不表示本次新增了所有互动界面。
+
+| 方法与路径 | 参数 | 返回与副作用 |
+|---|---|---|
+| POST /api/discovery/publish | `{kind:"journey"\|"citywalk",id:UUID}`，现有登录 Cookie 和 `X-Seatraces:1` | 本人路线不存在或不属于本人返回404；返回发布后的post。初次创建帖子，再次点击更新同一帖子的路线快照，不生成重复帖子。仅主动点击发布时写posts；保存/编辑私人路线不会自动发布或刷新已发布快照。 |
+| GET /api/discovery/mine | `limit`默认12、1至50；`offset`默认0、最大1000000 | `{items,hasMore}`；本人明确发布的帖子，按创建时间和ID倒序；每项附昵称、头像和`isOwn:true`。这里的hasMore用于真实分页，与已移除的地点查询数量提示无关。 |
+
+`GET /api/posts`维持数组合同，隐藏`auto_shared=true`的旧自动帖子，新增`isOwn`。`POST /api/posts`保持原参数和201/409语义，并复用同一安全快照函数；若命中历史自动帖子可转为主动发布，重复主动发帖仍返回409。智能体发布继续调用该既有接口。
+
+公开快照只保留kind、城市名、每日城市与有序景点的id/name/lat/lng/category/source_url/license；CityWalk另含distance_m。出发地址、具体旅行日期、到访记录、想去标记和住宿选择不进入路线快照。标题和正文仍是用户主动公开的内容。
+
+迁移文件`server/discovery-schema.sql`为posts新增`auto_shared`、`citywalk_id`及索引，移除旧路线自动发布触发器；保留原有帖子。先由迁移角色执行，再启用新服务，业务账号不增加建表权限。
