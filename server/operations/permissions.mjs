@@ -39,6 +39,8 @@ const rules=[
   ['PUT',/^\/citywalks\/[^/]+$/, 'classics.manage'],
   ['PATCH',/^\/citywalks\/[^/]+\/visibility$/, 'classics.manage'],
   ['GET',/^\/messages(?:\/[^/]+\/preview)?$/, 'messages.manage'],
+  ['GET',/^\/messages\/audience$/, 'messages.manage'],
+  ['GET',/^\/messages\/[^/]+\/effects$/, 'messages.manage'],
   ['POST',/^\/messages(?:\/[^/]+\/(send|cancel))?$/, 'messages.manage'],
   ['PUT',/^\/messages\/[^/]+$/, 'messages.manage'],
   ['POST',/^\/places\/import$/, 'places.manage'],
