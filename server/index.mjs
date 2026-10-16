@@ -108,7 +108,7 @@ app.use('/api',operationEvents.middleware);
 installAdminAccess(app,{query,transaction,production});
 app.use('/api', accounts.gate, accounts.router);
 app.use('/api',withRequestContext);
-installOperationsRoutes(app,{auth,query,transaction,events:operationEvents});
+const logExports=installOperationsRoutes(app,{auth,query,transaction,events:operationEvents});
 installAccessRoutes(app,{query,transaction,events:operationEvents});
 installUserInsights(app,{query,events:operationEvents});
 installAnalytics(app,{query,transaction,events:operationEvents});
@@ -118,7 +118,7 @@ installInboxRoutes(app,{auth,query,transaction,events:operationEvents});
 installMessageInsights(app,{query,events:operationEvents});
 installPlaceQuality(app,{query,events:operationEvents,catalogRequest});
 installModeration(app,{auth,query,transaction,events:operationEvents});
-const maintenance=installMaintenance(app,{query,transaction,events:operationEvents,extraExecutors:archiveExecutors({query,transaction,events:operationEvents})});
+const maintenance=installMaintenance(app,{query,transaction,events:operationEvents,extraExecutors:{...archiveExecutors({query,transaction,events:operationEvents}),log_export:logExports.execute}});
 installArchiveRoutes(app,{query,transaction,events:operationEvents});
 installCommunityInteractions(app,{auth,query,transaction});
 app.use('/_AMapService', (req,res,next)=>{
@@ -862,6 +862,7 @@ if (
 await seed();
 await seedClassicWalks();
 maintenance.start();
+const exportCleanup=setInterval(()=>void logExports.cleanup().catch(()=>{}),3600000);exportCleanup.unref();
 export const server = app.listen(
   Number(process.env.PORT || 8787),
   process.env.HOST || "127.0.0.1",

@@ -196,6 +196,7 @@ export function installMaintenance(
           )
         ).rows[0];
         if (!r) throw fail("任务不存在", 404);
+        if (r.kind === 'log_export') throw fail('请在操作日志中按当前条件重新创建导出',409);
         const old = (
           await c.query("SELECT id FROM maintenance_tasks WHERE retry_of=$1", [
             id,

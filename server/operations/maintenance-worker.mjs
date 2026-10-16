@@ -110,6 +110,10 @@ export function createMaintenanceWorker({
         "ARCHIVE_INVALID",
         "ARCHIVE_CONFLICT",
         "ARCHIVE_SOURCE_CHANGED",
+        "EXPORT_SOURCE_CHANGED",
+        "EXPORT_ACCESS_REVOKED",
+        "EXPORT_EXPIRED",
+        "EXPORT_OVERSIZE",
       ].includes(error.code)
         ? error.code
         : "TASK_FAILED";

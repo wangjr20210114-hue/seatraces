@@ -21,12 +21,14 @@ const states = {
   resolved: "已恢复",
 };
 const kinds = {
+  log_export: "日志导出",
   health_check: "服务健康检查",
   event_archive: "事件归档",
   daily_rollup: "每日汇总",
   archive_restore: "恢复事件归档",
 };
 const steps = {
+  exporting: "分批压缩日志",
   starting: "准备执行",
   checking_health: "检查服务指标",
   completed: "完成",
@@ -62,7 +64,7 @@ export async function mountMaintenance({ content, status, api, isCurrent }) {
       const r = await api("/api/admin/maintenance/tasks/" + id);
       if (!current(n)) return;
       const d = r.kind === "health_check" ? r.result?.data : null;
-      content.innerHTML = `<button id="task-back">← 返回任务</button><article class="admin-card"><h3>${esc(kinds[r.kind] || r.kind)}</h3><p>${esc(states[r.state])} · ${time(r.created_at)}</p><p>任务编号 ${esc(r.id)}</p><p>开始 ${time(r.started_at)} · 结束 ${time(r.finished_at)}</p>${r.error_code ? `<p>${esc(errors[r.error_code] || "任务失败")}</p>` : ""}${r.cancel_requested && r.state === "running" ? "<p>已请求取消，将在当前安全步骤结束后停止。</p>" : ""}${r.progress?.step ? `<p>当前步骤：${esc(steps[r.progress.step] || r.progress.step)}</p>` : ""}${d ? `<p>堆内存 ${Math.round(d.heapUsedBytes / 1048576)} MB / ${Math.round(d.heapLimitBytes / 1048576)} MB · 待写日志 ${d.queued}</p><p>最近5分钟已记录请求 ${d.requests} 次 · 5xx ${d.errors} 次</p>` : ""}<details class="metric-definitions"><summary>技术摘要</summary><pre>${esc(JSON.stringify(r.result || r.progress, null, 2))}</pre></details>${["queued", "running", "failed", "interrupted", "cancelled"].includes(r.state) ? `<form id="task-action" class="form-stack"><label class="confirm-inline"><input type="checkbox" required>确认${["queued", "running"].includes(r.state) ? "取消任务" : "创建重试任务"}</label><button class="primary">${["queued", "running"].includes(r.state) ? "取消任务" : "重试任务"}</button></form>` : ""}</article>`;
+      content.innerHTML = `<button id="task-back">← 返回任务</button><article class="admin-card"><h3>${esc(kinds[r.kind] || r.kind)}</h3><p>${esc(states[r.state])} · ${time(r.created_at)}</p><p>任务编号 ${esc(r.id)}</p><p>开始 ${time(r.started_at)} · 结束 ${time(r.finished_at)}</p>${r.error_code ? `<p>${esc(errors[r.error_code] || "任务失败")}</p>` : ""}${r.cancel_requested && r.state === "running" ? "<p>已请求取消，将在当前安全步骤结束后停止。</p>" : ""}${r.progress?.step ? `<p>当前步骤：${esc(steps[r.progress.step] || r.progress.step)}</p>` : ""}${d ? `<p>堆内存 ${Math.round(d.heapUsedBytes / 1048576)} MB / ${Math.round(d.heapLimitBytes / 1048576)} MB · 待写日志 ${d.queued}</p><p>最近5分钟已记录请求 ${d.requests} 次 · 5xx ${d.errors} 次</p>` : ""}<details class="metric-definitions"><summary>技术摘要</summary><pre>${esc(JSON.stringify(r.result || r.progress, null, 2))}</pre></details>${(["queued", "running"].includes(r.state) || (r.kind!=="log_export" && ["failed", "interrupted", "cancelled"].includes(r.state))) ? `<form id="task-action" class="form-stack"><label class="confirm-inline"><input type="checkbox" required>确认${["queued", "running"].includes(r.state) ? "取消任务" : "创建重试任务"}</label><button class="primary">${["queued", "running"].includes(r.state) ? "取消任务" : "重试任务"}</button></form>` : ""}</article>`;
       content.querySelector("#task-back").onclick = () => void list();
       const form = content.querySelector("#task-action");
       if (form)

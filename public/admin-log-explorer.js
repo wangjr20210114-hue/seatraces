@@ -1,3 +1,4 @@
+import {mountLogExports} from './admin-log-exports.js';
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const columnNames={created_at:'时间',username:'用户',kind:'类型',action:'操作',status:'HTTP 状态',duration_ms:'耗时',request_id:'请求编号',resource_id:'对象编号'};
 const defaultColumns=['created_at','username','kind','action','status','duration_ms'];
@@ -67,9 +68,6 @@ export async function mountLogExplorer({content,status,api,isCurrent,can,details
   }catch(e){if(isCurrent())$('#log-view-status').textContent=e.message;}finally{if(isCurrent()){button.disabled=false;syncSelected();}}}
   $('#log-view-save').onclick=()=>void saveView(false);$('#log-view-update').onclick=()=>void saveView(true);
   $('#log-view-delete').onclick=async()=>{const b=$('#log-view-delete'),view=views.find(v=>v.id===selected);if(!view)return;if(b.textContent!=='确认删除此视图'){b.textContent='确认删除此视图';return;}b.disabled=true;try{await api('/api/admin/events/views/'+view.id,{version:view.version,confirmation:'delete-view'},'DELETE');if(!isCurrent())return;selected='';await loadViews();$('#log-view-status').textContent='视图已删除，原始日志保留';}catch(e){if(isCurrent())$('#log-view-status').textContent=e.message;}finally{if(isCurrent())syncSelected();}};
-  if(can('events.export')){
-    $('#log-exports').innerHTML='<button id="log-download">下载当前筛选日志 ↓</button>';
-    $('#log-download').onclick=async()=>{const b=$('#log-download');b.disabled=true;try{const r=await fetch('/api/admin/events/export?'+new URLSearchParams(state.filters));if(!r.ok)throw Error((await r.json()).error);const url=URL.createObjectURL(await r.blob()),a=document.createElement('a');a.href=url;a.download='seatraces-operations.log.gz';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}catch(e){if(isCurrent())status.textContent=e.message;}finally{if(isCurrent())b.disabled=false;}};
-  }
-  await Promise.all([load(),loadViews().catch(e=>{if(isCurrent())$('#log-view-status').textContent=e.message;})]);
+  await Promise.all([load(),loadViews().catch(e=>{if(isCurrent())$('#log-view-status').textContent=e.message;}),
+    can('events.export')?mountLogExports({host:$('#log-exports'),api,isCurrent,getFilters:()=>({...state.filters})}):Promise.resolve()]);
 }

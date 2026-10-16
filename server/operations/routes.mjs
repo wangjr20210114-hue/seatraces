@@ -1,18 +1,18 @@
+import {streamLegacyLogs,createLogExportService} from './log-export.mjs';
 import {createAdminActionRunner} from './action-runner.mjs';
 import {eventFilters,eventQuery} from './event-query.mjs';
 export {eventFilters} from './event-query.mjs';
 import {installLogViews} from './log-views.mjs';
 import {z} from 'zod';
-import {gzip} from 'node:zlib';
-import {promisify} from 'node:util';
 import {requireManagement,can} from './permissions.mjs';
 import {requireRawCoverage,archivedUserStats,archivedEvent,latestTime} from './archive-coverage.mjs';
-const compress=promisify(gzip);
 const fail=(message,status=400)=>Object.assign(Error(message),{status});
 export const requireAdmin=requireManagement;
 const pagination=z.object({limit:z.coerce.number().int().min(1).max(100).default(30),offset:z.coerce.number().int().min(0).max(100000).default(0)});
 const pages=['home','citywalk','services','agent','profile','account','history','settings','messages','favorites','browsing','report','discover'];
 export function installOperationsRoutes(app,{auth,query,transaction,events}) {
+  const logExports=createLogExportService({query,transaction,events});
+  logExports.install(app);
   installLogViews(app,{query,transaction,events});
   const runAction=createAdminActionRunner({transaction,events});
   app.get('/api/admin/cities',auth,requireAdmin,async(req,res)=>{
@@ -86,13 +86,7 @@ export function installOperationsRoutes(app,{auth,query,transaction,events}) {
     res.json({items:rows.slice(0,limit),hasMore:rows.length>limit});
   });
   app.get('/api/admin/events/export',auth,requireAdmin,async(req,res)=>{
-    const selection=eventQuery(req.query),filters=selection.values;
-    const rows=(await query(`SELECT e.*,u.username FROM operation_events e LEFT JOIN users u ON u.id=e.user_id WHERE ${selection.where} ORDER BY ${selection.order} LIMIT 20001`,filters)).rows;
-    await requireRawCoverage(query,filters[0],filters[1],{stream:'operation',userId:filters[2]});
-    if(rows.length>20000)throw fail('日志超过 20,000 条，请缩小日期范围后导出',413);
-    const data=await compress(Buffer.from(rows.map(r=>JSON.stringify(r)).join('\n')+'\n'));
-    await events.append({userId:req.user.id,kind:'admin',action:'logs.export',requestId:req.operationRequestId,metadata:{from:filters[0],to:filters[1],rows:rows.length}});
-    res.set({'Content-Type':'application/gzip','Content-Disposition':'attachment; filename="seatraces-operations.log.gz"','Cache-Control':'no-store'}).send(data);
+    await streamLegacyLogs(req,res,{query,events});
   });
   app.get('/api/admin/tasks',auth,requireAdmin,async(req,res)=>{
     const rows=(await query('SELECT id,source,rows_count,status,created_at FROM import_jobs ORDER BY created_at DESC LIMIT 50')).rows;
@@ -103,4 +97,5 @@ export function installOperationsRoutes(app,{auth,query,transaction,events}) {
     const row=(await query('SELECT e.*,u.username FROM operation_events e LEFT JOIN users u ON u.id=e.user_id WHERE e.id=$1',[id])).rows[0];
     if(!row){if(await archivedEvent(query,id))throw fail('该日志已归档，请先恢复对应归档包',409);throw fail('日志不存在',404);}res.json(row);
   });
+  return logExports;
 }

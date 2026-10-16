@@ -1,5 +1,5 @@
 ALTER TABLE maintenance_tasks DROP CONSTRAINT IF EXISTS maintenance_tasks_kind_check;
-ALTER TABLE maintenance_tasks ADD CONSTRAINT maintenance_tasks_kind_check CHECK(kind IN ('health_check','event_archive','daily_rollup','archive_restore'));
+ALTER TABLE maintenance_tasks ADD CONSTRAINT maintenance_tasks_kind_check CHECK(kind IN ('health_check','event_archive','daily_rollup','archive_restore','log_export'));
 CREATE TABLE IF NOT EXISTS event_archive_previews (
  id uuid PRIMARY KEY,
  requested_by uuid REFERENCES users(id) ON DELETE SET NULL,
