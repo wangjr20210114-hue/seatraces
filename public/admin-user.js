@@ -26,7 +26,7 @@ export async function mountAdminUser({content,status,api,id,tab='overview',isCur
     panel.querySelector('#user-prev').onclick=()=>{offset=Math.max(0,offset-30);void renderPanel();};
     panel.querySelector('#user-next').onclick=()=>{offset+=30;void renderPanel();};
   }
-  const tripRows=items=>items.map(t=>`<tr><td>${esc(t.title)}</td><td>${esc((t.cities||[]).join('、')||'—')}</td><td>${t.status==='completed'?'用户标记完成':'计划中'}</td><td>v${t.version}</td><td>${time(t.updated_at)}</td></tr>`);
+  const tripRows=items=>items.map(t=>`<tr><td><button data-trip="${t.id}">${esc(t.title)}</button></td><td>${esc((t.cities||[]).join('、')||'—')}</td><td>${t.status==='completed'?'用户标记完成':'计划中'}</td><td>v${t.version}</td><td>${time(t.updated_at)}</td></tr>`);
   async function renderPanel(){
     const own=++generation;status.textContent='正在加载…';
     try{
@@ -38,7 +38,7 @@ export async function mountAdminUser({content,status,api,id,tab='overview',isCur
         const result=await api('/api/admin/users/'+id+'/'+tab+'?'+new URLSearchParams({offset,...filters,...(tab==='visits'?{kind:visitKind}:{})}));
         if(!isCurrent()||own!==generation)return;
         if(tab==='trips')panel.innerHTML=table(['行程','城市','状态','版本','更新时间'],tripRows(result.items));
-        if(tab==='citywalks')panel.innerHTML=table(['路线','城市','地点数','步行距离','核验','更新时间'],result.items.map(w=>`<tr><td>${esc(w.title)}</td><td>${esc(w.city||'—')}</td><td>${w.stop_count}</td><td>${(w.distance_m/1000).toFixed(2)} km</td><td>${w.verification==='verified'?'已核验':'未核验'}</td><td>${time(w.updated_at)}</td></tr>`));
+        if(tab==='citywalks')panel.innerHTML=table(['路线','城市','地点数','步行距离','核验','更新时间'],result.items.map(w=>`<tr><td><button data-walk="${w.id}">${esc(w.title)}</button></td><td>${esc(w.city||'—')}</td><td>${w.stop_count}</td><td>${(w.distance_m/1000).toFixed(2)} km</td><td>${w.verification==='verified'?'已核验':'未核验'}</td><td>${time(w.updated_at)}</td></tr>`));
         if(tab==='preferences'){
           panel.innerHTML=`<article class="admin-card"><h3>账号设置</h3>${Object.entries(result.profile).map(([k,v])=>`<p>${esc(styles[k]||k)}：${esc(value(v))}</p>`).join('')||'<p>暂无设置</p>'}</article><h3 class="section-caption">用户明确确认的记忆</h3>${table(['维度','内容','强度 / 置信度','状态','更新时间'],result.confirmed.map(m=>`<tr><td>${esc(styles[m.dimension])}</td><td>${esc(value(m.value))}</td><td>${Math.round(m.strength*100)}% / ${Math.round(m.confidence*100)}%</td><td>${m.expired?'已过期':'有效'}</td><td>${time(m.updated_at)}</td></tr>`))}<article class="admin-card"><h3>行为推断</h3><p>行为偏好评分尚未接入；不会把浏览行为当成用户已确认的偏好。</p></article>`;
         }
@@ -54,6 +54,8 @@ export async function mountAdminUser({content,status,api,id,tab='overview',isCur
         }
         if(tab!=='preferences')pager(result.hasMore);
       }
+      panel.querySelectorAll('[data-trip]').forEach(b=>b.onclick=()=>navigate('journeys',b.dataset.trip,'trip'));
+      panel.querySelectorAll('[data-walk]').forEach(b=>b.onclick=()=>navigate('journeys',b.dataset.walk,'citywalk'));
       if(isCurrent())status.textContent='';
     }catch(e){if(isCurrent()&&own===generation){panel.innerHTML='<div class="empty">暂时无法加载此项数据</div>';status.textContent=e.message;}}
   }

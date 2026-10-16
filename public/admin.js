@@ -5,11 +5,12 @@ import {mountAdminAccess} from './admin-access.js';
 import {mountAdminUser} from './admin-user.js';
 import {mountAdminAnalytics} from './admin-analytics.js';
 import {mountAdminAgent} from './admin-agent.js';
+import {mountAdminJourneys} from './admin-journeys.js';
 const $=s=>document.querySelector(s);
 export const escapeText=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const esc=escapeText;
-const names={overview:'总览',analytics:'运营分析',agent:'智能体执行链',users:'用户',events:'操作日志',tasks:'任务',messages:'站内信',classics:'经典 CityWalk',access:'权限与人员'};
-const sectionPermissions={overview:'overview.read',analytics:'analytics.read',agent:'agent.read',users:'users.list',events:'events.read',tasks:'tasks.read',messages:'messages.manage',classics:'classics.manage',access:'roles.manage'};
+const names={overview:'总览',analytics:'运营分析',journeys:'旅行与路线',agent:'智能体执行链',users:'用户',events:'操作日志',tasks:'任务',messages:'站内信',classics:'经典 CityWalk',access:'权限与人员'};
+const sectionPermissions={overview:'overview.read',analytics:'analytics.read',journeys:'journeys.read',agent:'agent.read',users:'users.list',events:'events.read',tasks:'tasks.read',messages:'messages.manage',classics:'classics.manage',access:'roles.manage'};
 let access=null;
 const can=permission=>!!access&&(access.permissions.includes('*')||access.permissions.includes(permission));
 let section='overview',offset=0,revision=0,userQuery='',userState='all',userRole='all',filters={};
@@ -20,7 +21,7 @@ function navigate(next,id='',tab='overview'){
 }
 function readRoute(){
   const parts=location.hash.replace(/^#\/?/,'').split('/');section=names[parts[0]]?parts[0]:'overview';
-  userId=['users','agent'].includes(section)&&/^[a-f\d-]{36}$/.test(parts[1]||'')?parts[1]:'';userTab=parts[2]||'overview';offset=0;
+  userId=['users','agent','journeys'].includes(section)&&/^[a-f\d-]{36}$/.test(parts[1]||'')?parts[1]:'';userTab=parts[2]||'overview';offset=0;
 }
 const content=$('#admin-content'),status=$('#admin-status');
 async function api(url,body,method) {
@@ -72,6 +73,8 @@ async function render(){
       $('#log-filter').onsubmit=e=>{e.preventDefault();filters={...(filters.userId?{userId:filters.userId}:{}),...Object.fromEntries([...new FormData(e.target)].filter(([,v])=>v))};offset=0;void render();};
       $('#clear-filter').onclick=()=>{filters={};offset=0;void render();};
       $('#export').onclick=async()=>{const b=$('#export');b.disabled=true;try{const r=await fetch('/api/admin/events/export?'+new URLSearchParams(filters));if(!r.ok)throw Error((await r.json()).error);const url=URL.createObjectURL(await r.blob()),a=document.createElement('a');a.href=url;a.download='seatraces-operations.log.gz';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}catch(e){status.textContent=e.message;}finally{b.disabled=false;}};pager(v.hasMore);
+    }else if(section==='journeys'){
+      await mountAdminJourneys({content,status,api,id:userId,tab:userTab,isCurrent:()=>revision===own,navigate});return;
     }else if(section==='agent'){
       await mountAdminAgent({content,status,api,id:userTab==='user'?'':userId,filterUser:userTab==='user'?userId:'',isCurrent:()=>revision===own,navigate});return;
     }else if(section==='analytics'){
