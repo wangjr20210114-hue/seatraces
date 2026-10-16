@@ -10,6 +10,7 @@ import { createAccounts, requireUser as auth } from "./auth.mjs";
 import { createMailer } from "./mail.mjs";
 import { createEventRecorder } from './operations/events.mjs';
 import { installOperationsRoutes } from './operations/routes.mjs';
+import { installAdminAccess } from './operations/admin-access.mjs';
 import { installInboxRoutes } from './operations/inbox.mjs';
 import { fileURLToPath } from "node:url";
 import path from "node:path";
@@ -91,6 +92,7 @@ const accounts = createAccounts({ query, transaction, production, mailer: create
 app.use(['/api','/_AMapService'], accounts.attach);
 const operationEvents=createEventRecorder({query});
 app.use('/api',operationEvents.middleware);
+installAdminAccess(app,{query,transaction,production});
 app.use('/api', accounts.gate, accounts.router);
 installOperationsRoutes(app,{auth,query,transaction,events:operationEvents});
 installInboxRoutes(app,{auth,query,transaction,events:operationEvents});

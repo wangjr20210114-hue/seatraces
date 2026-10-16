@@ -15,6 +15,10 @@ export function eventFilters(input, now=new Date()) {
 }
 const where='e.created_at >= $1 AND e.created_at < $2 AND ($3::uuid IS NULL OR e.user_id=$3) AND ($4::text IS NULL OR e.kind=$4)';
 export function installOperationsRoutes(app,{auth,query,transaction,events}) {
+  app.get('/api/admin/cities',auth,requireAdmin,async(req,res)=>{
+    const q=z.string().trim().max(100).default('').parse(req.query.q).replace(/[\\%_]/g,'\\$&');
+    res.json((await query("SELECT id,name,province,country FROM places WHERE category='city' AND name ILIKE $1 ORDER BY name,id LIMIT 10",['%'+q+'%'])).rows);
+  });
   app.post('/api/activity',auth,async(req,res)=>{
     const b=z.object({page:z.enum(pages),action:z.enum(['open','select','save','cancel']).default('open')}).strict().parse(req.body);
     events.record({userId:req.user.id,kind:'navigation',action:b.page+'.'+b.action,requestId:req.operationRequestId});

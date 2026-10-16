@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>后台登录 · SeaTraces</title><link rel="stylesheet" href="/admin.css"><script type="module" src="/admin-login.js"></script></head>
+<body class="admin-login-page">
+  <main class="admin-login-card">
+    <div class="admin-brand"><span class="brand-mark">S</span><h1>SeaTraces</h1></div>
+    <h2>登录管理后台</h2><p class="admin-login-hint">使用管理员账号验证身份</p>
+    <form id="admin-login-form">
+      <label>管理员账号<input name="username" autocomplete="username" pattern="[a-zA-Z0-9_]{3,32}" maxlength="32" required autofocus></label>
+      <label>密码<input name="password" type="password" autocomplete="current-password" minlength="8" maxlength="72" required></label>
+      <p id="admin-login-error" class="inline-error" role="alert"></p>
+      <button class="primary" id="admin-sign-in" type="submit">登录后台</button>
+    </form>
+    <p class="admin-login-hint">管理会话有效期 30 分钟</p>
+    <a href="/">返回旅行应用 ↗</a>
+  </main>
+</body></html>

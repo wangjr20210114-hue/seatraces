@@ -3,6 +3,7 @@ let mode = 'login', emailEnabled = false, busy = false, guestAvailable = false;
 const link = new URLSearchParams(location.hash.slice(1));
 const token = link.get('token');
 const action = link.get('action');
+if(new URLSearchParams(location.search).get('next')==='admin')location.replace('/admin-login.html');
 if (location.hash) history.replaceState(null, '', '/login.html');
 async function api(path, body) {
   let r;

@@ -9,7 +9,7 @@ let section='overview',offset=0,revision=0,userQuery='',userState='all',userRole
 const content=$('#admin-content'),status=$('#admin-status');
 async function api(url,body,method) {
   const response=await fetch(url,{method:method||(body?'POST':'GET'),headers:{'Content-Type':'application/json','X-Seatraces':'1'},...(body?{body:JSON.stringify(body)}:{})});
-  if(response.status===401){location.replace('/login.html?next=admin');throw Error('请先登录');}
+  if(response.status===401){leave();throw Error('请登录管理后台');}
   const data=await response.json();
   if(!response.ok)throw Error(data.error||'暂时无法完成');
   return data;
@@ -64,4 +64,24 @@ async function render(){
 }
 document.querySelectorAll('[data-section]').forEach(b=>b.onclick=()=>{section=b.dataset.section;offset=0;void render();});
 $('#refresh').onclick=()=>void render();
-try{const me=await api('/api/me');if(!me.user)location.replace('/login.html?next=admin');else if(me.user.role!=='admin'){status.textContent='此账号没有后台权限';$('nav').hidden=true;$('#refresh').hidden=true;}else{$('#admin-name').textContent=me.user.nickname;await render();}}catch(e){status.textContent=e.message;}
+function leave(){document.body.hidden=true;location.replace('/admin-login.html');}
+$('#admin-logout').onclick=async()=>{
+  $('#admin-logout').disabled=true;
+  try{await api('/api/auth/admin/logout',{});leave();}
+  catch(e){status.textContent=e.message;$('#admin-logout').disabled=false;}
+};
+// Do not reveal an old management screen from the browser back/forward cache.
+window.addEventListener('pagehide',()=>{document.body.hidden=true;});
+window.addEventListener('pageshow',e=>{if(e.persisted)location.reload();});
+let expiryTimer;
+async function verifySession(){
+  const me=await api('/api/auth/admin/me');
+  if(me.user?.role!=='admin'){leave();return false;}
+  clearTimeout(expiryTimer);
+  expiryTimer=setTimeout(leave,Math.max(0,new Date(me.expiresAt).getTime()-Date.now()));
+  $('#admin-name').textContent=me.user.nickname;
+  return true;
+}
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)void verifySession().catch(()=>leave());});
+setInterval(()=>{if(!document.hidden)void verifySession().catch(()=>leave());},60000);
+try{if(await verifySession())await render();}catch(e){status.textContent='无法核验后台登录，请刷新重试';$('nav').hidden=true;$('#refresh').hidden=true;}

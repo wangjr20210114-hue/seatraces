@@ -7,9 +7,10 @@ import cookieParser from 'cookie-parser';
 import {createAccounts,hashToken,requireUser} from '../../server/auth.mjs';
 import {createEventRecorder} from '../../server/operations/events.mjs';
 import {installOperationsRoutes} from '../../server/operations/routes.mjs';
+import {installAdminAccess,adminTokenHash} from '../../server/operations/admin-access.mjs';
 
-export async function iterationFixture({schemas=[]}={}) {
-  const cfg=JSON.parse(await readFile(new URL('../../.runtime/local.json',import.meta.url),'utf8'));
+export async function iterationFixture({schemas=[],production=false}={}) {
+  const cfg=JSON.parse(await readFile(process.env.ITERATION_DB_CONFIG || new URL('../../.runtime/local.json',import.meta.url),'utf8'));
   const schema='iteration_'+randomBytes(8).toString('hex');
   const pool=new pg.Pool({host:'127.0.0.1',port:cfg.port,user:'seatraces',password:cfg.password,database:'seatraces',max:8,options:`-c search_path=${schema},public`});
   const query=(...args)=>pool.query(...args);
@@ -31,7 +32,9 @@ export async function iterationFixture({schemas=[]}={}) {
     const accounts=createAccounts({query,transaction});
     const app=express();app.use(express.json(),cookieParser());
     app.use('/api',(req,res,next)=>!['GET','HEAD'].includes(req.method)&&req.get('X-Seatraces')!=='1'?res.status(403).json({error:'source'}):next());
-    app.use('/api',accounts.attach,events.middleware,accounts.gate,accounts.router);
+    app.use('/api',accounts.attach,events.middleware);
+    installAdminAccess(app,{query,transaction,production});
+    app.use('/api',accounts.gate,accounts.router);
     installOperationsRoutes(app,{auth:requireUser,query,transaction,events});
     const users={};
     const password='Iteration-fixture-Password!';
@@ -40,7 +43,14 @@ export async function iterationFixture({schemas=[]}={}) {
       const id=randomUUID(),token=randomBytes(32).toString('hex');
       await query('INSERT INTO users(id,username,password_hash,nickname,role) VALUES($1,$2,$3,$2,$4)',[id,'fixture_'+name,digest,role]);
       await query("INSERT INTO sessions(token_hash,user_id,expires_at) VALUES($1,$2,now()+interval '1 hour')",[hashToken(token),id]);
-      users[name]={id,username:'fixture_'+name,cookie:'st_session='+token};
+      const appCookie='st_session='+token;
+      let cookie=appCookie;
+      if(role==='admin'){
+        const adminToken=randomBytes(32).toString('hex');
+        await query("INSERT INTO sessions(token_hash,user_id,expires_at) VALUES($1,$2,now()+interval '30 minutes')",[adminTokenHash(adminToken),id]);
+        cookie+='; st_admin='+adminToken;
+      }
+      users[name]={id,username:'fixture_'+name,cookie,appCookie};
     }
     return {app,users,password,query,transaction,events,auth:requireUser,schema,
       async start(){app.use((err,req,res,next)=>{events.systemError(req,err);res.status(err.status||(err.name==='ZodError'?400:500)).json({error:err.status?err.message:err.name==='ZodError'?'invalid':'internal'});});server=app.listen(0,'127.0.0.1');await new Promise(resolve=>server.once('listening',resolve));return server.address().port;},

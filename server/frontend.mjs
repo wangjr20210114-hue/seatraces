@@ -27,7 +27,9 @@ export function createFrontend({ backendOrigin = "http://127.0.0.1:8787", proxyT
   } }, crossOriginEmbedderPolicy: false }));
   app.get("/frontend-health", (req, res) => res.json({ ok: true, service: "seatraces-frontend" }));
   app.use((req, res, next) => {
-    if (!/^\/(?:api|_AMapService)(?:\/|\?|$)/.test(req.originalUrl)) return next();
+    // The admin document is private and only the authenticated backend serves it.
+    // It is deliberately absent from public/, including encoded/case variants.
+    if (!/^\/(?:api|_AMapService)(?:\/|\?|$)/.test(req.originalUrl) && !/^\/admin(?:\.html)?\/?(?:\?|$)/i.test(req.originalUrl)) return next();
     const request = (backend.protocol === "https:" ? https : http).request({
       protocol: backend.protocol, hostname: backend.hostname, port: backend.port,
       method: req.method, path: req.originalUrl,

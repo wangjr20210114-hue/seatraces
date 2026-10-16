@@ -6,6 +6,8 @@
 
 ## 约定
 
+2026-10-16 后台认证修复：`/admin.html` 由后端认证后返回，未登录转 `/admin-login.html`。新增 `POST /api/auth/admin/login`（账号、密码）、`GET /api/auth/admin/me`、`POST /api/auth/admin/logout`，返回值见 ADMIN.md。所有管理 API 需要独立的 30 分钟 `st_admin` 会话，应用 `st_session` 不再授予管理权限；普通业务接口不变。新增 `GET /api/admin/cities?q=上海` 供管理界面搜索城市。
+
 - 云端同源入口：`https://trip.seatraces.com`，业务接口前缀 `/api`。本地前端默认 8788，后端 8787。代理转发 Cookie，不将数据库暴露到公网。
 - JSON 请求使用 `Content-Type: application/json`；所有写请求（POST、PUT、PATCH、DELETE）必须带 `X-Seatraces: 1`。跨站写请求拒绝。
 - 登录使用服务端 `st_session` Cookie。生产环境 HttpOnly、Secure、SameSite=Strict，14 天有效；浏览器同源携带，其他客户端维护 Cookie jar。密钥、用户密码和 Cookie 不写入日志或接口文档。

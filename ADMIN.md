@@ -1,6 +1,10 @@
 # 管理后台
 
-入口 `/admin.html`，沿用现有 Cookie 登录；普通用户 403，游客 401。管理员登录后，“我的”显示后台入口。没有默认管理员或默认密码。
+入口 `/admin.html`，未通过后台认证时由服务器重定向到 `/admin-login.html`。使用现有管理员账号和密码单独登录，不继承旅行应用的登录状态，没有默认管理员或默认密码。
+
+后台使用独立 `st_admin` Cookie（生产环境 Secure、HttpOnly、SameSite=Strict），固定有效期 30 分钟。应用的 `st_session` 和管理会话不可互换；数据库沿用 `sessions`，管理令牌使用独立散列前缀，不新增表。每次管理请求重新检查数据库中的账号角色、停用状态和会话到期时间。退出后台只撤销管理会话，旅行端登录保留；重设密码已有的全会话撤销也覆盖管理会话。
+
+后台 HTML 已移出 `public/`，由经过认证的后端返回，响应禁止缓存。前端服务不能在后端失联时回退展示后台页面。应用内已登录管理员也必须先完成独立后台登录。所有 `/api/admin/*` 统一经过后台认证，普通用户应用会话返回 403，游客或仅有管理员应用会话返回 401。
 
 ## 本机管理员
 
@@ -12,6 +16,10 @@
 
 | 方法 / 路径 | 输入 | 功能 / 返回 |
 |---|---|---|
+| POST `/api/auth/admin/login` | `username`、`password` | 管理员密码校验，返回安全账号摘要与 `expiresAt`，设置独立 Cookie；和应用登录共享账号失败次数限制 |
+| GET `/api/auth/admin/me` | 管理 Cookie | `{user,expiresAt}`；无有效后台会话时均为 null |
+| POST `/api/auth/admin/logout` | `{}` | 撤销当前后台会话并清 Cookie；不退出旅行端 |
+| GET `/api/admin/cities` | `q`，最多 100 字符 | 后台经典路线编辑的城市搜索，最多 10 条；不依赖旅行端会话 |
 | GET `/api/admin/overview` | 无 | 用户数、停用数、24 小时操作/错误数、数据库连接、进程运行时间、内存和日志队列状态 |
 | GET `/api/admin/users` | `q`（账号/昵称）、`state` all/active/disabled、`role` all/user/admin、`limit` 1–100、`offset` | 分页账号摘要；不返回密码散列、邮件令牌、Cookie |
 | PATCH `/api/admin/users/:id/status` | `disabled` 布尔、`reason` 为 support/security/requested | 停用/启用普通用户；停用删除会话；不能操作自己或管理员 |
