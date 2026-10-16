@@ -1,3 +1,4 @@
+import {createAdminActionRunner} from './action-runner.mjs';
 import {z} from 'zod';
 import {requireAdmin} from './routes.mjs';
 const fail=(message,status=400)=>Object.assign(Error(message),{status});
@@ -9,6 +10,7 @@ const draft=z.object({id:z.uuid(),title:z.string().trim().min(1).max(80),body:z.
 const page=z.object({limit:z.coerce.number().int().min(1).max(100).default(30),offset:z.coerce.number().int().min(0).max(100000).default(0)});
 const audienceWhere="disabled_at IS NULL AND ($1='all' OR id=ANY($2::uuid[])) AND NOT(role='admin' AND username ~ '^demo_[a-f0-9]{8}$')";
 export function installInboxRoutes(app,{auth,query,transaction,events}) {
+  const runAction=createAdminActionRunner({transaction,events});
   const ownDraft=async(id,user,c={query},lock=false)=>{
     const row=(await c.query('SELECT * FROM inbox_campaigns WHERE id=$1 AND created_by=$2'+(lock?' FOR UPDATE':''),[z.uuid().parse(id),user])).rows[0];
     if(!row)throw fail('消息不存在',404);return row;
@@ -46,10 +48,9 @@ export function installInboxRoutes(app,{auth,query,transaction,events}) {
     });res.json(row);
   });
   app.post('/api/admin/messages/:id/send',auth,requireAdmin,async(req,res)=>{
-    const b=z.object({version:z.number().int().positive(),recipientCount:z.number().int().positive(),confirmation:z.literal('send')}).strict().parse(req.body);
-    const row=await transaction(async c=>{
+    const row=await runAction(req,'message.send',async({c,b})=>{
       const row=await ownDraft(req.params.id,req.user.id,c,true);
-      if(row.status==='sent')return row;
+      if(row.status==='sent')return {value:row,changed:false};
       if(row.status!=='draft'||row.version!==b.version)throw fail('消息状态已变化，请重新预览',409);
       // Lock the current recipient snapshot; registration after this query is not a recipient.
       const delivery=(await c.query(`WITH targets AS MATERIALIZED(SELECT id FROM users WHERE ${audienceWhere} ORDER BY id FOR SHARE),
@@ -57,8 +58,7 @@ export function installInboxRoutes(app,{auth,query,transaction,events}) {
         SELECT (SELECT count(*)::int FROM targets) recipients,(SELECT count(*)::int FROM delivered) inserted`,[row.audience,row.recipient_ids,row.id])).rows[0];
       if(!delivery.recipients||delivery.recipients!==b.recipientCount)throw fail('收件人数已变化，请重新预览后发送',409);
       const sent=(await c.query("UPDATE inbox_campaigns SET status='sent',recipient_count=$2,sent_at=now(),updated_at=now(),version=version+1 WHERE id=$1 RETURNING *",[row.id,delivery.recipients])).rows[0];
-      await events.append({userId:req.user.id,kind:'admin',action:'message.send',resourceId:row.id,requestId:req.operationRequestId,metadata:{recipients:delivery.recipients,channel:'in_app'}},c);
-      return sent;
+      return {value:sent,metadata:{recipients:delivery.recipients,channel:'in_app'}};
     });res.json(row);
   });
   app.post('/api/admin/messages/:id/cancel',auth,requireAdmin,async(req,res)=>{

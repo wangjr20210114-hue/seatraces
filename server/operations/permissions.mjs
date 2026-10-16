@@ -1,3 +1,4 @@
+import {adminActionRoutes} from './action-definitions.mjs';
 // Every management route must be registered here. Unknown routes fail closed,
 // including for owners, so a new endpoint cannot accidentally bypass review.
 export const roles = Object.freeze({
@@ -13,6 +14,7 @@ export function managementAccess(user) {
 }
 export const can=(access,permission)=>!!access && (access.permissions.includes('*')||access.permissions.includes(permission));
 const rules=[
+  ...adminActionRoutes,
   ['GET',/^\/events\/views$/, 'events.read'],
   ['PUT',/^\/events\/views\/[^/]+$/, 'events.read'],
   ['DELETE',/^\/events\/views\/[^/]+$/, 'events.read'],
@@ -43,7 +45,6 @@ const rules=[
   ['GET',/^\/users$/, 'users.list'],
   ['GET',/^\/users\/[^/]+$/, 'users.read'],
   ['GET',/^\/users\/[^/]+\/(summary|timeline|trips|citywalks|preferences|visits|messages)$/, 'users.read'],
-  ['PATCH',/^\/users\/[^/]+\/status$/, 'users.manage'],
   ['POST',/^\/users\/[^/]+\/sessions\/revoke$/, 'users.manage'],
   ['GET',/^\/events\/export$/, 'events.export'],
   ['GET',/^\/events(?:\/[^/]+)?$/, 'events.read'],
@@ -51,13 +52,10 @@ const rules=[
   ['GET',/^\/cities$/, 'classics.manage'],
   ['GET',/^\/citywalk\/places$/, 'classics.manage'],
   ['GET',/^\/citywalks$/, 'classics.manage'],
-  ['POST',/^\/citywalks$/, 'classics.manage'],
-  ['PUT',/^\/citywalks\/[^/]+$/, 'classics.manage'],
-  ['PATCH',/^\/citywalks\/[^/]+\/visibility$/, 'classics.manage'],
   ['GET',/^\/messages(?:\/[^/]+\/preview)?$/, 'messages.manage'],
   ['GET',/^\/messages\/audience$/, 'messages.manage'],
   ['GET',/^\/messages\/[^/]+\/effects$/, 'messages.manage'],
-  ['POST',/^\/messages(?:\/[^/]+\/(send|cancel))?$/, 'messages.manage'],
+  ['POST',/^\/messages(?:\/[^/]+\/cancel)?$/, 'messages.manage'],
   ['PUT',/^\/messages\/[^/]+$/, 'messages.manage'],
   ['POST',/^\/places\/import$/, 'places.manage'],
   ['GET',/^\/places\/(quality|coverage|search|inspect)$/, 'places.read'],

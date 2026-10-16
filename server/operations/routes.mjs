@@ -1,3 +1,4 @@
+import {createAdminActionRunner} from './action-runner.mjs';
 import {eventFilters,eventQuery} from './event-query.mjs';
 export {eventFilters} from './event-query.mjs';
 import {installLogViews} from './log-views.mjs';
@@ -13,6 +14,7 @@ const pagination=z.object({limit:z.coerce.number().int().min(1).max(100).default
 const pages=['home','citywalk','services','agent','profile','account','history','settings','messages','favorites','browsing','report','discover'];
 export function installOperationsRoutes(app,{auth,query,transaction,events}) {
   installLogViews(app,{query,transaction,events});
+  const runAction=createAdminActionRunner({transaction,events});
   app.get('/api/admin/cities',auth,requireAdmin,async(req,res)=>{
     const q=z.string().trim().max(100).default('').parse(req.query.q).replace(/[\\%_]/g,'\\$&');
     res.json((await query("SELECT id,name,province,country FROM places WHERE category='city' AND name ILIKE $1 ORDER BY name,id LIMIT 10",['%'+q+'%'])).rows);
@@ -64,16 +66,16 @@ export function installOperationsRoutes(app,{auth,query,transaction,events}) {
     });res.json(result);
   });
   app.patch('/api/admin/users/:id/status',auth,requireAdmin,async(req,res)=>{
-    const id=z.uuid().parse(req.params.id),b=z.object({disabled:z.boolean(),reason:z.enum(['support','security','requested'])}).strict().parse(req.body);
-    if(id===req.user.id)throw fail('不能禁用自己的账号',409);
-    const user=await transaction(async c=>{
+    const user=await runAction(req,'user.status',async({c,b,id})=>{
+      if(id===req.user.id)throw fail('不能禁用自己的账号',409);
       const u=(await c.query('SELECT id,username,role,disabled_at FROM users WHERE id=$1 FOR UPDATE',[id])).rows[0];
       if(!u)throw fail('用户不存在',404);
       if(u.role==='admin')throw fail('管理员账号须通过服务器维护工具处理',409);
+      const value={id:u.id,username:u.username,disabled:b.disabled};
+      if(Boolean(u.disabled_at)===b.disabled)return {value,changed:false};
       await c.query('UPDATE users SET disabled_at=CASE WHEN $2 THEN now() ELSE NULL END WHERE id=$1',[id,b.disabled]);
       if(b.disabled)await c.query('DELETE FROM sessions WHERE user_id=$1',[id]);
-      await events.append({userId:req.user.id,kind:'admin',action:b.disabled?'user.disable':'user.enable',resourceId:id,requestId:req.operationRequestId,metadata:{reason:b.reason}},c);
-      return {id:u.id,username:u.username,disabled:b.disabled};
+      return {value,metadata:{reason:b.reason}};
     });
     res.json(user);
   });
