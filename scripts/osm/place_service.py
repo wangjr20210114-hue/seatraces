@@ -189,6 +189,10 @@ class Gateway:
         if path=='/place-batch':
             from cluster_catalog import place_batch
             return place_batch(self,params)
+        if path=='/entity-coverage':
+            available=self.execute("SELECT to_regclass('osm.entity_active') IS NOT NULL AND to_regclass('osm.entity_builds') IS NOT NULL AND to_regclass('osm.containment_active') IS NOT NULL available")[0]['available']
+            rows=self.execute("SELECT b.build_id,b.containment_build,b.completed_at,b.summary FROM osm.entity_active a JOIN osm.entity_builds b USING(build_id) JOIN osm.containment_active c ON c.build_id=b.containment_build WHERE b.status='complete'") if available else []
+            return {'status':'live','build':rows[0] if rows else None,'countScope':'active canonical build matching active containment; null means no matching build','attribution':'© OpenStreetMap contributors · ODbL-1.0'}
         if path=='/coverage':
             rows = self.execute('SELECT i.region,i.rows_count,i.pbf_timestamp FROM osm.imports i JOIN osm.active_imports a ON a.import_id=i.id ORDER BY i.region')
             return {'status':'live','regions':rows,'rows':sum(r['rows_count'] for r in rows),'countScope':'active import rows; shared OSM IDs may overlap','attribution':'© OpenStreetMap contributors · ODbL-1.0'}

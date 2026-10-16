@@ -1,7 +1,20 @@
 import unittest
-from place_service import parse_search, search_sql, present
+from place_service import parse_search, search_sql, present, Gateway
 
 class PlaceServiceTests(unittest.TestCase):
+    def test_entity_coverage_is_independent_of_optional_adapter(self):
+        class Reader:
+            def __init__(self,available,build):self.available=available;self.build=build;self.calls=[]
+            def execute(self,sql):
+                self.calls.append(sql)
+                return [{'available':self.available}] if 'to_regclass' in sql else self.build
+        reader=Reader(True,[{'build_id':'fixture','summary':{'entities':3}}])
+        self.assertEqual(Gateway.get(reader,'/entity-coverage',{})['build']['summary']['entities'],3)
+        self.assertIn('osm.containment_active',reader.calls[-1])
+        reader=Reader(False,[])
+        self.assertIsNone(Gateway.get(reader,'/entity-coverage',{})['build'])
+        self.assertEqual(len(reader.calls),1)
+        self.assertIsNone(Gateway.get(Reader(True,[]),'/entity-coverage',{})['build'])
     def test_invalid_queries(self):
         for p in ({'q':['湖']},{'q':['西湖'],'lat':['31']},{'q':['西湖'],'lng':['NaN'],'lat':['31']},
                   {'q':['西湖'],'limit':['0']},{'q':['西湖'],'category':['evil']},{'q':['a','b']},
