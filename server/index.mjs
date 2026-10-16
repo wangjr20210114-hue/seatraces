@@ -12,6 +12,7 @@ import { createEventRecorder } from './operations/events.mjs';
 import { installOperationsRoutes } from './operations/routes.mjs';
 import { installAdminAccess } from './operations/admin-access.mjs';
 import { installAccessRoutes } from './operations/access-routes.mjs';
+import { installUserInsights } from './operations/user-insights.mjs';
 import { installInboxRoutes } from './operations/inbox.mjs';
 import { fileURLToPath } from "node:url";
 import path from "node:path";
@@ -97,6 +98,7 @@ installAdminAccess(app,{query,transaction,production});
 app.use('/api', accounts.gate, accounts.router);
 installOperationsRoutes(app,{auth,query,transaction,events:operationEvents});
 installAccessRoutes(app,{query,transaction,events:operationEvents});
+installUserInsights(app,{query,events:operationEvents});
 installInboxRoutes(app,{auth,query,transaction,events:operationEvents});
 app.use('/_AMapService', (req,res,next)=>{
   if(!guestMapStyle(req.path,req.method))return auth(req,res,next);
