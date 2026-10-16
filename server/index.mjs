@@ -13,6 +13,7 @@ import { installOperationsRoutes } from './operations/routes.mjs';
 import { installAdminAccess } from './operations/admin-access.mjs';
 import { installAccessRoutes } from './operations/access-routes.mjs';
 import { installUserInsights } from './operations/user-insights.mjs';
+import { installAnalytics } from './operations/analytics.mjs';
 import { withRequestContext } from './operations/request-context.mjs';
 import { installInboxRoutes } from './operations/inbox.mjs';
 import { fileURLToPath } from "node:url";
@@ -101,6 +102,7 @@ app.use('/api',withRequestContext);
 installOperationsRoutes(app,{auth,query,transaction,events:operationEvents});
 installAccessRoutes(app,{query,transaction,events:operationEvents});
 installUserInsights(app,{query,events:operationEvents});
+installAnalytics(app,{query,transaction,events:operationEvents});
 installInboxRoutes(app,{auth,query,transaction,events:operationEvents});
 app.use('/_AMapService', (req,res,next)=>{
   if(!guestMapStyle(req.path,req.method))return auth(req,res,next);

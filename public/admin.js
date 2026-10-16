@@ -3,11 +3,12 @@ import {createAdminDetails} from './admin-details.js';
 import {mountAdminMessages} from './admin-messages.js';
 import {mountAdminAccess} from './admin-access.js';
 import {mountAdminUser} from './admin-user.js';
+import {mountAdminAnalytics} from './admin-analytics.js';
 const $=s=>document.querySelector(s);
 export const escapeText=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const esc=escapeText;
-const names={overview:'总览',users:'用户',events:'操作日志',tasks:'任务',messages:'站内信',classics:'经典 CityWalk',access:'权限与人员'};
-const sectionPermissions={overview:'overview.read',users:'users.list',events:'events.read',tasks:'tasks.read',messages:'messages.manage',classics:'classics.manage',access:'roles.manage'};
+const names={overview:'总览',analytics:'运营分析',users:'用户',events:'操作日志',tasks:'任务',messages:'站内信',classics:'经典 CityWalk',access:'权限与人员'};
+const sectionPermissions={overview:'overview.read',analytics:'analytics.read',users:'users.list',events:'events.read',tasks:'tasks.read',messages:'messages.manage',classics:'classics.manage',access:'roles.manage'};
 let access=null;
 const can=permission=>!!access&&(access.permissions.includes('*')||access.permissions.includes(permission));
 let section='overview',offset=0,revision=0,userQuery='',userState='all',userRole='all',filters={};
@@ -70,6 +71,8 @@ async function render(){
       $('#log-filter').onsubmit=e=>{e.preventDefault();filters={...(filters.userId?{userId:filters.userId}:{}),...Object.fromEntries([...new FormData(e.target)].filter(([,v])=>v))};offset=0;void render();};
       $('#clear-filter').onclick=()=>{filters={};offset=0;void render();};
       $('#export').onclick=async()=>{const b=$('#export');b.disabled=true;try{const r=await fetch('/api/admin/events/export?'+new URLSearchParams(filters));if(!r.ok)throw Error((await r.json()).error);const url=URL.createObjectURL(await r.blob()),a=document.createElement('a');a.href=url;a.download='seatraces-operations.log.gz';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}catch(e){status.textContent=e.message;}finally{b.disabled=false;}};pager(v.hasMore);
+    }else if(section==='analytics'){
+      await mountAdminAnalytics({content,status,api,can,isCurrent:()=>revision===own});return;
     }else if(section==='access'){
       await mountAdminAccess({content,status,api,isCurrent:()=>revision===own});return;
     }else if(section==='messages'){
