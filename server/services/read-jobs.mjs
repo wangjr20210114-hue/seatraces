@@ -1,15 +1,31 @@
 // Short polling responses keep a slow city read independent of HTTP deadlines.
 // Keys are scoped to an authenticated user + session; rejected jobs can retry.
-export function createReadJobs({ now = Date.now, ttlMs = 5 * 60_000 } = {}) {
+export function createReadJobs({
+  now = Date.now,
+  ttlMs = 5 * 60_000,
+  deliveredTtlMs = 15000,
+} = {}) {
   const jobs = new Map();
+  const expire = (key, job, ms) => {
+    clearTimeout(job.timer);
+    job.expiresAt = now() + ms;
+    job.timer = setTimeout(() => {
+      if (jobs.get(key) === job) jobs.delete(key);
+    }, ms);
+    job.timer.unref?.();
+  };
+  const remove = (key) => {
+    clearTimeout(jobs.get(key)?.timer);
+    jobs.delete(key);
+  };
   return function readJob(key, work) {
     for (const [id, job] of jobs)
-      if (job.finishedAt && now() - job.finishedAt > ttlMs) jobs.delete(id);
+      if (job.expiresAt && now() >= job.expiresAt) remove(id);
     let job = jobs.get(key);
     if (!job) {
       if (jobs.size >= 24) {
         const completed = [...jobs].find(([, value]) => value.finishedAt);
-        if (completed) jobs.delete(completed[0]);
+        if (completed) remove(completed[0]);
         else
           throw Object.assign(Error("城市查询繁忙，请稍后重试"), {
             status: 429,
@@ -22,15 +38,21 @@ export function createReadJobs({ now = Date.now, ttlMs = 5 * 60_000 } = {}) {
         .then(
           (result) => {
             Object.assign(job, { status: "ready", result, finishedAt: now() });
+            expire(key, job, ttlMs);
           },
           (error) => {
             Object.assign(job, { status: "failed", error, finishedAt: now() });
+            expire(key, job, ttlMs);
           },
         );
     }
     if (job.status === "failed") {
-      jobs.delete(key);
+      remove(key);
       throw job.error;
+    }
+    if (job.status === "ready" && !job.delivered) {
+      job.delivered = true;
+      expire(key, job, Math.min(ttlMs, deliveredTtlMs));
     }
     return job.status === "ready"
       ? job.result

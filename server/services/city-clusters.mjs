@@ -1,3 +1,8 @@
+import { boundedJsonBytes } from "../repositories/bounded-json.mjs";
+import {
+  scenicSummary,
+  scenicSummaryVersion,
+} from "../domain/scenic-summary.mjs";
 import { catalogRequest } from "./catalog.mjs";
 import {
   cityBoundaries,
@@ -12,6 +17,8 @@ import {
   currentParentHierarchy,
   queueParentChecks,
 } from "./scenic-parents.mjs";
+const cacheSizes = new Map();
+let cacheBytes = 0;
 const cache = new Map(),
   flights = new Map();
 export async function readCityPlaces(bounds, request = catalogRequest) {
@@ -108,8 +115,21 @@ export async function cityCatalog(city) {
             },
             expires: Date.now() + 15 * 60_000,
           };
-          cache.set(city.id, value);
-          if (cache.size > 12) cache.delete(cache.keys().next().value);
+          const size = boundedJsonBytes(value, 8 * 1024 * 1024);
+          cacheBytes -= cacheSizes.get(city.id) || 0;
+          cache.delete(city.id);
+          cacheSizes.delete(city.id);
+          if (Number.isFinite(size)) {
+            cache.set(city.id, value);
+            cacheSizes.set(city.id, size);
+            cacheBytes += size;
+            while (cache.size > 12 || cacheBytes > 8 * 1024 * 1024) {
+              const key = cache.keys().next().value;
+              cache.delete(key);
+              cacheBytes -= cacheSizes.get(key);
+              cacheSizes.delete(key);
+            }
+          }
           return value;
         })().finally(() => flights.delete(city.id)),
       );
@@ -158,7 +178,7 @@ export async function clusterCity(
     signals,
   ).map((g) => ({
     ...g,
-    members: g.members.map((p) => applyWishes(p, wishes)),
+    members: g.members.map((p) => scenicSummary(applyWishes(p, wishes))),
   }));
   return {
     city,
@@ -168,6 +188,7 @@ export async function clusterCity(
     inventory: clusterInventory(clusters),
     parentLookup: { ...hierarchy.coverage, job: { ...parentJob } },
     scoreVersion: "scenic-score/1",
+    snapshotFormat: scenicSummaryVersion,
     attribution: "© OpenStreetMap contributors · 高德地图",
   };
 }

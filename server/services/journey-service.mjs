@@ -1,3 +1,9 @@
+import { journeyPlaceDetail } from "./journey-details.mjs";
+import {
+  scenicSummary,
+  scenicSummaryVersion,
+} from "../domain/scenic-summary.mjs";
+import { resolvePlace } from "./catalog.mjs";
 import { z } from "zod";
 import { randomUUID } from "node:crypto";
 import { query, transaction } from "../db.mjs";
@@ -23,6 +29,11 @@ import { openingOnDate } from "../opening-hours.mjs";
 import { applyWishes, representedIds } from "../domain/scenic-entities.mjs";
 import { inferPresence } from "../domain/place-presence.mjs";
 import { breakBeforeStop } from "../domain/day-budget.mjs";
+import {
+  planningPools,
+  catalogMember,
+  catalogCoordinates,
+} from "../repositories/journey-candidates.mjs";
 const error = (message, status = 400) =>
   Object.assign(Error(message), { status });
 export const journeyRequest = z
@@ -77,10 +88,19 @@ async function wishesFor(user) {
   return Object.fromEntries(r.rows.map((p) => [p.place_id, p.wanted]));
 }
 export async function citySelectionForUser(city, user, travelHabit) {
-  const [habit, visits, wishes] = await Promise.all([travelHabit(user), visitsFor(user.id), wishesFor(user.id)]);
+  const [habit, visits, wishes] = await Promise.all([
+    travelHabit(user),
+    visitsFor(user.id),
+    wishesFor(user.id),
+  ]);
   const result = await clusterCity(city, habit, visits, {}, wishes);
-  const signals = await signalsFor(result.clusters.flatMap(c => c.members.flatMap(representedIds)));
-  if (Object.keys(signals).length) result.clusters = (await clusterCity(city, habit, visits, signals, wishes)).clusters;
+  const signals = await signalsFor(
+    result.clusters.flatMap((c) => c.members.flatMap(representedIds)),
+  );
+  if (Object.keys(signals).length)
+    result.clusters = (
+      await clusterCity(city, habit, visits, signals, wishes)
+    ).clusters;
   return result;
 }
 async function signalsFor(ids) {
@@ -103,10 +123,10 @@ async function signalsFor(ids) {
 async function ownSession(id, user) {
   z.uuid().parse(id);
   const s = (
-    await query("SELECT * FROM journey_sessions WHERE id=$1 AND user_id=$2", [
-      id,
-      user,
-    ])
+    await query(
+      "SELECT id,user_id,request,questions,trip_id FROM journey_sessions WHERE id=$1 AND user_id=$2",
+      [id, user],
+    )
   ).rows[0];
   if (!s) throw error("问卷不存在", 404);
   return s;
@@ -169,7 +189,7 @@ export function enrichCandidate(p, detail, visits, signals) {
   const visit = [p.id, ...(p.possibleDuplicateIds || [])]
     .map((id) => visits[id])
     .find(Boolean);
-  return {
+  return scenicSummary({
     ...p,
     ...detail,
     aliases: [...new Set([...(p.aliases || []), ...(detail.aliases || [])])],
@@ -188,7 +208,7 @@ export function enrichCandidate(p, detail, visits, signals) {
     visited: Boolean(visit),
     visitHistory: visit || null,
     signals: signals[p.id] || {},
-  };
+  });
 }
 const pending = new Map(),
   routeCache = new Map();
@@ -202,7 +222,12 @@ export function installJourneyRoutes(app, { auth, travelHabit }) {
   // Preview boundaries before the date/session step, using the same shared cache.
   app.get("/api/journey/cities/:cityId/boundary", auth, async (req, res) => {
     const id = z.string().min(1).max(80).parse(req.params.cityId);
-    const city = (await query("SELECT id,name,country,province,lat,lng,timezone FROM places WHERE category='city' AND id=$1", [id])).rows[0];
+    const city = (
+      await query(
+        "SELECT id,name,country,province,lat,lng,timezone FROM places WHERE category='city' AND id=$1",
+        [id],
+      )
+    ).rows[0];
     if (!city) throw error("城市不存在", 404);
     res.json({ city, boundary: publicBoundary(await cityBoundaries(city)) });
   });
@@ -242,7 +267,11 @@ export function installJourneyRoutes(app, { auth, travelHabit }) {
       const key = `city:${req.user.id}:${s.id}:${city.id}`;
       const work = () =>
         singleFlight(key, async () => {
-          const result = await citySelectionForUser(city, req.user, travelHabit);
+          const result = await citySelectionForUser(
+            city,
+            req.user,
+            travelHabit,
+          );
           // Save selected candidates and the separate parent overlay. Raw provider
           // responses and administrative boundary geometry are not stored here.
           await query(
@@ -252,6 +281,7 @@ export function installJourneyRoutes(app, { auth, travelHabit }) {
               req.user.id,
               city.id,
               JSON.stringify({
+                snapshotFormat: scenicSummaryVersion,
                 clusters: result.clusters,
                 coverage: result.coverage,
                 inventory: result.inventory,
@@ -276,10 +306,16 @@ export function installJourneyRoutes(app, { auth, travelHabit }) {
       );
       if (!city) throw error("城市不在本次旅行中");
       const boundary = await cityBoundaries(city);
+      const groups = await catalogCoordinates({
+        query,
+        sessionId: session.id,
+        userId: req.user.id,
+        cityId: city.id,
+      });
       res.json({
         boundary: publicBoundary(boundary),
         districts: Object.fromEntries(
-          (session.catalog[city.id]?.clusters || []).map((g) => [
+          groups.map((g) => [
             g.id,
             [
               ...new Set(
@@ -298,9 +334,12 @@ export function installJourneyRoutes(app, { auth, travelHabit }) {
         .strict()
         .parse(req.body);
     if (
-      !Object.values(s.catalog).some((c) =>
-        c.clusters.some((g) => g.members.some((p) => p.id === b.placeId)),
-      )
+      !(await catalogMember({
+        query,
+        sessionId: s.id,
+        userId: req.user.id,
+        placeId: b.placeId,
+      }))
     )
       throw error("地点不在候选范围内");
     await query(
@@ -315,12 +354,13 @@ export function installJourneyRoutes(app, { auth, travelHabit }) {
       .object({ placeId: z.string().min(1).max(80), wanted: z.boolean() })
       .strict()
       .parse(req.body);
-    const places = Object.values(s.catalog).flatMap((c) =>
-      c.clusters.flatMap((g) =>
-        g.members.flatMap((p) => [p, ...(p.children || [])]),
-      ),
-    );
-    const p = places.find((p) => p.id === b.placeId);
+    const p = await catalogMember({
+      query,
+      sessionId: s.id,
+      userId: req.user.id,
+      placeId: b.placeId,
+      includeChildren: true,
+    });
     if (!p) throw error("地点不在候选范围内");
     await transaction(async (db) => {
       for (const id of [p.id, ...(p.possibleDuplicateIds || [])])
@@ -331,6 +371,23 @@ export function installJourneyRoutes(app, { auth, travelHabit }) {
     });
     res.json({ placeId: p.id, wanted: b.wanted });
   });
+  app.get(
+    "/api/journey/sessions/:id/places/:placeId/detail",
+    auth,
+    async (req, res) => {
+      const s = await ownSession(req.params.id, req.user.id);
+      const placeId = z.string().min(1).max(80).parse(req.params.placeId);
+      res.json(
+        await journeyPlaceDetail({
+          query,
+          resolvePlace,
+          sessionId: s.id,
+          userId: req.user.id,
+          placeId,
+        }),
+      );
+    },
+  );
   app.post("/api/journey/sessions/:id/questions", auth, async (req, res) => {
     const s = await ownSession(req.params.id, req.user.id);
     const result = await singleFlight("questions:" + s.id, async () => {
@@ -385,12 +442,14 @@ export function installJourneyRoutes(app, { auth, travelHabit }) {
     const result = await singleFlight("generate:" + s.id, async () => {
       const current = await ownSession(s.id, req.user.id);
       if (current.trip_id) return ownTrip(current.trip_id, req.user.id);
-      const pools = selectedPools(
-          current.catalog,
-          b.selections,
-          current.request.cities,
-          await wishesFor(req.user.id),
-        ),
+      const pools = await planningPools({
+          query,
+          sessionId: current.id,
+          userId: req.user.id,
+          cities: current.request.cities,
+          selections: b.selections,
+          wishes: await wishesFor(req.user.id),
+        }),
         all = Object.values(pools).flat(),
         [visits, signals] = await Promise.all([
           visitsFor(req.user.id),

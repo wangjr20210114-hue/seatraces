@@ -1,13 +1,8 @@
 // OSM-only recovery snapshots. Never use this store for commercial map responses.
-import { readFile, writeFile, mkdir, rename } from "node:fs/promises";
+import { readFile, writeFile, mkdir, rename, stat } from "node:fs/promises";
 import { createHash } from "node:crypto";
-
-const cacheFile = new URL("../../.runtime/catalog-cache.json", import.meta.url);
-let cache = {},
-  saving = Promise.resolve();
-try {
-  cache = JSON.parse(await readFile(cacheFile, "utf8"));
-} catch {}
+import { boundedJsonBytes } from "./bounded-json.mjs";
+const TTL = 7 * 86400000;
 const cacheKey = (path, params) =>
   createHash("sha256")
     .update(
@@ -20,41 +15,105 @@ const cacheKey = (path, params) =>
       ]),
     )
     .digest("hex");
-export function rememberCatalog(path, params, payload) {
-  const at = new Date().toISOString();
-  cache[cacheKey(path, params)] = { at, payload };
-  if (path === "/places")
-    for (const item of payload.items || [])
-      cache[cacheKey("/place", { id: item.id })] = {
-        at,
-        payload: { status: "live", item },
-      };
-  cache = Object.fromEntries(
-    Object.entries(cache)
-      .filter(([, v]) => Date.now() - Date.parse(v.at) < 7 * 86400000)
-      .sort((a, b) => b[1].at.localeCompare(a[1].at))
-      .slice(0, 256),
-  );
-  const content = JSON.stringify(cache);
-  saving = saving
-    .catch(() => {})
-    .then(async () => {
-      await mkdir(new URL("../../.runtime/", import.meta.url), {
-        recursive: true,
-      });
-      const temporary = new URL(
-        "../../.runtime/catalog-cache.json.tmp",
-        import.meta.url,
-      );
-      await writeFile(temporary, content);
-      await rename(temporary, cacheFile);
-    });
-  saving.catch(() => {}); // A cache write failure must not turn a successful query into failure.
-}
 
-export function cachedCatalog(path, params) {
-  const saved = cache[cacheKey(path, params)];
-  return saved && Date.now() - Date.parse(saved.at) < 7 * 86400000
-    ? saved
-    : null;
+export async function createCatalogCache({
+  file = new URL("../../.runtime/catalog-cache.json", import.meta.url),
+  maxBytes = 8 * 1024 * 1024,
+  maxEntryBytes = 1024 * 1024,
+  maxEntries = 256,
+  io = { readFile, writeFile, mkdir, rename, stat },
+  now = Date.now,
+} = {}) {
+  const entries = new Map();
+  let bytes = 2,
+    dirty = false,
+    saving = null;
+  const remove = (key) => {
+    const old = entries.get(key);
+    if (old) {
+      bytes -= old.bytes;
+      entries.delete(key);
+    }
+  };
+  function put(key, saved) {
+    const size = boundedJsonBytes(saved, maxEntryBytes);
+    remove(key);
+    if (!Number.isFinite(size) || size + 68 > maxBytes) return;
+    entries.set(key, { saved, bytes: size + 68 });
+    bytes += size + 68;
+    while (entries.size > maxEntries || bytes > maxBytes)
+      remove(entries.keys().next().value);
+  }
+  function prune() {
+    for (const [key, { saved }] of entries)
+      if (!(now() - Date.parse(saved.at) < TTL)) remove(key);
+  }
+  try {
+    // Derived data can be rebuilt on demand. Do not parse oversized legacy files.
+    if ((await io.stat(file)).size <= maxBytes) {
+      const old = JSON.parse(await io.readFile(file, "utf8"));
+      for (const [key, saved] of Object.entries(old))
+        if (saved && now() - Date.parse(saved.at) < TTL) put(key, saved);
+    }
+  } catch {}
+  function schedule() {
+    dirty = true;
+    if (saving) return;
+    let failed = false;
+    saving = Promise.resolve()
+      .then(async () => {
+        await io.mkdir(new URL(".", file), { recursive: true });
+        while (dirty) {
+          dirty = false;
+          prune();
+          // One active snapshot and one pending refresh, never a queue of JSON strings.
+          const content = JSON.stringify(
+            Object.fromEntries([...entries].map(([k, v]) => [k, v.saved])),
+          );
+          const temporary = new URL(file.href + ".tmp");
+          await io.writeFile(temporary, content);
+          await io.rename(temporary, file);
+        }
+      })
+      .catch(() => {
+        failed = true;
+      })
+      .finally(() => {
+        saving = null;
+        if (dirty && !failed) schedule();
+      });
+  }
+  return {
+    remember(path, params, payload) {
+      prune();
+      const at = new Date(now()).toISOString();
+      put(cacheKey(path, params), { at, payload });
+      if (path === "/places")
+        for (const item of payload.items || [])
+          put(cacheKey("/place", { id: item.id }), {
+            at,
+            payload: { status: "live", item },
+          });
+      schedule();
+    },
+    get(path, params) {
+      const key = cacheKey(path, params);
+      const found = entries.get(key);
+      if (!found) return null;
+      if (!(now() - Date.parse(found.saved.at) < TTL)) {
+        remove(key);
+        return null;
+      }
+      return found.saved;
+    },
+    async flush() {
+      while (saving) await saving;
+    },
+    stats() {
+      return { bytes, entries: entries.size, pendingWrites: saving ? 1 : 0 };
+    },
+  };
 }
+const snapshots = await createCatalogCache();
+export const rememberCatalog = (...args) => snapshots.remember(...args);
+export const cachedCatalog = (...args) => snapshots.get(...args);
