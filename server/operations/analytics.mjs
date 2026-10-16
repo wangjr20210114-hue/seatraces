@@ -1,5 +1,6 @@
 import {z} from 'zod';
 import {requireManagement} from './permissions.mjs';
+import {requireRawCoverage} from './archive-coverage.mjs';
 const fail=(message,status=400)=>Object.assign(Error(message),{status});
 const dayMs=86400000;
 export const chinaDate=d=>new Date(new Date(d).getTime()+8*3600000).toISOString().slice(0,10);
@@ -29,6 +30,7 @@ const funnelSpecs={
 export function installAnalytics(app,{query,transaction,events,now=()=>new Date()}){
   const window=req=>analyticsWindow(req.query,now());
   async function coverage(w){
+    await requireRawCoverage(query,w.start,w.asOf);
     const row=(await query('SELECT started_at,raw_retention_days,aggregate_retention_months FROM analytics_settings WHERE id=1')).rows[0];
     return {startedAt:row.started_at,partial:new Date(w.start)<new Date(row.started_at),definitions:{active:'登录用户当天至少有一次页面行为或可靠业务事件；后台人员和标记测试账号排除；心跳与纯接口读取不计入。',saved:'当前仍保存的业务记录，按创建日期统计；历史删除记录不补造。',scope:'正式旅行用户；停用账号的历史记录保留在统计中。'},historicalBackfill:false};
   }

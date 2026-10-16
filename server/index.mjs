@@ -17,6 +17,8 @@ import { installAnalytics } from './operations/analytics.mjs';
 import { installAgentInsights } from './operations/agent-insights.mjs';
 import {installModeration} from './operations/moderation.mjs';
 import {installMaintenance} from './operations/maintenance.mjs';
+import {installArchiveRoutes} from './operations/archive-routes.mjs';
+import {archiveExecutors} from './operations/event-archive.mjs';
 import {installCommunityInteractions} from './services/community-interactions.mjs';
 import {installPlaceQuality} from './operations/place-quality.mjs';
 import { installJourneyInsights } from './operations/journey-insights.mjs';
@@ -116,7 +118,8 @@ installInboxRoutes(app,{auth,query,transaction,events:operationEvents});
 installMessageInsights(app,{query,events:operationEvents});
 installPlaceQuality(app,{query,events:operationEvents,catalogRequest});
 installModeration(app,{auth,query,transaction,events:operationEvents});
-const maintenance=installMaintenance(app,{query,transaction,events:operationEvents});
+const maintenance=installMaintenance(app,{query,transaction,events:operationEvents,extraExecutors:archiveExecutors({query,transaction,events:operationEvents})});
+installArchiveRoutes(app,{query,transaction,events:operationEvents});
 installCommunityInteractions(app,{auth,query,transaction});
 app.use('/_AMapService', (req,res,next)=>{
   if(!guestMapStyle(req.path,req.method))return auth(req,res,next);

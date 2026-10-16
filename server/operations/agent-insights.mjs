@@ -1,6 +1,7 @@
 import {z} from 'zod';
 import {eventFilters} from './routes.mjs';
 import {requireManagement} from './permissions.mjs';
+import {archivedRequests} from './archive-coverage.mjs';
 const paging=z.object({limit:z.coerce.number().int().min(1).max(50).default(20),offset:z.coerce.number().int().min(0).max(10000).default(0)});
 const text=(v,max=100)=>typeof v==='string'?v.slice(0,max):null;
 const oneOf=(v,allowed)=>allowed.includes(v)?v:null;
@@ -52,8 +53,9 @@ export function installAgentInsights(app,{query,events}){
     const effects=(await query(`SELECT id,event_type,resource_type,resource_id,entity_version,request_id,created_at FROM product_events
       WHERE user_id=$1 AND request_id=ANY($2::uuid[]) ORDER BY created_at,id LIMIT 501`,[c.user_id,requestIds])).rows;
     await audit(req,'agent.trace_read',id);
+    const effectsArchived=await archivedRequests(query,c.user_id,requestIds);
     res.json({conversation:c,turns,hasMore:rows.length>limit,tools:calls.slice(0,500),toolsTruncated:calls.length>500,
-      actions:actions.slice(0,100),actionsTruncated:actions.length>100,effects:effects.slice(0,500),effectsTruncated:effects.length>500,
+      actions:actions.slice(0,100),actionsTruncated:actions.length>100,effects:effects.slice(0,500),effectsTruncated:effects.length>500,effectsArchived,
       rawDialogueIncluded:false,tokenUsage:null,cost:null,costStatus:'not_recorded',historicalLinking:'Only explicit turn/action/request IDs are joined; legacy unlinked calls remain separate.'});
   });
 }

@@ -2,6 +2,7 @@ import {z} from 'zod';
 import {gzip} from 'node:zlib';
 import {promisify} from 'node:util';
 import {requireManagement,can} from './permissions.mjs';
+import {requireRawCoverage,archivedUserStats,archivedEvent,latestTime} from './archive-coverage.mjs';
 const compress=promisify(gzip);
 const fail=(message,status=400)=>Object.assign(Error(message),{status});
 export const requireAdmin=requireManagement;
@@ -49,6 +50,9 @@ export function installOperationsRoutes(app,{auth,query,transaction,events}) {
       (SELECT max(created_at) FROM operation_events e WHERE e.user_id=u.id) last_operation_at
       FROM users u WHERE u.id=$1`,[id])).rows[0];
     if(!user)throw fail('用户不存在',404);
+    const archived=await archivedUserStats(query,id);
+    user.operation_count+=archived.count;user.last_operation_at=latestTime(user.last_operation_at,archived.last_at);
+    user.archived_operation_count=archived.count;
     const sessions=(await query('SELECT created_at,expires_at FROM sessions WHERE user_id=$1 AND expires_at>now() ORDER BY created_at DESC LIMIT 101',[id])).rows;
     res.json({user,sessions:sessions.slice(0,100),hasMoreSessions:sessions.length>100});
   });
@@ -80,11 +84,13 @@ export function installOperationsRoutes(app,{auth,query,transaction,events}) {
   app.get('/api/admin/events',auth,requireAdmin,async(req,res)=>{
     const {limit,offset}=pagination.parse(req.query),filters=eventFilters(req.query);
     const rows=(await query(`SELECT e.*,u.username FROM operation_events e LEFT JOIN users u ON u.id=e.user_id WHERE ${where} ORDER BY e.created_at DESC,e.id DESC LIMIT $5 OFFSET $6`,[...filters,limit+1,offset])).rows;
+    await requireRawCoverage(query,filters[0],filters[1],{stream:'operation',userId:filters[2]});
     res.json({items:rows.slice(0,limit),hasMore:rows.length>limit});
   });
   app.get('/api/admin/events/export',auth,requireAdmin,async(req,res)=>{
     const filters=eventFilters(req.query);
     const rows=(await query(`SELECT e.*,u.username FROM operation_events e LEFT JOIN users u ON u.id=e.user_id WHERE ${where} ORDER BY e.created_at,e.id LIMIT 20001`,filters)).rows;
+    await requireRawCoverage(query,filters[0],filters[1],{stream:'operation',userId:filters[2]});
     if(rows.length>20000)throw fail('日志超过 20,000 条，请缩小日期范围后导出',413);
     const data=await compress(Buffer.from(rows.map(r=>JSON.stringify(r)).join('\n')+'\n'));
     await events.append({userId:req.user.id,kind:'admin',action:'logs.export',requestId:req.operationRequestId,metadata:{from:filters[0],to:filters[1],rows:rows.length}});
@@ -97,6 +103,6 @@ export function installOperationsRoutes(app,{auth,query,transaction,events}) {
   app.get('/api/admin/events/:id',auth,requireAdmin,async(req,res)=>{
     const id=z.string().regex(/^[1-9]\d{0,17}$/).parse(req.params.id);
     const row=(await query('SELECT e.*,u.username FROM operation_events e LEFT JOIN users u ON u.id=e.user_id WHERE e.id=$1',[id])).rows[0];
-    if(!row)throw fail('日志不存在',404);res.json(row);
+    if(!row){if(await archivedEvent(query,id))throw fail('该日志已归档，请先恢复对应归档包',409);throw fail('日志不存在',404);}res.json(row);
   });
 }

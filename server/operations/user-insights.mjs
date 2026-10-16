@@ -1,6 +1,7 @@
 import {z} from 'zod';
 import {eventFilters} from './routes.mjs';
 import {requireManagement} from './permissions.mjs';
+import {requireRawCoverage,archivedUserStats,latestTime} from './archive-coverage.mjs';
 const fail=(message,status=400)=>Object.assign(Error(message),{status});
 const paging=z.object({limit:z.coerce.number().int().min(1).max(100).default(30),offset:z.coerce.number().int().min(0).max(10000).default(0)});
 const list=(rows,limit)=>({items:rows.slice(0,limit),hasMore:rows.length>limit});
@@ -34,6 +35,9 @@ export function installUserInsights(app,{query,events}) {
       (SELECT max(created_at) FROM operation_events WHERE user_id=$1 AND kind IN ('request','navigation')) last_activity_at,
       (SELECT count(*)::int FROM operation_events WHERE user_id=$1 AND kind='request' AND status>=500 AND created_at>=now()-interval '7 days') recent_failures`,[u.id])).rows[0];
     const recent=(await query(`SELECT id,title,status,version,request->'cities' cities,created_at,updated_at FROM trips WHERE user_id=$1 ORDER BY updated_at DESC,id LIMIT 5`,[u.id])).rows.map(t=>({...t,cities:cityNames(t.cities)}));
+    const archived=await archivedUserStats(query,u.id);
+    counts.last_activity_at=latestTime(counts.last_activity_at,archived.last_activity_at);
+    counts.archived_operations=archived.count;
     await audit(req,'user.summary_read');
     res.json({user:u,counts,recentTrips:recent,generatedAt:new Date().toISOString(),scope:'all_saved_data',visitDefinition:'用户标记与已有到访检测记录分别展示；保存行程不代表到访。'});
   });
@@ -59,6 +63,7 @@ export function installUserInsights(app,{query,events}) {
         AND NOT EXISTS(SELECT 1 FROM product_events p WHERE p.resource_type='citywalk' AND p.resource_id=citywalks.id::text AND p.event_type='citywalk.saved')
     ) SELECT * FROM timeline WHERE ($4='all' OR source=$4) AND ($5='all' OR type=$5)
       ORDER BY created_at DESC,id DESC LIMIT $6 OFFSET $7`,[req.params.id,from,to,source,type,limit+1,offset])).rows;
+    await requireRawCoverage(query,from,to,{userId:req.params.id});
     await audit(req,'user.timeline_read');res.json({...list(rows,limit),from,to,historicalClicksReconstructed:false});
   });
   app.get('/api/admin/users/:id/trips',requireManagement,async(req,res)=>{

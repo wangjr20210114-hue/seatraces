@@ -13,6 +13,11 @@ export function managementAccess(user) {
 }
 export const can=(access,permission)=>!!access && (access.permissions.includes('*')||access.permissions.includes(permission));
 const rules=[
+  ['GET',/^\/archives(?:\/policy)?$/, 'archives.read'],
+  ['GET',/^\/archives\/[^/]+\/download$/, 'archives.export'],
+  ['POST',/^\/archives\/(preview|start|rollups)$/, 'archives.manage'],
+  ['POST',/^\/archives\/[^/]+\/restore$/, 'archives.manage'],
+  ['GET',/^\/analytics\/daily-archives$/, 'analytics.read'],
   ['GET',/^\/maintenance\/tasks(?:\/[^/]+)?$/, 'tasks.read'],
   ['POST',/^\/maintenance\/tasks(?:\/[^/]+\/(cancel|retry))?$/, 'tasks.manage'],
   ['GET',/^\/maintenance\/(health|alerts)$/, 'system.read'],

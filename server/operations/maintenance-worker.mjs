@@ -107,6 +107,9 @@ export function createMaintenanceWorker({
         "LEASE_LOST",
         "TASK_UNAVAILABLE",
         "ARCHIVE_OVERSIZE",
+        "ARCHIVE_INVALID",
+        "ARCHIVE_CONFLICT",
+        "ARCHIVE_SOURCE_CHANGED",
       ].includes(error.code)
         ? error.code
         : "TASK_FAILED";

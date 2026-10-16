@@ -362,3 +362,19 @@ AgentReply 的公共字段：`text,intent,conversationId,revision`。可选：`c
 ### 维护任务与告警端到端接口
 
 完整接口、参数及租约语义见 [ADMIN.md 任务中心与服务告警](ADMIN.md#任务中心与服务告警)。网页流程为任务→运行健康检查→任务详情→自动显示执行结果；失败或中断的任务经勾选确认后创建重试任务。服务监测和告警均使用 `/api/admin/maintenance/*`，要求独立管理员会话。接口不能执行任意命令或修改任意数据；现有 `/api/admin/tasks` 继续返回地点导入记录。
+# 后台归档接口（2026-10-16）
+
+独立后台Cookie、来源校验、角色白名单继续生效。以下除长期汇总外仅管理员可用，缺登录401、角色不足403、版本/数据冲突409、超量413。所有变更记录审计；返回的id为受控维护任务编号，可通过 `/api/admin/maintenance/tasks/:id` 查询。
+
+| 接口 | 参数 | 结果 |
+|---|---|---|
+| GET `/api/admin/archives/policy` | 无 | 保留期、可归档截止日、数量与体积限制；自动归档关闭 |
+| POST `/api/admin/archives/preview` | id(UUID)、stream=operation/product、from/to(北京时间日期) | id、rows、bytes、expiresAt；固定ID预览，1小时有效 |
+| POST `/api/admin/archives/start` | id(UUID)、previewId、confirmation=archive-events | 202 `{id}`；仅本人预览，重复请求同任务 |
+| GET `/api/admin/archives` | stream=all/operation/product、limit默认30最高100、offset最高10000 | items+hasMore；包信息、条数、原始/压缩字节、SHA-256、恢复状态，不含日志正文 |
+| GET `/api/admin/archives/:id/download` | UUID | application/gzip；包含version=1、stream、records，需身份认证 |
+| POST `/api/admin/archives/:id/restore` | id(新任务UUID)、version、sha256、confirmation=restore-events | 202 `{id}`；完整性校验，冲突停止，无覆盖 |
+| POST `/api/admin/archives/rollups` | id(UUID)、from/to、confirmation=summarize-events | 202 `{id}`；过去最多31天，已冻结日期不重算 |
+| GET `/api/admin/analytics/daily-archives` | from/to，过去最多366天 | items含day、metrics、coverage、frozen、computed_at；运营/分析员可读，无个人标识 |
+
+未恢复归档覆盖查询范围时，`/api/admin/events`、`events/export`、用户timeline及运营明细返回409；用户概览计数包含压缩索引，智能体详情新增 effectsArchived。API旧参数保持兼容，新增字段用于解释数据覆盖。

@@ -1,3 +1,4 @@
+import {mountArchives} from './admin-archives.js';
 const esc = (s) =>
   String(s ?? "").replace(
     /[&<>"']/g,
@@ -23,11 +24,15 @@ const kinds = {
   health_check: "服务健康检查",
   event_archive: "事件归档",
   daily_rollup: "每日汇总",
+  archive_restore: "恢复事件归档",
 };
 const steps = {
   starting: "准备执行",
   checking_health: "检查服务指标",
   completed: "完成",
+  archiving: "分批归档",
+  restoring: "校验并恢复",
+  summarizing: "生成每日汇总",
 };
 const errors = {
   WORKER_INTERRUPTED: "工作进程中断，请检查后重试",
@@ -36,6 +41,9 @@ const errors = {
   LEASE_LOST: "执行租约已失效",
   TASK_UNAVAILABLE: "当前版本未启用此任务",
   ARCHIVE_OVERSIZE: "单条事件超出归档预算",
+  ARCHIVE_INVALID: "归档完整性校验未通过",
+  ARCHIVE_CONFLICT: "存在内容不同的同编号记录，未覆盖",
+  ARCHIVE_SOURCE_CHANGED: "预览中的源记录已变化，请重新预览",
 };
 const table = (heads, rows) =>
   `<div class="table-wrap"><table><thead><tr>${heads.map((x) => `<th>${esc(x)}</th>`).join("")}</tr></thead><tbody>${rows.join("") || `<tr><td colspan="${heads.length}" class="empty">暂无记录</td></tr>`}</tbody></table></div>`;
@@ -102,7 +110,7 @@ export async function mountMaintenance({ content, status, api, isCurrent }) {
     status.textContent = "正在读取维护状态…";
     try {
       const path =
-        tab === "jobs"
+        tab === "archives" ? '/api/admin/archives/policy' : tab === "jobs"
           ? "/api/admin/maintenance/tasks?" +
             new URLSearchParams({ state, offset })
           : tab === "health"
@@ -117,6 +125,7 @@ export async function mountMaintenance({ content, status, api, isCurrent }) {
         ["jobs", "维护任务"],
         ["health", "服务监测"],
         ["alerts", "告警"],
+        ["archives", "归档与汇总"],
         ["imports", "地点导入"],
       ]
         .map(
@@ -124,7 +133,10 @@ export async function mountMaintenance({ content, status, api, isCurrent }) {
             `<button data-maint-tab="${k}" aria-selected="${tab === k}">${name}</button>`,
         )
         .join("")}</div>`;
-      if (tab === "jobs") {
+      if (tab === 'archives') {
+        content.insertAdjacentHTML('beforeend','<section id="archive-panel"></section>');
+        await mountArchives({content:content.querySelector('#archive-panel'),status,api,isCurrent:()=>current(n),policy:v,openTask:id=>void detail(id)});
+      } else if (tab === "jobs") {
         content.insertAdjacentHTML(
           "beforeend",
           `<div class="actions"><button id="health-task" class="primary">运行健康检查</button><label>状态<select id="task-state">${["all", "queued", "running", "completed", "failed", "interrupted", "cancelled"].map((s) => `<option value="${s}">${states[s] || "全部"}</option>`).join("")}</select></label></div>` +

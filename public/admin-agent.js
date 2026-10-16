@@ -32,7 +32,7 @@ export async function mountAdminAgent({content,status,api,isCurrent,id='',filter
               <details class="metric-definitions"><summary>关联编号</summary><p>轮次 ${esc(t.id)}</p><p>客户端幂等请求 ${esc(t.requestId)}</p><p>服务器请求 ${esc(t.serverRequestId||'未记录')}</p>${tools.filter(x=>x.request_id).map(x=>`<p>内部接口请求 ${esc(x.request_id)}</p>`).join('')}</details></li>`;
           }).join('')||'<li class="empty">暂无轮次</li>'}</ol>`;
         content.querySelector('#back-agent').onclick=()=>navigate('agent');pager(v.hasMore);
-        content.insertAdjacentHTML('beforeend',`<h3 class="section-caption">确认操作</h3>${table(['能力','状态','创建时间','结束时间'],v.actions.map(a=>`<tr><td>${esc(a.capability)}</td><td>${a.status==='pending'&&new Date(a.expires_at)<new Date()?'确认已过期':esc(states[a.status]||a.status)}</td><td>${time(a.created_at)}</td><td>${time(a.finished_at)}</td></tr>`))}<p class="table-note">Token 和模型账单未单独采集，不显示为零。${v.toolsTruncated||v.effectsTruncated||v.actionsTruncated?'本会话记录较多，部分列表已截断。':''}</p>`);
+        content.insertAdjacentHTML('beforeend',`<h3 class="section-caption">确认操作</h3>${table(['能力','状态','创建时间','结束时间'],v.actions.map(a=>`<tr><td>${esc(a.capability)}</td><td>${a.status==='pending'&&new Date(a.expires_at)<new Date()?'确认已过期':esc(states[a.status]||a.status)}</td><td>${time(a.created_at)}</td><td>${time(a.finished_at)}</td></tr>`))}<p class="table-note">${v.effectsArchived?'部分关联业务事件已归档，恢复后可查看；当前列表不代表完整执行结果。':''}Token 和模型账单未单独采集，不显示为零。${v.toolsTruncated||v.effectsTruncated||v.actionsTruncated?'本会话记录较多，部分列表已截断。':''}</p>`);
         const legacy=v.tools.filter(x=>!x.turn_id);if(legacy.length)content.insertAdjacentHTML('beforeend',`<h3 class="section-caption">历史未关联调用</h3>${toolTable(legacy)}`);
       }
       status.textContent='';

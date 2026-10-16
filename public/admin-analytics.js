@@ -1,3 +1,4 @@
+import {mountDailyArchives} from './admin-archives.js';
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const table=(head,rows)=>`<div class="table-wrap"><table><thead><tr>${head.map(v=>`<th>${esc(v)}</th>`).join('')}</tr></thead><tbody>${rows.join('')||`<tr><td class="empty" colspan="${head.length}">所选期间暂无记录</td></tr>`}</tbody></table></div>`;
 const date=v=>new Date(v).toLocaleString('zh-CN',{timeZone:'Asia/Shanghai',hour12:false});
@@ -11,13 +12,14 @@ function trend(rows){
 }
 export async function mountAdminAnalytics({content,status,api,can,isCurrent}){
   let tab='overview',filters={},generation=0,scopeQuery='';
-  const labels={overview:'趋势',funnels:'转化漏斗',retention:'留存',segments:'用户分群',...(can('users.manage')?{scope:'统计范围'}:{})};
+  const labels={overview:'趋势',funnels:'转化漏斗',retention:'留存',segments:'用户分群',archives:'长期汇总',...(can('users.manage')?{scope:'统计范围'}:{})};
   content.innerHTML=`<div class="admin-tabs" role="tablist" aria-label="运营分析">${Object.entries(labels).map(([k,v])=>`<button role="tab" data-analytics="${k}" aria-selected="${k===tab}">${v}</button>`).join('')}</div><section id="analytics-panel"></section>`;
   const panel=content.querySelector('#analytics-panel');
   content.querySelectorAll('[data-analytics]').forEach(b=>b.onclick=()=>{tab=b.dataset.analytics;content.querySelectorAll('[data-analytics]').forEach(x=>x.setAttribute('aria-selected',x===b));void render();});
   async function render(){
     const own=++generation;status.textContent='正在计算…';
     try{
+      if(tab==='archives'){await mountDailyArchives({content:panel,status,api,isCurrent:()=>isCurrent()&&own===generation});return;}
       if(tab==='scope'){
         const v=await api('/api/admin/analytics/scope?'+new URLSearchParams({q:scopeQuery}));if(!isCurrent()||own!==generation)return;
         panel.innerHTML=`<form id="scope-filter" class="filters"><label>账号 / 昵称<input name="q" maxlength="80" value="${esc(scopeQuery)}" placeholder="留空查看已排除账号"></label><button>查询</button></form>${table(['账号','昵称','统计范围','操作'],v.items.map(u=>`<tr><td>${esc(u.username)}</td><td>${esc(u.nickname)}</td><td>${u.staff?'后台人员 · 自动排除':u.analytics_excluded?'测试账号 · 已排除':'参与统计'}</td><td><button data-scope="${u.id}" ${u.staff?'disabled':''}>${u.analytics_excluded?'恢复统计':'标为测试账号'}</button></td></tr>`))}<p class="table-note">后台人员自动排除。测试标记只影响统计，不删除任何记录。${v.hasMore?'结果较多，请缩小关键词。':''}</p>`;
