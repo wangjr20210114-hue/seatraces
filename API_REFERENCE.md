@@ -94,6 +94,7 @@ OSM类别共11类：`attraction,heritage,nature,leisure,accommodation,food,rest,
 | POST /journey/sessions | `origin:{label(1…150),lat?,lng?},cityIds:string[1…5],start,end`，城市不可重复，每个ID≤80 | 201 `{id,cities}`，保存本人问卷会话。天数不少于城市数，结束日不得早于起始日，最多30天 |
 | POST /journey/sessions/:id/cities/:cityId | body `{}`；query `async=1` 推荐 | 202 `{status:"loading",retryAfterMs,...}` 或200 ClusterCatalog。相同用户/会话/城市合并进行中的请求；将候选存入会话；按retryAfterMs再查询，禁止紧循环 |
 | GET /journey/sessions/:id/cities/:cityId/boundary | 路径参数 | `{boundary,districts}`；districts为聚类ID到区名列表的映射 |
+| GET /journey/sessions/:id/places/:placeId/detail | 会话UUID、URL编码的`placeId`1…80字符；本人登录会话 | 按需读取候选地点的最新完整资料，返回`{item,hierarchyInference,inferenceCheckedAt,inferenceReviewAfter,sourceIds,fetchedAt}`；不把详情复制回问卷。非本人会话或非候选地点404，当前资料不可用503；无写入、无模型调用 |
 | POST /journey/sessions/:id/wishes | `placeId`1…80，`wanted:boolean` | `{placeId,wanted}`；只能选当前候选，保存“想去”，规划优先考虑 |
 | POST /journey/sessions/:id/visits | `placeId`≤80，`visited:boolean` | `{ok}`；历史兼容的用户到访声明。当前问卷不展示“去没去过”选项 |
 | POST /journey/sessions/:id/questions | `{}` | `{questions,defaults,source,...}`；基于内部题库/偏好排序，有模型时受结构校验，无模型退回题库，同会话缓存 |

@@ -1,5 +1,5 @@
 // Keep the end-to-end documentation inventory tied to installed HTTP routes.
-import { readFile, writeFile } from "node:fs/promises";
+import { readFile, readdir, writeFile } from "node:fs/promises";
 const files = [
   "server/index.mjs",
   "server/auth.mjs",
@@ -9,11 +9,27 @@ const files = [
   "server/agent/routes.mjs",
   "server/services/discovery.mjs",
   "server/services/classic-citywalks.mjs",
-  "server/operations/routes.mjs",
-  "server/operations/inbox.mjs",
+  ...(await readdir('server/operations')).filter(name=>name.endsWith('.mjs')).sort().map(name=>'server/operations/'+name),
   "server/frontend.mjs",
 ];
-const references = await Promise.all(['API_REFERENCE.md','ADMIN.md','CITYWALK_API.md'].map(async file=>({file,text:(await readFile(file,'utf8')).replaceAll('`','')})));
+// Expand the documented method/prefix in table headers so compact tables are
+// checked against full routes without duplicating interface specifications.
+function referenceText(text) {
+  const lines=text.replaceAll('`','').split(/\r?\n/);
+  let method='',prefix='';const expanded=[];
+  for(const line of lines){
+    if(!line.startsWith('|')){method='';prefix='';continue;}
+    if(/接口/.test(line.split('|')[1]||'')){
+      method=/\b(GET|POST|PUT|PATCH|DELETE)\b/.exec(line)?.[1]||'';
+      prefix=/前缀\s*(\/[^）\s|]+)/.exec(line)?.[1]||'';
+    }
+    const cell=line.split('|')[1]?.trim()||'';
+    const route=/^(?:(GET|POST|PUT|PATCH|DELETE)\s+)?(\/[^\s|]+)/.exec(cell);
+    if(route&&(route[1]||method))expanded.push((route[1]||method)+' '+(route[2].startsWith('/api/')?'':prefix)+route[2]);
+  }
+  return lines.join('\n')+'\n'+expanded.join('\n');
+}
+const references = await Promise.all(['API_REFERENCE.md','ADMIN.md','CITYWALK_API.md'].map(async file=>({file,text:referenceText(await readFile(file,'utf8'))})));
 const endpoints = [],
   missing = [];
 for (const file of files) {
