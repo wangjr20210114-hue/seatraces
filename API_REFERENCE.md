@@ -379,3 +379,38 @@ AgentReply 的公共字段：`text,intent,conversationId,revision`。可选：`c
 | GET `/api/admin/analytics/daily-archives` | from/to，过去最多366天 | items含day、metrics、coverage、frozen、computed_at；运营/分析员可读，无个人标识 |
 
 未恢复归档覆盖查询范围时，`/api/admin/events`、`events/export`、用户timeline及运营明细返回409；用户概览计数包含压缩索引，智能体详情新增 effectsArchived。API旧参数保持兼容，新增字段用于解释数据覆盖。
+
+## 后台日志工作台接口（2026-10-17）
+
+仅独立后台会话可调用，写请求继续需要 `X-Seatraces: 1` 和同源检查。读取/编辑个人视图要求 `events.read`（管理员/客服）；导出要求 `events.export`（管理员）。无会话401、权限不足403、他人个人资源404、旧版本或状态冲突409、超出导出体积413、全局队列满429。应用普通Cookie不能替代后台Cookie。这些接口未注册为Agent工具。
+
+`filters`参数如下，可用于日志列表查询串、视图JSON与导出JSON。未传from/to按调用时最近7天计算；显式日期按北京时间自然日包含结束日，最长31天。
+
+| 字段 | 值与含义 |
+|---|---|
+| from / to | 可选 YYYY-MM-DD |
+| userId | 可选用户UUID，精确匹配 |
+| actor / action | 可选账号/昵称80字、操作关键词120字；不区分大小写字面包含，`%`/`_`非通配符 |
+| kind | request / navigation / admin / system；不传为全部 |
+| outcome | all默认 / success / failure；成功200–399且非system，失败HTTP≥400或system |
+| minDuration | 可选整数0至2147483647，毫秒，下限包含本值 |
+| requestId / resourceId | 可选UUID请求ID / 最长200字对象ID，精确匹配 |
+| sort / order | created_at默认或duration_ms；desc默认或asc；空值最后，id作为稳定次序 |
+
+列白名单：`created_at, username, kind, action, status, duration_ms, request_id, resource_id`。列表分页仍为limit默认30/最高100、offset最高100000；不将全量日志交前端。
+
+| 接口 | 输入 | 返回与副作用 |
+|---|---|---|
+| GET `/api/admin/events/views` | 无 | `{items:[{id,name,filters,columns,version,updated_at}]}`，仅本人 |
+| PUT `/api/admin/events/views/:id` | `{id:UUID,name:1–50字,filters,columns:1–8个不重复白名单列,version?:正整数}` | 路径和body ID一致；新建省略version，修改必传当前版本。返回视图；每人最多20个且名称唯一；审计与写入同事务 |
+| DELETE `/api/admin/events/views/:id` | `{version,confirmation:"delete-view"}` | `{ok:true}`；仅本人/当前版本；删除偏好，不删除日志 |
+| POST `/api/admin/events/exports` | `{id:新UUID,filters}` | 202 `{id,totalRows}`；固定记录ID，创建持久任务与审计。相同id和筛选重复调用返回原任务；同人已有活动导出409 |
+| GET `/api/admin/events/exports` | 无 | `{items,limits}`；本人最近20个未过期任务，含id/total_rows/expires_at/created_at/state/progress/result/error_code |
+| GET `/api/admin/events/exports/:id` | UUID | 本人未过期任务；同上字段。状态queued/running/completed/failed/interrupted/cancelled |
+| GET `/api/admin/events/exports/:id/file` | UUID | 完成且未过期时`application/gzip`，逐行JSON；记录下载审计。尚未完成409，他人/过期404 |
+
+`progress`运行时含step、completedRows、totalRows、percent；完成时以`state=completed`和`result`为准，`result`含rows、chunks、rawBytes、compressedBytes、expiresAt。单任务100,000条/保守估算128 MiB/单条512 KiB，逐批50条、每块2 MiB；24小时有效。导出HTTP接口不允许指定文件路径、SQL、任意列或其他用户归属。任务创建保存数据，不发送邮件。
+
+错误码记录在任务 `error_code`：`EXPORT_SOURCE_CHANGED`源记录消失、`EXPORT_ACCESS_REVOKED`权限失效、`EXPORT_OVERSIZE`内容过大、`EXPORT_EXPIRED`过期；其他错误用维护任务通用安全码。租约失效不自动重放，重新从日志页创建。数据成员固定，但用户名等非日志字段以实际分批读取时为准。
+
+旧 `GET /api/admin/events/export` 继续接受筛选、返回gzip并最多20,000条，内部改为分批流式处理。源日志在未恢复归档中时，新旧导出都返回409而非导出缺失数据。统一动作执行器未改变用户状态、消息发送、经典路线5个既有HTTP合同；详情见 [ADMIN.md](ADMIN.md)。

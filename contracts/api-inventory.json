@@ -594,22 +594,22 @@
       "method": "POST",
       "path": "/api/admin/citywalks",
       "source": "server/services/classic-citywalks.mjs",
-      "line": 51,
-      "reference": "CITYWALK_API.md"
+      "line": 52,
+      "reference": "ADMIN.md"
     },
     {
       "method": "PUT",
       "path": "/api/admin/citywalks/:id",
       "source": "server/services/classic-citywalks.mjs",
-      "line": 52,
-      "reference": "CITYWALK_API.md"
+      "line": 53,
+      "reference": "ADMIN.md"
     },
     {
       "method": "PATCH",
       "path": "/api/admin/citywalks/:id/visibility",
       "source": "server/services/classic-citywalks.mjs",
-      "line": 53,
-      "reference": "CITYWALK_API.md"
+      "line": 54,
+      "reference": "ADMIN.md"
     },
     {
       "method": "GET",
@@ -769,35 +769,35 @@
       "method": "GET",
       "path": "/api/admin/messages",
       "source": "server/operations/inbox.mjs",
-      "line": 17,
+      "line": 19,
       "reference": "ADMIN.md"
     },
     {
       "method": "POST",
       "path": "/api/admin/messages",
       "source": "server/operations/inbox.mjs",
-      "line": 22,
+      "line": 24,
       "reference": "ADMIN.md"
     },
     {
       "method": "GET",
       "path": "/api/admin/messages/:id/preview",
       "source": "server/operations/inbox.mjs",
-      "line": 32,
+      "line": 34,
       "reference": "ADMIN.md"
     },
     {
       "method": "PUT",
       "path": "/api/admin/messages/:id",
       "source": "server/operations/inbox.mjs",
-      "line": 37,
+      "line": 39,
       "reference": "ADMIN.md"
     },
     {
       "method": "POST",
       "path": "/api/admin/messages/:id/send",
       "source": "server/operations/inbox.mjs",
-      "line": 48,
+      "line": 50,
       "reference": "ADMIN.md"
     },
     {
@@ -857,6 +857,55 @@
       "reference": "ADMIN.md"
     },
     {
+      "method": "POST",
+      "path": "/api/admin/events/exports",
+      "source": "server/operations/log-export.mjs",
+      "line": 86,
+      "reference": "API_REFERENCE.md"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/events/exports",
+      "source": "server/operations/log-export.mjs",
+      "line": 103,
+      "reference": "API_REFERENCE.md"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/events/exports/:id",
+      "source": "server/operations/log-export.mjs",
+      "line": 108,
+      "reference": "API_REFERENCE.md"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/events/exports/:id/file",
+      "source": "server/operations/log-export.mjs",
+      "line": 112,
+      "reference": "API_REFERENCE.md"
+    },
+    {
+      "method": "GET",
+      "path": "/api/admin/events/views",
+      "source": "server/operations/log-views.mjs",
+      "line": 7,
+      "reference": "API_REFERENCE.md"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/admin/events/views/:id",
+      "source": "server/operations/log-views.mjs",
+      "line": 8,
+      "reference": "API_REFERENCE.md"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/admin/events/views/:id",
+      "source": "server/operations/log-views.mjs",
+      "line": 24,
+      "reference": "API_REFERENCE.md"
+    },
+    {
       "method": "GET",
       "path": "/api/admin/maintenance/tasks",
       "source": "server/operations/maintenance.mjs",
@@ -895,21 +944,21 @@
       "method": "GET",
       "path": "/api/admin/maintenance/health",
       "source": "server/operations/maintenance.mjs",
-      "line": 236,
+      "line": 237,
       "reference": "ADMIN.md"
     },
     {
       "method": "GET",
       "path": "/api/admin/maintenance/alerts",
       "source": "server/operations/maintenance.mjs",
-      "line": 254,
+      "line": 255,
       "reference": "ADMIN.md"
     },
     {
       "method": "POST",
       "path": "/api/admin/maintenance/alerts/:id/acknowledge",
       "source": "server/operations/maintenance.mjs",
-      "line": 278,
+      "line": 279,
       "reference": "ADMIN.md"
     },
     {
@@ -1000,77 +1049,77 @@
       "method": "GET",
       "path": "/api/admin/cities",
       "source": "server/operations/routes.mjs",
-      "line": 20,
+      "line": 18,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "POST",
       "path": "/api/activity",
       "source": "server/operations/routes.mjs",
-      "line": 24,
+      "line": 22,
       "reference": "ADMIN.md"
     },
     {
       "method": "GET",
       "path": "/api/admin/overview",
       "source": "server/operations/routes.mjs",
-      "line": 29,
+      "line": 27,
       "reference": "ADMIN.md"
     },
     {
       "method": "GET",
       "path": "/api/admin/users",
       "source": "server/operations/routes.mjs",
-      "line": 36,
+      "line": 34,
       "reference": "ADMIN.md"
     },
     {
       "method": "GET",
       "path": "/api/admin/users/:id",
       "source": "server/operations/routes.mjs",
-      "line": 45,
+      "line": 43,
       "reference": "ADMIN.md"
     },
     {
       "method": "POST",
       "path": "/api/admin/users/:id/sessions/revoke",
       "source": "server/operations/routes.mjs",
-      "line": 59,
+      "line": 57,
       "reference": "ADMIN.md"
     },
     {
       "method": "PATCH",
       "path": "/api/admin/users/:id/status",
       "source": "server/operations/routes.mjs",
-      "line": 70,
+      "line": 68,
       "reference": "ADMIN.md"
     },
     {
       "method": "GET",
       "path": "/api/admin/events",
       "source": "server/operations/routes.mjs",
-      "line": 84,
-      "reference": "ADMIN.md"
+      "line": 82,
+      "reference": "API_REFERENCE.md"
     },
     {
       "method": "GET",
       "path": "/api/admin/events/export",
       "source": "server/operations/routes.mjs",
-      "line": 90,
-      "reference": "ADMIN.md"
+      "line": 88,
+      "reference": "API_REFERENCE.md"
     },
     {
       "method": "GET",
       "path": "/api/admin/tasks",
       "source": "server/operations/routes.mjs",
-      "line": 99,
+      "line": 91,
       "reference": "ADMIN.md"
     },
     {
       "method": "GET",
       "path": "/api/admin/events/:id",
       "source": "server/operations/routes.mjs",
-      "line": 103,
+      "line": 95,
       "reference": "ADMIN.md"
     },
     {
