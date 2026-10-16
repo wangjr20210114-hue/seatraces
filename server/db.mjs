@@ -65,6 +65,7 @@ export async function migrate() {
     c.query(await readFile(new URL('./agent/schema.sql', import.meta.url), 'utf8')),
   );
   await transaction(async c => c.query(await readFile(new URL('./operations/schema.sql', import.meta.url), 'utf8')));
+  await transaction(async c => c.query(await readFile(new URL('./operations/access-schema.sql', import.meta.url), 'utf8')));
   await transaction(async c => c.query(await readFile(new URL('./operations/inbox-schema.sql', import.meta.url), 'utf8')));
   await transaction(async c => c.query(await readFile(new URL('./citywalk-expansion-schema.sql', import.meta.url), 'utf8')));
 }

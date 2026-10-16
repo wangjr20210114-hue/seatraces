@@ -1,9 +1,10 @@
 import {z} from 'zod';
 import {gzip} from 'node:zlib';
 import {promisify} from 'node:util';
+import {requireManagement,can} from './permissions.mjs';
 const compress=promisify(gzip);
 const fail=(message,status=400)=>Object.assign(Error(message),{status});
-export const requireAdmin=(req,res,next)=>req.user?.role==='admin'&&!req.user.disabled_at?next():res.status(403).json({error:'需要管理员权限'});
+export const requireAdmin=requireManagement;
 const pagination=z.object({limit:z.coerce.number().int().min(1).max(100).default(30),offset:z.coerce.number().int().min(0).max(100000).default(0)});
 const pages=['home','citywalk','services','agent','profile','account','history','settings','messages','favorites','browsing','report','discover'];
 export function eventFilters(input, now=new Date()) {
@@ -29,7 +30,7 @@ export function installOperationsRoutes(app,{auth,query,transaction,events}) {
       (SELECT count(*)::int FROM users WHERE disabled_at IS NOT NULL) disabled,
       (SELECT count(*)::int FROM operation_events WHERE created_at>now()-interval '24 hours') events,
       (SELECT count(*)::int FROM operation_events WHERE kind='system' AND created_at>now()-interval '24 hours') errors`)).rows[0];
-    res.json({counts,health:{database:'connected',uptimeSeconds:Math.floor(process.uptime()),rssMB:Math.round(process.memoryUsage().rss/1048576)},logs:events.stats()});
+    res.json({counts,...(can(req.adminAccess,'system.read')?{health:{database:'connected',uptimeSeconds:Math.floor(process.uptime()),rssMB:Math.round(process.memoryUsage().rss/1048576)},logs:events.stats()}:{})});
   });
   app.get('/api/admin/users',auth,requireAdmin,async(req,res)=>{
     const {limit,offset}=pagination.parse(req.query),q=z.string().trim().max(80).default('').parse(req.query.q);

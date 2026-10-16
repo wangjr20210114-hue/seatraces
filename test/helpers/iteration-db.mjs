@@ -8,11 +8,14 @@ import {createAccounts,hashToken,requireUser} from '../../server/auth.mjs';
 import {createEventRecorder} from '../../server/operations/events.mjs';
 import {installOperationsRoutes} from '../../server/operations/routes.mjs';
 import {installAdminAccess,adminTokenHash} from '../../server/operations/admin-access.mjs';
+import {installAccessRoutes} from '../../server/operations/access-routes.mjs';
 
 export async function iterationFixture({schemas=[],production=false}={}) {
   const cfg=JSON.parse(await readFile(process.env.ITERATION_DB_CONFIG || new URL('../../.runtime/local.json',import.meta.url),'utf8'));
   const schema='iteration_'+randomBytes(8).toString('hex');
-  const pool=new pg.Pool({host:'127.0.0.1',port:cfg.port,user:'seatraces',password:cfg.password,database:'seatraces',max:8,options:`-c search_path=${schema},public`});
+  // Leave headroom in the local 30-connection database for the running app and
+  // browser preview when several isolated suites execute concurrently.
+  const pool=new pg.Pool({host:'127.0.0.1',port:cfg.port,user:'seatraces',password:cfg.password,database:'seatraces',max:4,connectionTimeoutMillis:5000,options:`-c search_path=${schema},public`});
   const query=(...args)=>pool.query(...args);
   const transaction=async fn=>{const c=await pool.connect();try{await c.query('BEGIN');const result=await fn(c);await c.query('COMMIT');return result;}catch(e){await c.query('ROLLBACK');throw e;}finally{c.release();}};
   let server,events,created=false;
@@ -27,7 +30,7 @@ export async function iterationFixture({schemas=[],production=false}={}) {
     await query(`CREATE TABLE users(id uuid PRIMARY KEY,username varchar(32) UNIQUE NOT NULL,password_hash text NOT NULL,nickname varchar(40) NOT NULL,avatar varchar(12) NOT NULL DEFAULT '🌊',role text NOT NULL DEFAULT 'user',preferences jsonb NOT NULL DEFAULT '{}',created_at timestamptz NOT NULL DEFAULT now());
       CREATE TABLE sessions(token_hash text PRIMARY KEY,user_id uuid REFERENCES users(id) ON DELETE CASCADE,expires_at timestamptz);
       CREATE TABLE import_jobs(id uuid PRIMARY KEY,source text,rows_count integer,status text,created_at timestamptz DEFAULT now());`);
-    for(const file of ['auth-schema.sql','operations/schema.sql',...schemas])await query(await readFile(new URL('../../server/'+file,import.meta.url),'utf8'));
+    for(const file of ['auth-schema.sql','operations/schema.sql','operations/access-schema.sql',...schemas])await query(await readFile(new URL('../../server/'+file,import.meta.url),'utf8'));
     events=createEventRecorder({query,intervalMs:60000});
     const accounts=createAccounts({query,transaction});
     const app=express();app.use(express.json(),cookieParser());
@@ -36,6 +39,7 @@ export async function iterationFixture({schemas=[],production=false}={}) {
     installAdminAccess(app,{query,transaction,production});
     app.use('/api',accounts.gate,accounts.router);
     installOperationsRoutes(app,{auth:requireUser,query,transaction,events});
+    installAccessRoutes(app,{query,transaction,events});
     const users={};
     const password='Iteration-fixture-Password!';
     const digest=await bcrypt.hash(password,4);

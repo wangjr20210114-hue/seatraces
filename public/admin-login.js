@@ -14,5 +14,5 @@ form.onsubmit=async event=>{
 };
 // Only an existing management session can skip this form, never an app login.
 void fetch('/api/auth/admin/me',{cache:'no-store'}).then(async response=>{
-  if(response.ok&&(await response.json()).user?.role==='admin'&&!busy)location.replace('/admin.html');
+  if(response.ok&&(await response.json()).access&&!busy)location.replace('/admin.html');
 }).catch(()=>{});
