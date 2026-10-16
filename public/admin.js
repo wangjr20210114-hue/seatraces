@@ -6,6 +6,7 @@ import {mountAdminUser} from './admin-user.js';
 import {mountAdminAnalytics} from './admin-analytics.js';
 import {mountAdminAgent} from './admin-agent.js';
 import {mountModeration} from './admin-moderation.js';
+import {mountMaintenance} from './admin-maintenance.js';
 import {mountPlaceQuality} from './admin-place-quality.js';
 import {mountAdminJourneys} from './admin-journeys.js';
 const $=s=>document.querySelector(s);
@@ -93,8 +94,7 @@ async function render(){
     }else if(section==='classics'){
       await mountAdminCityWalks({content,status,api,isCurrent:()=>revision===own});return;
     }else if(section==='tasks'){
-      const v=await api('/api/admin/tasks');if(own!==revision)return;
-      content.innerHTML=table(['来源','条数','状态','创建时间'],v.items.map(j=>`<tr><td>${esc(j.source)}</td><td>${j.rows_count}</td><td>${esc(j.status)}</td><td>${time(j.created_at)}</td></tr>`));
+      await mountMaintenance({content,status,api,isCurrent:()=>revision===own});return;
     }
     status.textContent='';
   }catch(e){if(own===revision)status.textContent=e.message;}

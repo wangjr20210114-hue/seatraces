@@ -13,6 +13,10 @@ export function managementAccess(user) {
 }
 export const can=(access,permission)=>!!access && (access.permissions.includes('*')||access.permissions.includes(permission));
 const rules=[
+  ['GET',/^\/maintenance\/tasks(?:\/[^/]+)?$/, 'tasks.read'],
+  ['POST',/^\/maintenance\/tasks(?:\/[^/]+\/(cancel|retry))?$/, 'tasks.manage'],
+  ['GET',/^\/maintenance\/(health|alerts)$/, 'system.read'],
+  ['POST',/^\/maintenance\/alerts\/[^/]+\/acknowledge$/, 'system.manage'],
   ['GET',/^\/content(?:\/(posts|comments)\/[^/]+)?$/, 'content.manage'],
   ['PATCH',/^\/content\/(posts|comments)\/[^/]+\/visibility$/, 'content.manage'],
   ['GET',/^\/content-reports$/, 'content.manage'],
