@@ -353,3 +353,8 @@ AgentReply 的公共字段：`text,intent,conversationId,revision`。可选：`c
 公开快照只保留kind、城市名、每日城市与有序景点的id/name/lat/lng/category/source_url/license；CityWalk另含distance_m。出发地址、具体旅行日期、到访记录、想去标记和住宿选择不进入路线快照。标题和正文仍是用户主动公开的内容。
 
 迁移文件`server/discovery-schema.sql`为posts新增`auto_shared`、`citywalk_id`及索引，移除旧路线自动发布触发器；保留原有帖子。先由迁移角色执行，再启用新服务，业务账号不增加建表权限。
+
+
+### 内容治理端到端接口
+
+后台内容查询/隐藏恢复、报告收集/处理的完整参数、权限和事务语义见 [ADMIN.md 内容治理](ADMIN.md#内容治理)。界面流程为内容列表→查看与处理→勾选确认→带当前版本提交→刷新状态；处理报告与改变内容可见性是两个独立操作。所有 `/api/admin/content*` 要求独立后台会话和 content.manage；用户报告接口要求普通登录，不接受游客。

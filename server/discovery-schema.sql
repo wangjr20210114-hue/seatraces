@@ -8,3 +8,8 @@ DROP TRIGGER IF EXISTS citywalks_discovery_sync ON citywalks;
 DROP FUNCTION IF EXISTS sync_route_discovery();
 DROP FUNCTION IF EXISTS discovery_stops(jsonb);
 -- Older automatic posts are retained, but hidden from feeds until explicitly published.
+ALTER TABLE posts ADD COLUMN IF NOT EXISTS hidden_at timestamptz;
+ALTER TABLE posts ADD COLUMN IF NOT EXISTS moderation_version integer NOT NULL DEFAULT 1;
+ALTER TABLE comments ADD COLUMN IF NOT EXISTS hidden_at timestamptz;
+ALTER TABLE comments ADD COLUMN IF NOT EXISTS moderation_version integer NOT NULL DEFAULT 1;
+CREATE INDEX IF NOT EXISTS posts_visible_created ON posts(created_at DESC,id) WHERE hidden_at IS NULL AND NOT auto_shared;

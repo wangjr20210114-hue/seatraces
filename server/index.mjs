@@ -15,6 +15,8 @@ import { installAccessRoutes } from './operations/access-routes.mjs';
 import { installUserInsights } from './operations/user-insights.mjs';
 import { installAnalytics } from './operations/analytics.mjs';
 import { installAgentInsights } from './operations/agent-insights.mjs';
+import {installModeration} from './operations/moderation.mjs';
+import {installCommunityInteractions} from './services/community-interactions.mjs';
 import {installPlaceQuality} from './operations/place-quality.mjs';
 import { installJourneyInsights } from './operations/journey-insights.mjs';
 import { withRequestContext } from './operations/request-context.mjs';
@@ -112,6 +114,8 @@ installJourneyInsights(app,{query,events:operationEvents});
 installInboxRoutes(app,{auth,query,transaction,events:operationEvents});
 installMessageInsights(app,{query,events:operationEvents});
 installPlaceQuality(app,{query,events:operationEvents,catalogRequest});
+installModeration(app,{auth,query,transaction,events:operationEvents});
+installCommunityInteractions(app,{auth,query,transaction});
 app.use('/_AMapService', (req,res,next)=>{
   if(!guestMapStyle(req.path,req.method))return auth(req,res,next);
   const key=req.ip+':map',now=Date.now();let v=rate.get(key);
@@ -276,7 +280,7 @@ async function travelHabit(user) {
     for (const tag of row.tags || []) weights[tag] = (weights[tag] || 0) + 2;
   const reactions = (
     await query(
-      "SELECT p.tags,r.kind FROM reactions r JOIN posts p ON p.id=r.post_id WHERE r.user_id=$1",
+      "SELECT p.tags,r.kind FROM reactions r JOIN posts p ON p.id=r.post_id WHERE r.user_id=$1 AND p.hidden_at IS NULL",
       [user.id],
     )
   ).rows;
@@ -287,7 +291,7 @@ async function travelHabit(user) {
         ({ save: 3, like: 1, recommend: 2 }[row.kind] || 0);
   const events = (
     await query(
-      "SELECT p.tags,b.dwell_seconds FROM browse_events b JOIN posts p ON p.id=b.post_id WHERE b.user_id=$1 AND b.day>CURRENT_DATE-30",
+      "SELECT p.tags,b.dwell_seconds FROM browse_events b JOIN posts p ON p.id=b.post_id WHERE b.user_id=$1 AND p.hidden_at IS NULL AND b.day>CURRENT_DATE-30",
       [user.id],
     )
   ).rows;
@@ -635,7 +639,7 @@ app.post("/api/posts", auth, async (req, res) => {
 async function recommended(user) {
   const posts = (
     await query(
-      `SELECT p.*,u.nickname,u.avatar,(SELECT count(*)::int FROM reactions r WHERE r.post_id=p.id AND kind='like') likes,(SELECT count(*)::int FROM reactions r WHERE r.post_id=p.id AND kind='save') saves,(SELECT count(*)::int FROM comments c WHERE c.post_id=p.id) comments FROM posts p JOIN users u ON p.user_id=u.id WHERE NOT p.auto_shared ORDER BY p.created_at DESC LIMIT 200`,
+      `SELECT p.*,u.nickname,u.avatar,(SELECT count(*)::int FROM reactions r WHERE r.post_id=p.id AND kind='like') likes,(SELECT count(*)::int FROM reactions r WHERE r.post_id=p.id AND kind='save') saves,(SELECT count(*)::int FROM comments c WHERE c.post_id=p.id AND c.hidden_at IS NULL) comments FROM posts p JOIN users u ON p.user_id=u.id WHERE NOT p.auto_shared AND p.hidden_at IS NULL ORDER BY p.created_at DESC LIMIT 200`,
     )
   ).rows;
   let reactions = [],
@@ -647,7 +651,7 @@ async function recommended(user) {
     ).rows;
     events = (
       await query(
-        "SELECT b.*,p.tags FROM browse_events b JOIN posts p ON b.post_id=p.id WHERE b.user_id=$1 AND b.day>CURRENT_DATE-30",
+        "SELECT b.*,p.tags FROM browse_events b JOIN posts p ON b.post_id=p.id WHERE b.user_id=$1 AND p.hidden_at IS NULL AND b.day>CURRENT_DATE-30",
         [user.id],
       )
     ).rows;
@@ -707,64 +711,11 @@ async function recommended(user) {
 app.get("/api/posts", async (req, res) =>
   res.json(await recommended(req.user)),
 );
-app.get("/api/posts/:id/comments", async (req, res) => {
-  z.uuid().parse(req.params.id);
-  res.json(
-    (
-      await query(
-        "SELECT c.id,c.body,c.created_at,u.nickname,u.avatar FROM comments c JOIN users u ON c.user_id=u.id WHERE post_id=$1 ORDER BY c.created_at DESC LIMIT 100",
-        [req.params.id],
-      )
-    ).rows,
-  );
-});
-app.post("/api/posts/:id/comments", auth, async (req, res) => {
-  z.uuid().parse(req.params.id);
-  const b = z
-    .object({ body: z.string().trim().min(1).max(500) })
-    .parse(req.body);
-  await query(
-    "INSERT INTO comments(id,user_id,post_id,body) VALUES($1,$2,$3,$4)",
-    [randomUUID(), req.user.id, req.params.id, b.body],
-  );
-  res.json({ ok: true });
-});
-app.post("/api/posts/:id/reactions", auth, async (req, res) => {
-  z.uuid().parse(req.params.id);
-  const b = z
-    .object({
-      kind: z.enum(["like", "save", "recommend"]),
-      active: z.boolean(),
-    })
-    .parse(req.body);
-  if (b.active)
-    await query(
-      "INSERT INTO reactions(user_id,post_id,kind) VALUES($1,$2,$3) ON CONFLICT DO NOTHING",
-      [req.user.id, req.params.id, b.kind],
-    );
-  else
-    await query(
-      "DELETE FROM reactions WHERE user_id=$1 AND post_id=$2 AND kind=$3",
-      [req.user.id, req.params.id, b.kind],
-    );
-  res.json({ ok: true });
-});
-app.post("/api/posts/:id/view", auth, async (req, res) => {
-  z.uuid().parse(req.params.id);
-  const b = z
-    .object({ seconds: z.number().int().min(0).max(120) })
-    .parse(req.body);
-  await query(
-    "INSERT INTO browse_events(user_id,post_id,dwell_seconds) VALUES($1,$2,$3) ON CONFLICT(user_id,post_id,day) DO UPDATE SET dwell_seconds=LEAST(120,browse_events.dwell_seconds+excluded.dwell_seconds),created_at=now()",
-    [req.user.id, req.params.id, b.seconds],
-  );
-  res.json({ recorded: true });
-});
 app.get("/api/me/history", auth, async (req, res) =>
   res.json(
     (
       await query(
-        "SELECT b.created_at,b.dwell_seconds,p.id,p.title,p.tags FROM browse_events b JOIN posts p ON b.post_id=p.id WHERE b.user_id=$1 ORDER BY b.created_at DESC LIMIT 100",
+        "SELECT b.created_at,b.dwell_seconds,p.id,p.title,p.tags FROM browse_events b JOIN posts p ON b.post_id=p.id WHERE b.user_id=$1 AND p.hidden_at IS NULL ORDER BY b.created_at DESC LIMIT 100",
         [req.user.id],
       )
     ).rows,

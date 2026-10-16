@@ -2,7 +2,7 @@
 // including for owners, so a new endpoint cannot accidentally bypass review.
 export const roles = Object.freeze({
   administrator: {name:'管理员', permissions:['*']},
-  operator: {name:'运营', permissions:['overview.read','analytics.read','users.list','messages.manage','classics.manage','places.read']},
+  operator: {name:'运营', permissions:['overview.read','analytics.read','users.list','messages.manage','classics.manage','places.read','content.manage']},
   support: {name:'客服', permissions:['overview.read','users.list','users.read','journeys.read','events.read']},
   analyst: {name:'只读分析', permissions:['overview.read','analytics.read']},
 });
@@ -13,6 +13,10 @@ export function managementAccess(user) {
 }
 export const can=(access,permission)=>!!access && (access.permissions.includes('*')||access.permissions.includes(permission));
 const rules=[
+  ['GET',/^\/content(?:\/(posts|comments)\/[^/]+)?$/, 'content.manage'],
+  ['PATCH',/^\/content\/(posts|comments)\/[^/]+\/visibility$/, 'content.manage'],
+  ['GET',/^\/content-reports$/, 'content.manage'],
+  ['PATCH',/^\/content-reports\/[^/]+$/, 'content.manage'],
   ['GET',/^\/access$/, 'overview.read'],
   ['GET',/^\/access\/members$/, 'roles.manage'],
   ['PUT',/^\/access\/members\/[^/]+$/, 'roles.manage'],
