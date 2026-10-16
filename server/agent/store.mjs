@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import {requestContext} from '../operations/request-context.mjs';
 export const fail = (message, status = 400) =>
   Object.assign(Error(message), { status });
 export function createAgentStore({ query, transaction }) {
@@ -57,8 +58,8 @@ export function createAgentStore({ query, transaction }) {
         [id, user, token],
       );
       await db.query(
-        "INSERT INTO agent_turns(id,conversation_id,user_id,request_id,input,status) VALUES($1,$2,$3,$4,$5,'running')",
-        [token, id, user, requestId, input],
+        "INSERT INTO agent_turns(id,conversation_id,user_id,request_id,input,status,server_request_id) VALUES($1,$2,$3,$4,$5,'running',$6)",
+        [token, id, user, requestId, input,requestContext()?.requestId||null],
       );
       return { conversation: c, token };
     });
@@ -76,7 +77,7 @@ export function createAgentStore({ query, transaction }) {
         revision: r.rows[0].revision,
       };
       await db.query(
-        "UPDATE agent_turns SET response=$2,status=$3 WHERE id=$1",
+        "UPDATE agent_turns SET response=$2,status=$3,finished_at=now(),duration_ms=least(2147483647,greatest(0,extract(epoch FROM clock_timestamp()-created_at)*1000))::int WHERE id=$1",
         [token, JSON.stringify(response), status],
       );
       return response;

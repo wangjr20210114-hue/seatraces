@@ -7,7 +7,7 @@ const table=(columns,rows)=>`<div class="table-wrap"><table><thead><tr>${columns
 const actions={'trip.saved':'保存行程','trip.version_saved':'保存行程新版本','citywalk.saved':'保存 CityWalk','home.open':'打开旅行首页','agent.open':'打开问 AI','history.open':'查看历史行程','citywalk.open':'打开 CityWalk','services.open':'查看附近吃住'};
 Object.assign(actions,{'POST /api/journey/sessions':'开始规划旅行','POST /api/journey/sessions/:id/cities/:cityId':'加载城市游玩区域','POST /api/journey/sessions/:id/questions':'准备个性化问题','POST /api/journey/sessions/:id/generate':'生成旅行方案','POST /api/journey/sessions/:id/wishes':'更新想去地点','POST /api/citywalk/preview':'预览步行路线','POST /api/citywalks':'保存 CityWalk','PUT /api/citywalks/:id':'修改 CityWalk','POST /api/agent/conversations':'开始 AI 会话'});
 Object.assign(actions,{'journey.started':'创建旅行规划','journey.candidates_loaded':'城市候选地点已准备','journey.questions_ready':'个性化问题已准备','journey.completed':'旅行规划已生成并保存','trip.updated':'更新行程','trip.status_changed':'更改行程状态','citywalk.started':'创建 CityWalk 编辑草稿','citywalk.updated':'更新 CityWalk','memory.confirmed':'确认旅行偏好','agent.action_prepared':'准备 AI 操作','agent.action_executing':'执行 AI 操作','agent.action_completed':'AI 操作完成','agent.action_cancelled':'取消 AI 操作','agent.action_failed':'AI 操作失败','agent.action_unknown':'AI 操作结果待核对'});
-export async function mountAdminUser({content,status,api,id,tab='overview',isCurrent,navigate,details}) {
+export async function mountAdminUser({content,status,api,id,tab='overview',isCurrent,navigate,details,can=()=>false}) {
   const [tabName,search='']=tab.split('?');tab=tabName;
   if(!labels[tab])tab='overview';
   const v=await api('/api/admin/users/'+id+'/summary');if(!isCurrent())return;
@@ -31,9 +31,9 @@ export async function mountAdminUser({content,status,api,id,tab='overview',isCur
     const own=++generation;status.textContent='正在加载…';
     try{
       if(tab==='overview'){
-        panel.innerHTML=`<div class="metrics user-metrics">${[['历史行程',c.trips,'trips'],['CityWalk',c.citywalks,'citywalks'],['想去地点',c.wishes,'visits'],['收藏帖子',c.favorites,'visits?kind=favorites'],['用户标记到访',c.marked_visits,'visits?kind=marked'],['已有到访检测',c.presence_records,'visits?kind=presence'],['AI 会话',c.conversations,''],['未读消息',c.unread_messages,'messages']].map(([name,n,target])=>`<button class="metric" ${target?`data-target="${target}"`: 'disabled'}><span>${name}</span><strong>${n}</strong></button>`).join('')}</div>
+        panel.innerHTML=`<div class="metrics user-metrics">${[['历史行程',c.trips,'trips'],['CityWalk',c.citywalks,'citywalks'],['想去地点',c.wishes,'visits'],['收藏帖子',c.favorites,'visits?kind=favorites'],['用户标记到访',c.marked_visits,'visits?kind=marked'],['已有到访检测',c.presence_records,'visits?kind=presence'],['AI 会话',c.conversations,can('agent.read')?'agent':''],['未读消息',c.unread_messages,'messages']].map(([name,n,target])=>`<button class="metric" ${target?`data-target="${target}"`: 'disabled'}><span>${name}</span><strong>${n}</strong></button>`).join('')}</div>
           <div class="insight-grid"><article class="admin-card"><h3>账号偏好</h3>${Object.entries(u.preferences).map(([key,v])=>`<p>${esc(styles[key]||key)}：${esc(value(v))}</p>`).join('')||'<p>尚未设置旅行偏好</p>'}</article><article class="admin-card"><h3>近期情况</h3><p>近 7 天服务失败 ${c.recent_failures} 次</p><p>标记完成行程 ${c.marked_completed} 次</p><p class="muted">统计覆盖已保存数据；完成标记不代表实际到访。</p></article></div><h3 class="section-caption">最近更新的行程</h3>${table(['行程','城市','状态','版本','更新时间'],tripRows(v.recentTrips))}`;
-        panel.querySelectorAll('[data-target]').forEach(b=>b.onclick=()=>navigate('users',id,b.dataset.target));
+        panel.querySelectorAll('[data-target]').forEach(b=>b.onclick=()=>b.dataset.target==='agent'?navigate('agent',id,'user'):navigate('users',id,b.dataset.target));
       }else{
         const result=await api('/api/admin/users/'+id+'/'+tab+'?'+new URLSearchParams({offset,...filters,...(tab==='visits'?{kind:visitKind}:{})}));
         if(!isCurrent()||own!==generation)return;

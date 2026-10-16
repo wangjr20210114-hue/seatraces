@@ -45,6 +45,9 @@ export function createApiBridge({
   query,
   userId,
   conversationId,
+  turnId=null,
+  actionId=null,
+  parentRequestId=null,
   fetchImpl = fetch,
 }) {
   return async function call(method, path, body) {
@@ -56,11 +59,11 @@ export function createApiBridge({
     // Local listener is fixed by startup, never by Host / forwarded headers or request text.
     const audit = (
       await query(
-        "INSERT INTO agent_tool_calls(conversation_id,user_id,method,path) VALUES($1,$2,$3,$4) RETURNING id",
-        [conversationId, userId, method, path],
+        "INSERT INTO agent_tool_calls(conversation_id,user_id,method,path,turn_id,action_id,parent_request_id,outcome) VALUES($1,$2,$3,$4,$5,$6,$7,'pending') RETURNING id",
+        [conversationId, userId, method, path.split('?')[0],turnId,actionId,parentRequestId],
       )
     ).rows[0].id;
-    let r;
+    let r;const started=performance.now();
     try {
       r = await fetchImpl(`http://127.0.0.1:${p}${path}`, {
         method,
@@ -74,11 +77,16 @@ export function createApiBridge({
         ...(body === undefined ? {} : { body: JSON.stringify(body) }),
       });
     } catch {
+      await query("UPDATE agent_tool_calls SET outcome='network_error',finished_at=now(),duration_ms=$2 WHERE id=$1",[audit,Math.min(2147483647,Math.round(performance.now()-started))]);
       throw fail("服务暂时未返回结果；请刷新核对，避免重复操作", 503);
     }
-    await query("UPDATE agent_tool_calls SET status=$2 WHERE id=$1", [
+    const requestId=r.headers?.get('x-request-id');
+    await query("UPDATE agent_tool_calls SET status=$2,outcome=$3,finished_at=now(),duration_ms=$4,request_id=$5 WHERE id=$1", [
       audit,
       r.status,
+      r.ok?'http_success':'http_error',
+      Math.min(2147483647,Math.round(performance.now()-started)),
+      /^[a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{12}$/i.test(requestId||'')?requestId:null,
     ]);
     const data = await r.json().catch(() => ({}));
     if (!r.ok) throw fail(data.error || "业务操作暂不可用", r.status);

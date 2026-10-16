@@ -61,7 +61,7 @@ export function installAgentRoutes(
     model,
     ...(modelEnabled ? { modelEnabled } : {}),
   });
-  const contextFor = (req, c, state) => ({
+  const contextFor = (req, c, state, trace={}) => ({
     c,
     state,
     user: req.user,
@@ -72,6 +72,8 @@ export function installAgentRoutes(
       query,
       userId: req.user.id,
       conversationId: c.id,
+      ...trace,
+      parentRequestId:req.operationRequestId||null,
     }),
   });
   app.get("/api/agent/capabilities", auth, (req, res) =>
@@ -150,7 +152,7 @@ export function installAgentRoutes(
     const report = progress.start(id, b.requestId);
     try {
       const reply = await engine.message(
-        { ...contextFor(req, c, state), progress: report },
+        { ...contextFor(req, c, state,{turnId:token}), progress: report },
         b,
       );
       const response = await store.finish(c, req.user.id, token, state, {
@@ -175,6 +177,7 @@ export function installAgentRoutes(
           before,
           {
             text: safe,
+            steps:progress.read(id,b.requestId).steps,
             intent: "clarify",
             error: true,
             ...(before.question
@@ -214,7 +217,7 @@ export function installAgentRoutes(
         const result = action.replayed
           ? { state, reply: action.result.reply }
           : await engine.execute(
-              { ...contextFor(req, c, state), progress: report },
+              { ...contextFor(req, c, state,{turnId:token,actionId}), progress: report },
               action,
               b.decision,
             );
@@ -269,6 +272,7 @@ export function installAgentRoutes(
                   : "操作没有完成，请重新发起。",
               error: true,
               intent: "operate",
+              steps:progress.read(id,b.requestId).steps,
               actionResult: {
                 id: actionId,
                 status: unknown ? "unknown" : "failed",

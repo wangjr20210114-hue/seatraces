@@ -19,6 +19,7 @@ const rules=[
   ['GET',/^\/overview$/, 'overview.read'],
   ['GET',/^\/analytics\/(overview|funnels|retention|segments)$/, 'analytics.read'],
   ['GET',/^\/analytics\/scope$/, 'users.manage'],
+  ['GET',/^\/agent\/conversations(?:\/[^/]+)?$/, 'agent.read'],
   ['PATCH',/^\/users\/[^/]+\/analytics$/, 'users.manage'],
   ['GET',/^\/users$/, 'users.list'],
   ['GET',/^\/users\/[^/]+$/, 'users.read'],

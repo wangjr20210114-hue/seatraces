@@ -1429,6 +1429,7 @@ export function createAgentEngine({
       search: knowledge.search,
       enabled: modelEnabled(),
     });
+    const classification={intent:result.intent,capability:result.capability,source:result.source,confidence:result.confidence};
     if (result.intent === "operate" && result.source === "model") {
       s.flow = {
         kind: "clarify",
@@ -1436,24 +1437,19 @@ export function createAgentEngine({
         intentMode: "operate",
         suggested: result.capability,
       };
-      return advance(ctx);
+      return {...await advance(ctx),classification};
     }
     if (result.intent === "operate")
       return {
         ...(await start(ctx, result, text)),
-        classification: {
-          intent: result.intent,
-          capability: result.capability,
-          source: result.source,
-          confidence: result.confidence,
-        },
+        classification,
       };
     if (result.intent === "software_question") {
-      return softwareAnswer(ctx, text);
+      return {...await softwareAnswer(ctx, text),classification};
     }
     if (result.intent === "clarify") {
       s.flow = { kind: "clarify", original: text };
-      return advance(ctx);
+      return {...await advance(ctx),classification};
     }
     let response = "可以简单聊聊。我主要帮你安排海迹里的旅行。";
     ctx.progress?.("正在简短回复…");
@@ -1475,7 +1471,7 @@ export function createAgentEngine({
       } catch {
         response = "我在。可以先帮你找页面、了解功能，或聊聊想怎样旅行。";
       }
-    return { text: response, intent: "other" };
+    return { text: response, intent: "other",classification };
   }
   async function execute(ctx, action, decision) {
     if (

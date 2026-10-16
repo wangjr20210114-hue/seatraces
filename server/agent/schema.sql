@@ -38,3 +38,18 @@ CREATE TABLE IF NOT EXISTS agent_knowledge (
  id text PRIMARY KEY, version text NOT NULL, title text NOT NULL, content text NOT NULL,
  route text NOT NULL, embedding double precision[], embedding_model text, updated_at timestamptz NOT NULL DEFAULT now()
 );
+ALTER TABLE agent_turns ADD COLUMN IF NOT EXISTS finished_at timestamptz;
+ALTER TABLE agent_turns ADD COLUMN IF NOT EXISTS duration_ms integer;
+ALTER TABLE agent_turns ADD COLUMN IF NOT EXISTS server_request_id uuid;
+ALTER TABLE agent_tool_calls ADD COLUMN IF NOT EXISTS turn_id uuid REFERENCES agent_turns(id) ON DELETE SET NULL;
+ALTER TABLE agent_tool_calls ADD COLUMN IF NOT EXISTS action_id uuid REFERENCES agent_actions(id) ON DELETE SET NULL;
+ALTER TABLE agent_tool_calls ADD COLUMN IF NOT EXISTS request_id uuid;
+ALTER TABLE agent_tool_calls ADD COLUMN IF NOT EXISTS parent_request_id uuid;
+ALTER TABLE agent_tool_calls ADD COLUMN IF NOT EXISTS duration_ms integer;
+ALTER TABLE agent_tool_calls ADD COLUMN IF NOT EXISTS finished_at timestamptz;
+ALTER TABLE agent_tool_calls ADD COLUMN IF NOT EXISTS outcome text CHECK(outcome IN ('pending','http_success','http_error','network_error'));
+CREATE INDEX IF NOT EXISTS agent_tools_turn ON agent_tool_calls(turn_id,created_at,id);
+CREATE INDEX IF NOT EXISTS agent_tools_conversation ON agent_tool_calls(conversation_id,created_at,id);
+CREATE INDEX IF NOT EXISTS agent_tools_request ON agent_tool_calls(request_id) WHERE request_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS agent_actions_conversation ON agent_actions(conversation_id,created_at,id);
+CREATE INDEX IF NOT EXISTS agent_turns_conversation ON agent_turns(conversation_id,created_at,id);
