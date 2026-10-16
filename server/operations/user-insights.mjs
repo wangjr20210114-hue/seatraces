@@ -40,18 +40,23 @@ export function installUserInsights(app,{query,events}) {
   app.get('/api/admin/users/:id/timeline',requireManagement,async(req,res)=>{
     await user(req.params.id);const {limit,offset}=paging.parse(req.query);
     const [from,to]=eventFilters(req.query);
-    const source=z.enum(['all','operation','business']).default('all').parse(req.query.source);
-    const type=z.enum(['all','navigation','request','admin','trip','citywalk']).default('all').parse(req.query.type);
+    const source=z.enum(['all','operation','business','product']).default('all').parse(req.query.source);
+    const type=z.enum(['all','navigation','request','admin','trip','citywalk','journey','memory','agent']).default('all').parse(req.query.type);
     // Historical business timestamps are labeled as records, never invented clicks.
     const rows=(await query(`WITH timeline AS (
       SELECT 'operation:'||id id,created_at,'operation' source,kind type,action,resource_id,request_id,status,duration_ms,
         jsonb_build_object('metadata',metadata) detail FROM operation_events WHERE user_id=$1 AND kind<>'system' AND created_at >= $2 AND created_at < $3
+      UNION ALL SELECT 'product:'||id,created_at,'product',resource_type,event_type,resource_id,request_id,NULL::integer,NULL::integer,
+        properties||jsonb_build_object('flowId',flow_id,'version',entity_version) FROM product_events WHERE user_id=$1 AND created_at >= $2 AND created_at < $3
       UNION ALL SELECT 'trip:'||id,created_at,'business','trip','trip.saved',id::text,NULL::uuid,NULL::integer,NULL::integer,
         jsonb_build_object('title',title,'currentVersion',version,'currentStatus',status) FROM trips WHERE user_id=$1 AND created_at >= $2 AND created_at < $3
+        AND NOT EXISTS(SELECT 1 FROM product_events p WHERE p.resource_type='trip' AND p.resource_id=trips.id::text AND p.event_type='trip.saved')
       UNION ALL SELECT 'version:'||v.trip_id||':'||v.version,v.created_at,'business','trip','trip.version_saved',v.trip_id::text,NULL::uuid,NULL::integer,NULL::integer,
         jsonb_build_object('title',t.title,'version',v.version) FROM trip_versions v JOIN trips t ON t.id=v.trip_id WHERE t.user_id=$1 AND v.version>1 AND v.created_at >= $2 AND v.created_at < $3
+        AND NOT EXISTS(SELECT 1 FROM product_events p WHERE p.resource_type='trip' AND p.resource_id=v.trip_id::text AND p.entity_version=v.version AND p.event_type IN ('trip.updated','trip.status_changed'))
       UNION ALL SELECT 'citywalk:'||id,created_at,'business','citywalk','citywalk.saved',id::text,NULL::uuid,NULL::integer,NULL::integer,
         jsonb_build_object('title',title) FROM citywalks WHERE user_id=$1 AND created_at >= $2 AND created_at < $3
+        AND NOT EXISTS(SELECT 1 FROM product_events p WHERE p.resource_type='citywalk' AND p.resource_id=citywalks.id::text AND p.event_type='citywalk.saved')
     ) SELECT * FROM timeline WHERE ($4='all' OR source=$4) AND ($5='all' OR type=$5)
       ORDER BY created_at DESC,id DESC LIMIT $6 OFFSET $7`,[req.params.id,from,to,source,type,limit+1,offset])).rows;
     await audit(req,'user.timeline_read');res.json({...list(rows,limit),from,to,historicalClicksReconstructed:false});

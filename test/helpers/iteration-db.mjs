@@ -9,6 +9,7 @@ import {createEventRecorder} from '../../server/operations/events.mjs';
 import {installOperationsRoutes} from '../../server/operations/routes.mjs';
 import {installAdminAccess,adminTokenHash} from '../../server/operations/admin-access.mjs';
 import {installAccessRoutes} from '../../server/operations/access-routes.mjs';
+import {requestContext,applyRequestContext,trackedMutation,withRequestContext} from '../../server/operations/request-context.mjs';
 
 export async function iterationFixture({schemas=[],production=false}={}) {
   const cfg=JSON.parse(await readFile(process.env.ITERATION_DB_CONFIG || new URL('../../.runtime/local.json',import.meta.url),'utf8'));
@@ -16,8 +17,8 @@ export async function iterationFixture({schemas=[],production=false}={}) {
   // Leave headroom in the local 30-connection database for the running app and
   // browser preview when several isolated suites execute concurrently.
   const pool=new pg.Pool({host:'127.0.0.1',port:cfg.port,user:'seatraces',password:cfg.password,database:'seatraces',max:4,connectionTimeoutMillis:5000,options:`-c search_path=${schema},public`});
-  const query=(...args)=>pool.query(...args);
-  const transaction=async fn=>{const c=await pool.connect();try{await c.query('BEGIN');const result=await fn(c);await c.query('COMMIT');return result;}catch(e){await c.query('ROLLBACK');throw e;}finally{c.release();}};
+  const query=(sql,values)=>requestContext()&&trackedMutation(sql)?transaction(c=>c.query(sql,values)):pool.query(sql,values);
+  const transaction=async fn=>{const c=await pool.connect();try{await c.query('BEGIN');await applyRequestContext(c);const result=await fn(c);await c.query('COMMIT');return result;}catch(e){await c.query('ROLLBACK');throw e;}finally{c.release();}};
   let server,events,created=false;
   async function close(){await new Promise(resolve=>server?server.close(resolve):resolve());await events?.close();try{if(created)await query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`);}finally{await pool.end();}}
   try{
@@ -38,6 +39,7 @@ export async function iterationFixture({schemas=[],production=false}={}) {
     app.use('/api',accounts.attach,events.middleware);
     installAdminAccess(app,{query,transaction,production});
     app.use('/api',accounts.gate,accounts.router);
+    app.use('/api',withRequestContext);
     installOperationsRoutes(app,{auth:requireUser,query,transaction,events});
     installAccessRoutes(app,{query,transaction,events});
     const users={};

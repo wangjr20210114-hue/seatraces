@@ -1,5 +1,6 @@
 import pg from "pg";
 import { readFile } from "node:fs/promises";
+import {requestContext,applyRequestContext,trackedMutation} from './operations/request-context.mjs';
 export const pool = new pg.Pool({
   connectionString: process.env.DATABASE_URL,
   max: 8,
@@ -15,11 +16,13 @@ pool.on("error", (error) =>
       ")",
   ),
 );
-export const query = (sql, values) => pool.query(sql, values);
+export const query = (sql, values) => requestContext()&&trackedMutation(sql)
+  ? transaction(c=>c.query(sql,values)) : pool.query(sql, values);
 export async function transaction(fn) {
   const c = await pool.connect();
   try {
     await c.query("BEGIN");
+    await applyRequestContext(c);
     const r = await fn(c);
     await c.query("COMMIT");
     return r;
@@ -68,6 +71,7 @@ export async function migrate() {
   await transaction(async c => c.query(await readFile(new URL('./operations/access-schema.sql', import.meta.url), 'utf8')));
   await transaction(async c => c.query(await readFile(new URL('./operations/inbox-schema.sql', import.meta.url), 'utf8')));
   await transaction(async c => c.query(await readFile(new URL('./citywalk-expansion-schema.sql', import.meta.url), 'utf8')));
+  await transaction(async c => c.query(await readFile(new URL('./operations/product-schema.sql', import.meta.url), 'utf8')));
 }
 export async function savePlace(p, c = pool) {
   const search = [p.name, ...(p.aliases || []), p.city, p.province].join(" ");

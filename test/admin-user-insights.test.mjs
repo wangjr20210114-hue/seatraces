@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
+import {readFile} from 'node:fs/promises';
 import {iterationFixture} from './helpers/iteration-db.mjs';
 import {installUserInsights} from '../server/operations/user-insights.mjs';
 const schemas=['schema.sql','citywalk-schema.sql','agent/schema.sql','operations/inbox-schema.sql','citywalk-expansion-schema.sql'];
@@ -20,6 +21,8 @@ test('user overview joins owned data, distinguishes evidence and audits sensitiv
     await f.query(`INSERT INTO inbox_campaigns(id,created_by,title,body,audience,status) VALUES($1,$2,'旅行提醒','PRIVATE_MESSAGE_BODY','all','sent')`,[campaign,f.users.admin.id]);
     await f.query('INSERT INTO inbox_messages(campaign_id,user_id) VALUES($1,$2)',[campaign,owner]);
     await f.events.append({userId:owner,kind:'request',action:'POST /api/journey/sessions/:id/generate',status:503,durationMs:1000,requestId:randomUUID()});
+    // Existing historical records precede the new event collector.
+    await f.query(await readFile(new URL('../server/operations/product-schema.sql',import.meta.url),'utf8'));
     await f.start();const base='/api/admin/users/'+owner;
     await t.test('USR01 summary fields exclude credentials, precise origin and conversation content',async()=>{
       const r=await f.request(base+'/summary');assert.equal(r.status,200);const c=r.data.counts;
@@ -40,6 +43,9 @@ test('user overview joins owned data, distinguishes evidence and audits sensitiv
       assert.equal((await f.request(base+'/timeline?from=2026-02-30')).status,400);
       assert.equal((await f.request(base+'/timeline?from=2026-01-01&to=2026-10-16')).status,400);
       assert.equal((await f.request(base+'/timeline?source=business&type=request')).data.items.length,0);
+      await f.query('UPDATE trips SET version=2 WHERE id=$1',[trip]);
+      const after=await f.request(base+'/timeline');assert.equal(after.data.items.filter(e=>e.action==='trip.updated').length,1);
+      assert.equal(after.data.items.filter(e=>e.action==='trip.version_saved').length,0,'new event replaces duplicate historical version projection');
     });
     await t.test('USR03 all tabs paginate and read only the requested user',async()=>{
       const trips=await f.request(base+'/trips');assert.equal(trips.data.items[0].start_date,'2026-10-20');assert.equal(trips.data.items[0].day_count,2);assert.equal(trips.data.items[0].id,trip);
