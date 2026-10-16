@@ -12,7 +12,9 @@ test('ADM-AUTH: independent management login, protected document and session bou
   const f=await iterationFixture({production:true});let frontend;
   try{
     const port=await f.start();
-    frontend=http.createServer(createFrontend({backendOrigin:'http://127.0.0.1:'+port,proxyTimeoutMs:1000}));
+    // Use the real proxy timeout: concurrent bcrypt checks can exceed one second.
+    // The outage case below keeps its explicit short timeout and fail-closed assertions.
+    frontend=http.createServer(createFrontend({backendOrigin:'http://127.0.0.1:'+port}));
     await new Promise(r=>frontend.listen(0,'127.0.0.1',r));
     const base='http://127.0.0.1:'+frontend.address().port;
     const request=(path,cookie='',body,extra={})=>fetch(base+path,{redirect:'manual',method:body?'POST':'GET',headers:{Cookie:cookie,'Content-Type':'application/json','X-Seatraces':'1',...extra},...(body?{body:JSON.stringify(body)}:{})});
