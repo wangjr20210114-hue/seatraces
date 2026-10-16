@@ -17,6 +17,8 @@ let activeContext,
   boundaryFitted = false;
 const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 const home = new URLSearchParams(location.search).get("mode") === "home";
+const thumbnail = new URLSearchParams(location.search).get("mode") === "thumbnail";
+if (thumbnail) document.documentElement.classList.add("thumbnail");
 const status = document.querySelector("#status");
 const escapeText = (s) =>
   String(s ?? "").replace(
@@ -102,7 +104,7 @@ function pins(points, overview = false) {
         anchor: "bottom-center",
         content:
           '<div class="map-callout"><div class="map-pin"><b>' +
-          (overview && p.id === "origin" ? "起" : i + 1) +
+          (overview && p.id === "origin" ? "起" : thumbnail ? Number(p.number) || i + 1 : i + 1) +
           "</b><span>" +
           escapeText(p.name) +
           '</span></div><span class="pin-stem" style="height:8px"></span><span class="pin-dot"></span></div>',
@@ -390,6 +392,7 @@ window.addEventListener("message", (e) => {
     });
     map = new AMap.Map("map", {
       zoom: home ? 11 : 13,
+      ...(thumbnail ? {dragEnable:false,zoomEnable:false,doubleClickZoom:false,keyboardEnable:false} : {}),
       center: home ? [121.4737, 31.2304] : undefined,
       viewMode: "2D",
       mapStyle: "amap://styles/whitesmoke",

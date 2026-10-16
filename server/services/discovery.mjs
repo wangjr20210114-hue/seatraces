@@ -11,6 +11,7 @@ export function publicRoute(kind, route) {
     days: days.map(day => ({ city: day.city, stops: (day.stops || []).map(p => ({
       id: p.id, name: p.name, lat: p.lat, lng: p.lng, category: p.category,
       source_url: p.source_url, license: p.license,
+      country: p.country, crs: p.crs, extract_region: p.extract_region, mainlandCityVerified: p.mainlandCityVerified,
     })) })),
   };
 }
@@ -30,6 +31,18 @@ export function installDiscoveryRoutes(app, { auth, query = dbQuery }) {
       RETURNING *`, [randomUUID(),req.user.id,id,route.title.slice(0,100),
       kind === 'citywalk' ? `${route.stops.length} 个景点，串成一条 CityWalk。` : `${snapshot.days.length} 天路线，看看沿途有哪些好风景。`,
       kind === 'citywalk' ? ['CityWalk'] : route.request.interests || [], JSON.stringify(snapshot)])).rows[0];
+    res.json(post);
+  });
+  app.patch('/api/discovery/posts/:id', auth, async (req, res) => {
+    const id = z.uuid().parse(req.params.id);
+    const { title, body } = z.object({
+      title: z.string().trim().min(1).max(100),
+      body: z.string().trim().min(1).max(4000),
+    }).strict().parse(req.body);
+    const post = (await query(`UPDATE posts SET title=$1,body=$2
+      WHERE id=$3 AND user_id=$4 AND NOT auto_shared RETURNING *`,
+      [title,body,id,req.user.id])).rows[0];
+    if (!post) return res.status(404).json({error:'帖子不存在或无权编辑'});
     res.json(post);
   });
   app.get('/api/discovery/mine', auth, async (req, res) => {
