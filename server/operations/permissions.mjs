@@ -44,6 +44,7 @@ const rules=[
   ['POST',/^\/messages(?:\/[^/]+\/(send|cancel))?$/, 'messages.manage'],
   ['PUT',/^\/messages\/[^/]+$/, 'messages.manage'],
   ['POST',/^\/places\/import$/, 'places.manage'],
+  ['GET',/^\/places\/(quality|coverage|search|inspect)$/, 'places.read'],
 ];
 export function routePermission(method,path) {
   return rules.find(([verb,pattern])=>verb===(method==='HEAD'?'GET':method)&&pattern.test(path.replace(/\/$/,'')))?.[2] || null;

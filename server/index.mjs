@@ -15,6 +15,7 @@ import { installAccessRoutes } from './operations/access-routes.mjs';
 import { installUserInsights } from './operations/user-insights.mjs';
 import { installAnalytics } from './operations/analytics.mjs';
 import { installAgentInsights } from './operations/agent-insights.mjs';
+import {installPlaceQuality} from './operations/place-quality.mjs';
 import { installJourneyInsights } from './operations/journey-insights.mjs';
 import { withRequestContext } from './operations/request-context.mjs';
 import {installMessageInsights} from './operations/message-insights.mjs';
@@ -110,6 +111,7 @@ installAgentInsights(app,{query,events:operationEvents});
 installJourneyInsights(app,{query,events:operationEvents});
 installInboxRoutes(app,{auth,query,transaction,events:operationEvents});
 installMessageInsights(app,{query,events:operationEvents});
+installPlaceQuality(app,{query,events:operationEvents,catalogRequest});
 app.use('/_AMapService', (req,res,next)=>{
   if(!guestMapStyle(req.path,req.method))return auth(req,res,next);
   const key=req.ip+':map',now=Date.now();let v=rate.get(key);
