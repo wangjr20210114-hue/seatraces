@@ -13,6 +13,9 @@ export function managementAccess(user) {
 }
 export const can=(access,permission)=>!!access && (access.permissions.includes('*')||access.permissions.includes(permission));
 const rules=[
+  ['GET',/^\/events\/views$/, 'events.read'],
+  ['PUT',/^\/events\/views\/[^/]+$/, 'events.read'],
+  ['DELETE',/^\/events\/views\/[^/]+$/, 'events.read'],
   ['GET',/^\/archives(?:\/policy)?$/, 'archives.read'],
   ['GET',/^\/archives\/[^/]+\/download$/, 'archives.export'],
   ['POST',/^\/archives\/(preview|start|rollups)$/, 'archives.manage'],

@@ -31,7 +31,7 @@ export async function iterationFixture({schemas=[],production=false}={}) {
     await query(`CREATE TABLE users(id uuid PRIMARY KEY,username varchar(32) UNIQUE NOT NULL,password_hash text NOT NULL,nickname varchar(40) NOT NULL,avatar varchar(12) NOT NULL DEFAULT '🌊',role text NOT NULL DEFAULT 'user',preferences jsonb NOT NULL DEFAULT '{}',created_at timestamptz NOT NULL DEFAULT now());
       CREATE TABLE sessions(token_hash text PRIMARY KEY,user_id uuid REFERENCES users(id) ON DELETE CASCADE,expires_at timestamptz);
       CREATE TABLE import_jobs(id uuid PRIMARY KEY,source text,rows_count integer,status text,created_at timestamptz DEFAULT now());`);
-    for(const file of ['auth-schema.sql','operations/schema.sql','operations/access-schema.sql',...schemas])await query(await readFile(new URL('../../server/'+file,import.meta.url),'utf8'));
+    for(const file of ['auth-schema.sql','operations/schema.sql','operations/access-schema.sql','operations/log-views-schema.sql',...schemas])await query(await readFile(new URL('../../server/'+file,import.meta.url),'utf8'));
     events=createEventRecorder({query,intervalMs:60000});
     const accounts=createAccounts({query,transaction});
     const app=express();app.use(express.json(),cookieParser());

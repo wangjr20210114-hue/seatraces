@@ -1,3 +1,4 @@
+import {mountLogExplorer} from './admin-log-explorer.js';
 import {mountAdminCityWalks} from './admin-citywalks.js';
 import {createAdminDetails} from './admin-details.js';
 import {mountAdminMessages} from './admin-messages.js';
@@ -23,7 +24,7 @@ function navigate(next,id='',tab='overview'){
   if(location.hash===hash){void render();return;}location.hash=hash;
 }
 function readRoute(){
-  const parts=location.hash.replace(/^#\/?/,'').split('/');section=names[parts[0]]?parts[0]:'overview';
+  const parts=location.hash.split('?')[0].replace(/^#\/?/,'').split('/');section=names[parts[0]]?parts[0]:'overview';
   userId=['users','agent','journeys'].includes(section)&&/^[a-f\d-]{36}$/.test(parts[1]||'')?parts[1]:'';userTab=parts[2]||'overview';offset=0;
 }
 const content=$('#admin-content'),status=$('#admin-status');
@@ -68,14 +69,7 @@ async function render(){
       content.querySelectorAll('[data-user]').forEach(b=>b.onclick=()=>void confirmUser(v.items.find(u=>u.id===b.dataset.user)));
       content.querySelectorAll('[data-trace]').forEach(b=>b.onclick=()=>navigate('users',b.dataset.trace,'timeline'));pager(v.hasMore);
     }else if(section==='events'){
-      const v=await api('/api/admin/events?'+new URLSearchParams({...filters,offset}));if(own!==revision)return;
-      content.innerHTML=`<form id="log-filter" class="filters"><label>开始<input type="date" name="from" value="${esc(filters.from||'')}"></label><label>结束<input type="date" name="to" value="${esc(filters.to||'')}"></label><label>类型<select name="kind"><option value="">全部</option><option value="navigation">页面轨迹</option><option value="request">接口操作</option><option value="admin">管理审计</option><option value="system">系统错误</option></select></label><button>筛选</button><button type="button" id="clear-filter">清除</button><button type="button" id="export">下载日志 ↓</button></form>`+table(['时间','用户','类型','操作','状态 / 耗时','详情'],v.items.map(e=>`<tr><td>${time(e.created_at)}</td><td>${esc(e.username||'系统')}</td><td>${esc(e.kind)}</td><td>${esc(e.action)}</td><td>${e.status||'—'}${e.duration_ms===null?'':` / ${e.duration_ms}ms`}</td><td><button data-event="${e.id}">查看</button></td></tr>`));
-      content.querySelectorAll('[data-event]').forEach(b=>b.onclick=()=>void details.event(b.dataset.event));
-      $('#export').hidden=!can('events.export');
-      $('#log-filter select').value=filters.kind||'';
-      $('#log-filter').onsubmit=e=>{e.preventDefault();filters={...(filters.userId?{userId:filters.userId}:{}),...Object.fromEntries([...new FormData(e.target)].filter(([,v])=>v))};offset=0;void render();};
-      $('#clear-filter').onclick=()=>{filters={};offset=0;void render();};
-      $('#export').onclick=async()=>{const b=$('#export');b.disabled=true;try{const r=await fetch('/api/admin/events/export?'+new URLSearchParams(filters));if(!r.ok)throw Error((await r.json()).error);const url=URL.createObjectURL(await r.blob()),a=document.createElement('a');a.href=url;a.download='seatraces-operations.log.gz';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}catch(e){status.textContent=e.message;}finally{b.disabled=false;}};pager(v.hasMore);
+      await mountLogExplorer({content,status,api,isCurrent:()=>revision===own,can,details,navigate});return;
     }else if(section==='content'){
       await mountModeration({content,status,api,isCurrent:()=>revision===own});return;
     }else if(section==='quality'){

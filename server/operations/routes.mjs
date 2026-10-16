@@ -1,3 +1,6 @@
+import {eventFilters,eventQuery} from './event-query.mjs';
+export {eventFilters} from './event-query.mjs';
+import {installLogViews} from './log-views.mjs';
 import {z} from 'zod';
 import {gzip} from 'node:zlib';
 import {promisify} from 'node:util';
@@ -8,15 +11,8 @@ const fail=(message,status=400)=>Object.assign(Error(message),{status});
 export const requireAdmin=requireManagement;
 const pagination=z.object({limit:z.coerce.number().int().min(1).max(100).default(30),offset:z.coerce.number().int().min(0).max(100000).default(0)});
 const pages=['home','citywalk','services','agent','profile','account','history','settings','messages','favorites','browsing','report','discover'];
-export function eventFilters(input, now=new Date()) {
-  const v=z.object({from:z.iso.date().optional(),to:z.iso.date().optional(),userId:z.uuid().optional(),kind:z.enum(['request','navigation','admin','system']).optional()}).parse(input);
-  const end=v.to?new Date(v.to+'T00:00:00+08:00').getTime()+86400000:now.getTime()+1;
-  const start=v.from?new Date(v.from+'T00:00:00+08:00').getTime():end-7*86400000;
-  if(end<=start||end-start>31*86400000)throw fail('请选择不超过 31 天的有效日期范围');
-  return [new Date(start).toISOString(),new Date(end).toISOString(),v.userId||null,v.kind||null];
-}
-const where='e.created_at >= $1 AND e.created_at < $2 AND ($3::uuid IS NULL OR e.user_id=$3) AND ($4::text IS NULL OR e.kind=$4)';
 export function installOperationsRoutes(app,{auth,query,transaction,events}) {
+  installLogViews(app,{query,transaction,events});
   app.get('/api/admin/cities',auth,requireAdmin,async(req,res)=>{
     const q=z.string().trim().max(100).default('').parse(req.query.q).replace(/[\\%_]/g,'\\$&');
     res.json((await query("SELECT id,name,province,country FROM places WHERE category='city' AND name ILIKE $1 ORDER BY name,id LIMIT 10",['%'+q+'%'])).rows);
@@ -82,14 +78,14 @@ export function installOperationsRoutes(app,{auth,query,transaction,events}) {
     res.json(user);
   });
   app.get('/api/admin/events',auth,requireAdmin,async(req,res)=>{
-    const {limit,offset}=pagination.parse(req.query),filters=eventFilters(req.query);
-    const rows=(await query(`SELECT e.*,u.username FROM operation_events e LEFT JOIN users u ON u.id=e.user_id WHERE ${where} ORDER BY e.created_at DESC,e.id DESC LIMIT $5 OFFSET $6`,[...filters,limit+1,offset])).rows;
+    const {limit,offset}=pagination.parse(req.query),selection=eventQuery(req.query),filters=selection.values;
+    const rows=(await query(`SELECT e.*,u.username FROM operation_events e LEFT JOIN users u ON u.id=e.user_id WHERE ${selection.where} ORDER BY ${selection.order} LIMIT $${filters.length+1} OFFSET $${filters.length+2}`,[...filters,limit+1,offset])).rows;
     await requireRawCoverage(query,filters[0],filters[1],{stream:'operation',userId:filters[2]});
     res.json({items:rows.slice(0,limit),hasMore:rows.length>limit});
   });
   app.get('/api/admin/events/export',auth,requireAdmin,async(req,res)=>{
-    const filters=eventFilters(req.query);
-    const rows=(await query(`SELECT e.*,u.username FROM operation_events e LEFT JOIN users u ON u.id=e.user_id WHERE ${where} ORDER BY e.created_at,e.id LIMIT 20001`,filters)).rows;
+    const selection=eventQuery(req.query),filters=selection.values;
+    const rows=(await query(`SELECT e.*,u.username FROM operation_events e LEFT JOIN users u ON u.id=e.user_id WHERE ${selection.where} ORDER BY ${selection.order} LIMIT 20001`,filters)).rows;
     await requireRawCoverage(query,filters[0],filters[1],{stream:'operation',userId:filters[2]});
     if(rows.length>20000)throw fail('日志超过 20,000 条，请缩小日期范围后导出',413);
     const data=await compress(Buffer.from(rows.map(r=>JSON.stringify(r)).join('\n')+'\n'));
