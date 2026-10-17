@@ -1,5 +1,6 @@
 "use strict";
 let map,
+  mapReady = false,
   payload,
   lastFitKey,
   lastFocusKey,
@@ -191,7 +192,7 @@ function boundaries(b, district) {
   ];
 }
 function paint() {
-  if (!map || !payload) return;
+  if (!map || !mapReady || !payload || !document.querySelector("#map").clientWidth || !document.querySelector("#map").clientHeight) return;
   const context = payload.contextKey || "legacy",
     changed = context !== activeContext;
   if (changed) {
@@ -395,10 +396,20 @@ window.addEventListener("message", (e) => {
       mapStyle: "amap://styles/whitesmoke",
     });
     map.on("complete", () => {
+      mapReady = true;
       if (home) status.hidden = true;
       parent.postMessage({ type: "seatraces-map-ready" }, location.origin);
       paint();
     });
+    // A closed details panel has no usable viewport. Fit after it becomes visible.
+    let previousSize = '';
+    new ResizeObserver(() => {
+      const el = document.querySelector('#map'), size = el.clientWidth + ':' + el.clientHeight;
+      if(size === previousSize) return;
+      previousSize = size;
+      if(!el.clientWidth || !el.clientHeight) return;
+      if(!manuallyMoved || payload?.lockView) { lastFitKey = undefined; requestAnimationFrame(paint); }
+    }).observe(document.querySelector('#map'));
     map.on("zoomend", onZoom);
     document.querySelector("#zoom-in").onclick = () => {
       userGesture = true;

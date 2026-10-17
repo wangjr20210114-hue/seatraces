@@ -11,10 +11,11 @@ test("day fit excludes city/road overlays; user zoom switches layers without ref
     elements.get(id) ||
     elements
       .set(id, {
+        clientWidth:390,clientHeight:440,
         addEventListener: (name, fn) => {
           listeners[name] = fn;
         },
-        classList: { add() {} },
+        classList: { add() {}, remove() {} },
         append() {},
       })
       .get(id);
@@ -71,6 +72,8 @@ test("day fit excludes city/road overlays; user zoom switches layers without ref
     },
     AMap: { Map: MapStub, Marker: Overlay, Polyline: Overlay },
     AbortSignal,
+    requestAnimationFrame:fn=>fn(),
+    ResizeObserver:class {constructor(fn){listeners.resize=fn;}observe(){}},
     fetch: async () => ({
       ok: true,
       json: async () => ({ enabled: true, jsKey: "test" }),
@@ -135,6 +138,9 @@ test("day fit excludes city/road overlays; user zoom switches layers without ref
     ],
   };
   post(payload);
+  assert.equal(fits.length, 0, "payload before SDK completion must not consume the fit");
+  mapEvents.complete();
+  messages.length=0;
   assert.equal(fits.length, 1);
   assert.equal(fits[0].items.length, 3);
   assert.ok(
@@ -166,4 +172,10 @@ test("day fit excludes city/road overlays; user zoom switches layers without ref
   listeners.wheel(); map.zoom = 6; mapEvents.zoomend();
   assert.equal(messages.length, count, 'zooming a CityWalk must not switch to an empty overview');
   assert.equal(fits.at(-1).items.length, 3, 'CityWalk fits its two stops and connecting curve');
+  const before=fits.length;
+  element('#map').clientWidth=0;listeners.resize();post({...payload,kind:'citywalk',lockView:true,fitKey:'reopen'});
+  assert.equal(fits.length,before,'hidden container must not consume its new fit key');
+  element('#map').clientWidth=390;listeners.resize();
+  assert.equal(fits.length,before+1,'opening a collapsed route refits once after layout');
 });
+

@@ -182,7 +182,7 @@ test("map layer updates preserve route, user camera and context; only explicit s
   const node = (id) => {
     if (!nodes.has(id))
       nodes.set(id, {
-        hidden: false,
+        hidden: false, clientWidth:390, clientHeight:400,
         classList: { add() {}, remove() {} },
         addEventListener(name, fn) {
           listeners[id + name] = fn;
@@ -252,7 +252,7 @@ test("map layer updates preserve route, user camera and context; only explicit s
     fakeMap,
   });
   vm.runInContext(source, context);
-  vm.runInContext("map=fakeMap", context);
+  vm.runInContext("map=fakeMap;mapReady=true", context);
   const send = (data) =>
     listeners.message({
       origin: "http://test",
