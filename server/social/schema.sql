@@ -40,3 +40,30 @@ CREATE TABLE IF NOT EXISTS social_ai_jobs (
 );
 CREATE UNIQUE INDEX IF NOT EXISTS social_ai_pending ON social_ai_jobs(draft_id,draft_version) WHERE state='running';
 CREATE INDEX IF NOT EXISTS social_ai_owner_time ON social_ai_jobs(user_id,created_at DESC);
+CREATE TABLE IF NOT EXISTS user_follows (
+ user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+ author_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+ created_at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY(user_id,author_id), CHECK(user_id<>author_id)
+);
+CREATE TABLE IF NOT EXISTS social_feedback (
+ user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE, post_id uuid NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+ kind text NOT NULL CHECK(kind='not_interested'), created_at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY(user_id,post_id)
+);
+CREATE TABLE IF NOT EXISTS social_feed_sessions (
+ id uuid PRIMARY KEY, user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+ post_ids uuid[] NOT NULL CHECK(cardinality(post_ids)<=120), scope text NOT NULL,
+ profile_version text NOT NULL DEFAULT 'chronological/1', expires_at timestamptz NOT NULL DEFAULT now()+interval '30 minutes'
+);
+CREATE INDEX IF NOT EXISTS social_feed_expiry ON social_feed_sessions(expires_at);
+CREATE TABLE IF NOT EXISTS social_impressions (
+ id uuid PRIMARY KEY, user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE, post_id uuid NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+ context text NOT NULL CHECK(context IN ('feed','detail')), visible_ms integer NOT NULL DEFAULT 0 CHECK(visible_ms BETWEEN 0 AND 120000),
+ created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS social_impressions_user_time ON social_impressions(user_id,created_at DESC);
+CREATE TABLE IF NOT EXISTS social_notifications (
+ id uuid PRIMARY KEY DEFAULT gen_random_uuid(), user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+ actor_id uuid REFERENCES users(id) ON DELETE CASCADE, post_id uuid REFERENCES posts(id) ON DELETE CASCADE,
+ kind text NOT NULL CHECK(kind IN ('like','recommend','comment','follow')), resource_key text NOT NULL,
+ read_at timestamptz, created_at timestamptz NOT NULL DEFAULT now(), UNIQUE(user_id,actor_id,kind,resource_key)
+);

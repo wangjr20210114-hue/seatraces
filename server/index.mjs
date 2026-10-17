@@ -2,6 +2,7 @@ import {guestMapStyle} from '../public/guest-policy.js';
 import {installDraftRoutes} from './social/drafts.mjs';
 import {installSocialMedia} from './social/media.mjs';
 import {installWritingRoutes} from './social/writing.mjs';
+import {installSocialCommunity,socialNotify} from './social/community.mjs';
 import {installPersonalCenter} from './services/personal-center.mjs';
 import {installClassicWalkRoutes,seedClassicWalks} from './services/classic-citywalks.mjs';
 import { installDiscoveryRoutes, publicRoute } from "./services/discovery.mjs";
@@ -124,7 +125,11 @@ installPlaceQuality(app,{query,events:operationEvents,catalogRequest});
 installModeration(app,{auth,query,transaction,events:operationEvents});
 const maintenance=installMaintenance(app,{query,transaction,events:operationEvents,extraExecutors:{...archiveExecutors({query,transaction,events:operationEvents}),log_export:logExports.execute}});
 installArchiveRoutes(app,{query,transaction,events:operationEvents});
-installCommunityInteractions(app,{auth,query,transaction});
+installCommunityInteractions(app,{auth,query,transaction,
+ onReaction:async(c,{id,userId,kind,active})=>{if(!active||kind==='save')return;const p=(await c.query('SELECT user_id FROM posts WHERE id=$1',[id])).rows[0];if(p)await socialNotify(c,{owner:p.user_id,actor:userId,post:id,kind,key:id});},
+ onComment:async(c,{id,userId,commentId})=>{const p=(await c.query('SELECT user_id FROM posts WHERE id=$1',[id])).rows[0];if(p)await socialNotify(c,{owner:p.user_id,actor:userId,post:id,kind:'comment',key:commentId});}
+});
+installSocialCommunity(app,{auth,query,transaction});
 installPersonalCenter(app,{auth,query,transaction});
 installDraftRoutes(app,{auth,query,transaction});
 installSocialMedia(app,{auth,query,transaction});
