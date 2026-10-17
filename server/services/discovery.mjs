@@ -10,6 +10,7 @@ export function publicRoute(kind, route) {
     ...(kind === 'citywalk' ? { distance_m: route.distance_m } : {}),
     days: days.map(day => ({ city: day.city, stops: (day.stops || []).map(p => ({
       id: p.id, name: p.name, lat: p.lat, lng: p.lng, category: p.category,
+      country: p.country, coord_system: p.coord_system || 'WGS84', mainlandCityVerified: p.mainlandCityVerified,
       source_url: p.source_url, license: p.license,
     })) })),
   };

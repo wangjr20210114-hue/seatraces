@@ -1,4 +1,6 @@
-import { mountDiscovery, publishRoute } from "./discovery.js";
+import { mountDiscovery, mountPersonalPosts, publishRoute } from "./discovery.js";
+import {mountComposer} from './social-composer.js';
+import {mountSocialPost} from './social-post.js';
 import {guestPage} from './guest-policy.js';
 import { uniqueCities } from "./city-selection.js";
 import { createCityWalkHome, renderCityWalkEditor } from "./citywalk.js";
@@ -110,6 +112,7 @@ const state = {
   routes: {},
   limit: 24,
   district: "",
+  inspiration: null,
 };
 let me,
   cityResults = [],
@@ -332,7 +335,10 @@ const navigation = createPageNavigation({
       const content = document.createElement("div");
       $("#page-content").replaceChildren(content);
       $("#detail-page").scrollTop = 0;
-      if (['settings','messages'].includes(route.page)) {
+      if (['post','compose'].includes(route.page)) {
+        const mount=route.page==='post'?mountSocialPost:mountComposer;
+        void mount({route,content,setTitle,api,navigate:path=>navigation.go(path),toast,isCurrent:()=>revision===pageRevision,onAdopt:adoptSocialRoute}).then(cleanup=>{if(revision===pageRevision)pageCleanup=cleanup;else cleanup?.();});
+      } else if (['settings','messages','social-messages'].includes(route.page)) {
         void renderInbox({route,content,setTitle,api,navigate:path=>navigation.go(path),isCurrent:()=>revision===pageRevision});
       } else if (route.page === 'agent') {
         pageCleanup = mountAgent({content,setTitle,api,userId:me.user.id,context:agentContext,isCurrent:()=>revision===pageRevision,navigate:path=>navigation.go(path)});
@@ -376,10 +382,11 @@ const navigation = createPageNavigation({
     } else {
       $("#page-content").replaceChildren();
       document.title = pageNames[route.page] + " · SeaTraces";
-      if (route.page === "discover") pageCleanup = mountDiscovery({ content: $("#discovery-content"), api });
+      if (route.page === "discover") pageCleanup = mountDiscovery({ content: $("#discovery-content"), api, navigate:path=>navigation.go(path),toast });
       if (route.page === "profile") {
         syncProfile();
         void refreshPersonalOverview({element:$('#personal-overview'),api,isCurrent:()=>revision===pageRevision});
+        pageCleanup=mountPersonalPosts({content:$('#personal-posts'),api,navigate:path=>navigation.go(path),toast});
       }
       if (route.page === "home") {
         if (state.trip) paintTrip();
@@ -564,6 +571,12 @@ async function render() {
             );
         } while (data.status === "loading");
         state.catalog[city.id] = data;
+        if(state.inspiration){
+          const ids=new Set(state.inspiration.placeIds),matches=data.clusters.flatMap(g=>g.members).filter(p=>ids.has(p.id));
+          // Reuse the same validated wish endpoint used by the ordinary questionnaire.
+          for(const p of matches.slice(0,60)){if(state.session?.id!==sessionId||state.step!==s||!$('#wizard').open)return;await api(`/api/journey/sessions/${sessionId}/wishes`,{placeId:p.id,wanted:true});p.wanted=true;}
+          if(matches.length)toast(`已带入 ${matches.length} 个当前可选地点`);
+        }
       }
       setBusy(false);
       renderClusters(city);
@@ -894,6 +907,7 @@ $("#next").onclick = async () => {
       state.catalog = {};
       state.questions = [];
       state.selections = {};
+      state.inspiration = null;
       return;
     }
     await turn(s + 1);
@@ -921,6 +935,20 @@ $("#begin").onclick = async () => {
     toast(e.message);
   }
 };
+async function adoptSocialRoute(post){
+  const cities=[];
+  for(const name of [...new Set(post.snapshot?.cities||[])].slice(0,5)){
+    const list=await api('/api/places?category=city&q='+encodeURIComponent(name));
+    const exact=uniqueCities(list.filter(c=>c.name.replace(/市$/,'')===name.replace(/市$/,'')));
+    if(exact.length!==1)throw Error('目的城市需重新确认，请从旅行页选择');cities.push(exact[0]);
+  }
+  if(!cities.length)throw Error('这条分享没有可用的目的城市');
+  await api('/api/social/posts/'+post.id+'/adopt',{});
+  invalidateSession();state.cities=cities;state.start='';state.end='';state.step=0;
+  state.inspiration={postId:post.id,placeIds:[...new Set((post.snapshot.days||[]).flatMap(d=>d.stops||[]).map(p=>p.id))]};
+  navigation.go('/home');await $('#begin').onclick();
+  toast('已带入路线地点，请确认你的出发地和日期');
+}
 function mapPayload() {
   const day = state.trip?.plan.days[state.day];
   const stops = (day?.stops || []).filter(hasPosition).map((p) => mapPoint(p));

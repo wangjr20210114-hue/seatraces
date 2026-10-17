@@ -15,8 +15,6 @@ export async function refreshPersonalOverview({ element, api, isCurrent }) {
     element.innerHTML = [
       ["history", d.trips, "行程"],
       ["walks", d.walks, "CityWalk"],
-      ["favorites", d.favorites, "收藏"],
-      ["messages", d.unread, "未读消息"],
     ]
       .map(
         ([path, n, label]) =>

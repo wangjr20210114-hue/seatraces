@@ -13,6 +13,7 @@ const pages = new Set([
   "settings",
   "messages",
   "walks", "style", "security", "help",
+  "post", "compose", "social-messages",
 ]);
 
 function parseRoute(hash) {
@@ -20,7 +21,7 @@ function parseRoute(hash) {
   const parts = pathname.split("/");
   const page = pages.has(parts[0]) ? parts[0] : "home";
   let id = "";
-  if (["history", "citywalk", "services", "messages", "favorites", "browsing"].includes(page) && parts[1]) {
+  if (["history", "citywalk", "services", "messages", "favorites", "browsing", "post", "compose"].includes(page) && parts[1]) {
     try {
       id = decodeURIComponent(parts[1]);
     } catch {
@@ -34,7 +35,7 @@ function parseRoute(hash) {
             ["day", "slot", "place", "radius", "recommendation"].includes(k),
           ),
         )
-      : {};
+      : page === 'compose' && new URLSearchParams(search).get('write') === '1' ? {write:'1'} : {};
   const query = new URLSearchParams(params).toString();
   return {
     page,
@@ -101,7 +102,7 @@ export function createPageNavigation({ onChange, onRepeat }) {
       if (history.state?.seatracesPage?.depth > 0) history.back();
       else
         go(
-          current?.page==='messages' ? current.id?'/messages':'/settings' : ["citywalk", "services"].includes(current?.page)
+          ['post','compose'].includes(current?.page)?'/discover':current?.page==='messages' ? current.id?'/messages':'/settings' : ["citywalk", "services"].includes(current?.page)
             ? "/home"
             : current?.id
               ? ['favorites','browsing'].includes(current.page)?'/'+current.page:'/history'

@@ -1,5 +1,6 @@
 import { renderAccountPage } from "./account-page.js";
 import {renderPersonalPage} from './personal-center.js';
+import {publishRoute} from './discovery.js';
 
 export async function renderProfilePage({
   route,
@@ -39,7 +40,7 @@ export async function renderProfilePage({
       if (!isCurrent()) return;
       setTitle("旅行详情");
       const days = trip.plan?.days || [];
-      content.innerHTML = `<div class="trip-detail-heading"><span class="eyebrow">MY JOURNEY</span><h2>${esc(trip.title)}</h2><p class="muted">${esc(trip.request?.start || "")} — ${esc(trip.request?.end || "")}</p></div>
+      content.innerHTML = `<div class="trip-detail-heading"><span class="eyebrow">MY JOURNEY</span><h2>${esc(trip.title)}</h2><button class="route-share" data-share-trip>分享 ↗</button><p class="muted">${esc(trip.request?.start || "")} — ${esc(trip.request?.end || "")}</p><p class="share-status" role="status"></p></div>
         ${trip.plan?.schemaVersion === "journey/2" ? '<button class="primary page-map-action">在地图上查看 ↗</button>' : ""}
         ${
           days
@@ -64,9 +65,10 @@ export async function renderProfilePage({
         }`;
       const mapButton = content.querySelector(".page-map-action");
       if (mapButton) mapButton.onclick = () => onTrip(trip);
+      content.querySelector('[data-share-trip]').onclick=e=>publishRoute({button:e.currentTarget,api,kind:'journey',id:trip.id,navigate,toast:message=>{if(isCurrent())content.querySelector('.share-status').textContent=message;}});
     } else if (route.page === "history") {
       content.innerHTML =
-        '<div class="history-list"></div><p class="page-status" role="status"></p><button class="loadmore" hidden>更多行程 ↓</button>';
+        '<a class="inline-action" href="#/report">旅行报告 ↗</a><div class="history-list"></div><p class="page-status" role="status"></p><button class="loadmore" hidden>更多行程 ↓</button>';
       const list = content.querySelector(".history-list"),
         status = content.querySelector(".page-status"),
         more = content.querySelector(".loadmore");

@@ -16,6 +16,7 @@
     <link rel="stylesheet" href="/map-workspace.css" />
     <link rel="stylesheet" href="/agent.css" />
     <link rel="stylesheet" href="/inbox.css" />
+    <link rel="stylesheet" href="/social.css" />
     <script defer src="/vendor/lottie_light.min.js"></script>
     <script type="module" src="/journey.js"></script>
   </head>
@@ -69,31 +70,21 @@
     </main>
     <section id="discover-page" class="app-page shell-page" aria-labelledby="discover-title" hidden>
       <div class="shell-content">
-        <header class="shell-heading"><span class="mini-mark" aria-hidden="true">✦</span><div><h1 id="discover-title">发现</h1><p>好路线，一起走。</p></div></header>
-        <p class="muted">把喜欢的路线发布到这里，也可以在“我的发布”查看自己分享的帖子。</p>
+        <header class="shell-heading"><span class="mini-mark" aria-hidden="true">✦</span><div><h1 id="discover-title">发现</h1></div></header>
         <div id="discovery-content" aria-live="polite"></div>
       </div>
     </section>
     <section id="profile-page" class="app-page shell-page" aria-labelledby="profile-title" hidden>
       <div class="shell-content">
-        <header class="shell-heading"><span class="mini-mark peach" aria-hidden="true">☺</span><div><h1 id="profile-title">我的</h1><p>每一程，都算数。</p></div></header>
+        <header class="profile-topbar"><h1 id="profile-title">我的</h1><div><a href="#/messages" aria-label="消息">✉</a><a href="#/settings" aria-label="设置">⚙</a></div></header>
         <button id="account" class="profile-card" aria-label="我的账号">
           <span id="profile-avatar" class="profile-avatar" aria-hidden="true">☺</span>
           <span class="profile-identity"><b id="profile-name">旅行者</b><span id="profile-account-label">登录，收好你的旅行</span></span>
           <span class="menu-arrow" aria-hidden="true">↗</span>
         </button>
         <div id="personal-overview" class="personal-stats" aria-label="我的旅行概况"></div>
-        <div class="profile-grid">
-          <button id="history" class="profile-tile"><span class="tile-icon mint" aria-hidden="true">↗</span><b>历史行程</b></button>
-          <button class="profile-tile" data-profile-page="walks"><span class="tile-icon peach" aria-hidden="true">〰</span><b>我的 CityWalk</b></button>
-          <button class="profile-tile" data-profile-page="favorites"><span class="tile-icon yellow" aria-hidden="true">☆</span><b>我的收藏</b></button>
-          <button class="profile-tile" data-profile-page="browsing"><span class="tile-icon peach" aria-hidden="true">◷</span><b>历史浏览</b></button>
-          <button class="profile-tile" data-profile-page="report"><span class="tile-icon lilac" aria-hidden="true">▤</span><b>旅行报告</b></button>
-          <button class="profile-tile" data-profile-page="style"><span class="tile-icon yellow" aria-hidden="true">✦</span><b>旅行偏好</b></button>
-          <button class="profile-tile" data-profile-page="messages"><span class="tile-icon mint" aria-hidden="true">✉</span><b>消息</b></button>
-          <button class="profile-tile" data-profile-page="settings"><span class="tile-icon lilac" aria-hidden="true">⚙</span><b>设置</b></button>
-        </div>
-        <p class="profile-signoff" aria-hidden="true">≈ 一路去玩</p>
+        <div id="personal-posts"></div>
+        <button id="history" hidden>历史行程</button>
         <a id="admin-entry" href="/admin.html" class="inline-action" hidden>管理后台 ↗</a>
       </div>
     </section>
