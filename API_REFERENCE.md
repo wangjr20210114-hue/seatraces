@@ -38,6 +38,28 @@
 
 ## 账号与个人资料
 
+### 2026-10-17 个人中心补全
+
+以下接口均要求普通登录 Cookie；写操作保留 `X-Seatraces: 1` 与原同源检查。不接受客户端指定用户 ID，无新增数据库表。分页接口最多 50 条；到访统计与计划中的景点分开。
+
+| 接口 | 输入 | 返回与副作用 |
+|---|---|---|
+| GET /api/me/overview | 无 | `{trips,walks,favorites,browsing,unread}`，只统计本人数据；隐藏帖子不计入收藏/浏览 |
+| GET /api/me/library/:kind | `kind=favorites/browsing`；`limit=1..50` 默认20，`offset=0..100000` 默认0 | `{items:[{id,title,tags,saved_at}],hasMore}`；按最近时间倒序，浏览按帖子去重 |
+| GET /api/me/library/:kind/:id | 同上 kind；帖子 UUID | `{id,title,body,tags,snapshot}`，必须存在于本人的收藏或浏览记录；已隐藏、无权限、无记录均404 |
+| DELETE /api/me/library/favorites/:id | 帖子 UUID | `{ok:true}`；只取消本人收藏，不删除原帖子或其他人的收藏，幂等 |
+| GET /api/me/style | 无 | `{values,versions,options,labels,valueLabels}`；默认与既有偏好合并有效的本人长期记忆 |
+| PUT /api/me/style | `{values,versions}` | `{ok:true}`；values 仅允许下列5维度，versions 为 GET 返回的版本映射；写入本人明确确认的记忆，冲突409，参数非法400 |
+| GET /api/me/security | 无 | `{activeSessions,passwordChangedAt,emailVerified}`；有效会话数量，不返回令牌或其他账号信息 |
+| POST /api/auth/change-password | `{currentPassword,newPassword}`，各8字符以上、最多72 UTF-8字节 | `{ok:true}`；核对当前密码，新旧不能相同；bcrypt12，事务更新、撤销全部旧会话及找回令牌，再签发当前新Cookie；错误400，限流429 |
+| POST /api/auth/revoke-other-sessions | `{password}` 当前密码 | `{ok:true}`；验证密码后保留当前应用会话、撤销其他会话（包括该账号后台会话）；错误400，限流429 |
+
+偏好枚举：`interests` 最多10个，来自既有兴趣选项；`pace=relaxed/balanced/full`；`transport=balanced/fewTransfers/fewWalking`；`crowd=avoid/balanced/lively`；`revisit=new/either`。前端读取 options，不另写一套枚举。写入依据记录为用户在偏好页面主动保存，供后续规划采用；不推断未提供的预算、健康信息。
+
+`GET /api/me/report` 保留 `completed,planned,cities,stops,interests,summary,source`，新增 `walks,visitedPlaces`。cities/stops 来自用户标记完成的行程，visitedPlaces 来自已有 presence 与 visited=true 记录并去重。数据库聚合而非拉取全部历史计划。`GET/DELETE /api/me/history` 保留兼容，清空浏览仍只影响本人。
+
+端到端：我的→概况/真实列表→详情；设置→旅行偏好→读取版本→保存记忆；设置→账号安全→用户输入当前密码→对应认证接口。密码操作必须由用户完成，智能体只可定位安全页面。
+
 实现：`server/auth.mjs`、`server/mail.mjs`。
 
 | 方法与路径（前缀 /api） | 输入 | 输出与职责 |

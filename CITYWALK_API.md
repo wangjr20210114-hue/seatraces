@@ -2,11 +2,13 @@
 
 ## 经典路线
 
+2026-10-17：初始路线扩为5城12条（每条4–7站、核验步行约1.4–3.4km），逐条地标、距离、来源见 [调研与实现](CITYWALK_PROFILE_RESEARCH.md)。下方“首批路线”保留历史基线；本次仅升级精确匹配旧基线的未编辑记录，不覆盖管理员修改/下架。
+
 经典路线由 PostgreSQL `classic_citywalks` 管理，轮播从后端读取；点击直接查看地图和站点，不再先进入自建路线问卷。地图使用已核验的高德步行路段折线，坐标为 GCJ-02；地点库存储坐标仍为 WGS84，显示时转换一次。
 
 | 接口 | 参数 | 功能 |
 |---|---|---|
-| GET `/api/citywalk/classics` | 无 | 已发布经典路线摘要（最多 100 条） |
+| GET `/api/citywalk/classics` | 无 | 已发布经典路线摘要（最多 100 条）；新增 `distance_m` 为已有步行米数，未核验可为 null |
 | GET `/api/citywalk/classics/:id` | slug ID | 站点、官方来源、核验日期、路线折线及实际步行距离 |
 | GET `/api/admin/citywalks` | 管理员会话 | 已发布/未发布路线和版本 |
 | GET `/api/admin/citywalk/places` | `cityId,q` | 从内部地点库搜索城市附近景点、餐饮和购物地点，不接收任意 URL |
@@ -28,13 +30,15 @@
 | 北京 | 烟袋斜街 → 银锭桥 → 恭王府 | 1,040m | [北京市“漫步北京”](https://www.beijing.gov.cn/ywdt/zwzt/gjxxfxcs/yhq/mbbj/index.html) |
 | 杭州 | 断桥残雪 → 平湖秋月 → 中山公园 → 楼外楼 | 2,058m | [杭州文旅精品线路，第 1 页](https://wgly.hangzhou.gov.cn/module/download/downfile.jsp?classid=0&filename=c3ccb4250d3143a09047ee20fbe1170c.pdf) |
 
-路线与核验快照在 `server/data/classic-citywalks.json`。启动仅插入缺失的初始路线，绝不覆盖后台编辑或重新启用已下架路线。后续现场封路、开放规则变化需管理员复核更新。
+路线与核验快照在 `server/data/classic-citywalks.json`。启动插入缺失路线；仅当旧记录标题/站点/来源/可见性精确匹配 replaces 基线、version=1 且 updated_by 为空时自动升级，绝不覆盖后台编辑或重新启用已下架路线。后续现场封路、开放规则变化需管理员复核更新。
 
 ## 距离限制
 
 比较供应商返回的未取整实际米数：`distanceM > 10000` 提醒，`distanceM >= 15000` 阻止。无有效高德步行路段时返回 `status:preview,distanceM:null` 和单独的几何估算，不冒充实际距离。已核验返回 `status:verified,legs,distanceM,durationSeconds,checkedAt,warning,blocked`。这里只对返回的步行备选取最短，不声称证明了整个道路网络的全局最短路线。
 
 ## 自建步行路线（2026-10-16）
+
+2026-10-17 交互更新：选点、移除、改变起点只在浏览器做最近邻+2-opt近似排序和平滑曲线预览，显示几何“连线约”距离。附近查询220ms防抖、缓存且不阻塞。用户点击“规划步行路线”才调用原preview接口；核验成功后再点击保存。核验中继续修改会使旧响应失效，不能把旧距离当成新选择的结果。无HTTP参数变更，原保存接口继续自行校验，无法绕过真实步行限制。
 
 - `GET /api/citywalk/catalog/:cityId`：登录后创建本人地点草稿；返回 `202 loading` 或 `draftId, city, clusters, coverage, inventory`。细分步行圈以 500m 近邻连接、距种子不超过 850m、单组最多 60 个候选。孤立点不强行组团。类别包含 attraction/heritage/nature/leisure/food/shopping，已知 private/no 排除；未知营业/开放状态不能保证可进入。
 - `POST /api/citywalk/drafts/:id/nearby`：`{clusterIds, anchorId, walkId?}`，本人草稿内起点；补充 650m 内游览/餐饮/购物候选并写入该草稿。返回 `202 loading` 或 `{status:'ready',items}`。`walkId` 只能引用本人已保存路线。

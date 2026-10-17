@@ -6,252 +6,245 @@
       "method": "GET",
       "path": "/api/health",
       "source": "server/index.mjs",
-      "line": 133,
+      "line": 135,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "DELETE",
       "path": "/api/me/history",
       "source": "server/index.mjs",
-      "line": 137,
+      "line": 139,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "GET",
       "path": "/api/status",
       "source": "server/index.mjs",
-      "line": 141,
+      "line": 143,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "GET",
       "path": "/api/regions",
       "source": "server/index.mjs",
-      "line": 168,
+      "line": 170,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "GET",
       "path": "/api/catalog/coverage",
       "source": "server/index.mjs",
-      "line": 184,
+      "line": 186,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "GET",
       "path": "/api/catalog/site-coverage",
       "source": "server/index.mjs",
-      "line": 185,
+      "line": 187,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "GET",
       "path": "/api/catalog/site",
       "source": "server/index.mjs",
-      "line": 186,
+      "line": 188,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "GET",
       "path": "/api/catalog/hierarchy-coverage",
       "source": "server/index.mjs",
-      "line": 187,
+      "line": 189,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "GET",
       "path": "/api/catalog/entity-coverage",
       "source": "server/index.mjs",
-      "line": 188,
+      "line": 190,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "GET",
       "path": "/api/catalog/hierarchy",
       "source": "server/index.mjs",
-      "line": 189,
+      "line": 191,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "GET",
       "path": "/api/maps/config",
       "source": "server/index.mjs",
-      "line": 190,
+      "line": 192,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "GET",
       "path": "/api/maps/google/config",
       "source": "server/index.mjs",
-      "line": 191,
+      "line": 193,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "GET",
       "path": "/_AMapService/v4/map/styles",
       "source": "server/index.mjs",
-      "line": 196,
+      "line": 198,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "GET",
       "path": "/api/_AMapService/v4/map/styles",
       "source": "server/index.mjs",
-      "line": 196,
+      "line": 198,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "GET",
       "path": "/api/catalog/search",
       "source": "server/index.mjs",
-      "line": 208,
+      "line": 210,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "GET",
       "path": "/api/catalog/nearby",
       "source": "server/index.mjs",
-      "line": 209,
+      "line": 211,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "POST",
       "path": "/api/catalog/candidates",
       "source": "server/index.mjs",
-      "line": 211,
+      "line": 213,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "GET",
       "path": "/api/catalog/place",
       "source": "server/index.mjs",
-      "line": 212,
+      "line": 214,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "GET",
       "path": "/api/catalog/opening",
       "source": "server/index.mjs",
-      "line": 218,
+      "line": 220,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "GET",
       "path": "/api/places",
       "source": "server/index.mjs",
-      "line": 225,
+      "line": 227,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "GET",
       "path": "/api/nearby",
       "source": "server/index.mjs",
-      "line": 257,
+      "line": 259,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "GET",
       "path": "/api/questions",
       "source": "server/index.mjs",
-      "line": 323,
+      "line": 325,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "POST",
       "path": "/api/trips",
       "source": "server/index.mjs",
-      "line": 337,
+      "line": 339,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "GET",
       "path": "/api/trips",
       "source": "server/index.mjs",
-      "line": 372,
+      "line": 374,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "GET",
       "path": "/api/trips/:id",
       "source": "server/index.mjs",
-      "line": 402,
+      "line": 404,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "GET",
       "path": "/api/trips/:id/versions",
       "source": "server/index.mjs",
-      "line": 405,
+      "line": 407,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "PATCH",
       "path": "/api/trips/:id",
       "source": "server/index.mjs",
-      "line": 423,
+      "line": 425,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "POST",
       "path": "/api/trips/:id/assistant",
       "source": "server/index.mjs",
-      "line": 478,
+      "line": 480,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "POST",
       "path": "/api/routes",
       "source": "server/index.mjs",
-      "line": 559,
+      "line": 561,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "POST",
       "path": "/api/places/:id/match",
       "source": "server/index.mjs",
-      "line": 589,
+      "line": 591,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "POST",
       "path": "/api/transport",
       "source": "server/index.mjs",
-      "line": 599,
+      "line": 601,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "POST",
       "path": "/api/posts",
       "source": "server/index.mjs",
-      "line": 611,
+      "line": 613,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "GET",
       "path": "/api/posts",
       "source": "server/index.mjs",
-      "line": 716,
+      "line": 718,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "GET",
       "path": "/api/me/history",
       "source": "server/index.mjs",
-      "line": 719,
-      "reference": "API_REFERENCE.md"
-    },
-    {
-      "method": "GET",
-      "path": "/api/me/report",
-      "source": "server/index.mjs",
-      "line": 729,
+      "line": 721,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "POST",
       "path": "/api/admin/places/import",
       "source": "server/index.mjs",
-      "line": 797,
+      "line": 773,
       "reference": "API_REFERENCE.md"
     },
     {
@@ -325,17 +318,38 @@
       "reference": "API_REFERENCE.md"
     },
     {
+      "method": "GET",
+      "path": "/api/me/security",
+      "source": "server/auth.mjs",
+      "line": 197,
+      "reference": "API_REFERENCE.md"
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/change-password",
+      "source": "server/auth.mjs",
+      "line": 201,
+      "reference": "API_REFERENCE.md"
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/revoke-other-sessions",
+      "source": "server/auth.mjs",
+      "line": 216,
+      "reference": "API_REFERENCE.md"
+    },
+    {
       "method": "PUT",
       "path": "/api/me/avatar",
       "source": "server/auth.mjs",
-      "line": 197,
+      "line": 225,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "GET",
       "path": "/api/me/avatar",
       "source": "server/auth.mjs",
-      "line": 209,
+      "line": 237,
       "reference": "API_REFERENCE.md"
     },
     {
@@ -566,50 +580,99 @@
       "method": "GET",
       "path": "/api/citywalk/classics",
       "source": "server/services/classic-citywalks.mjs",
-      "line": 17,
+      "line": 24,
       "reference": "CITYWALK_API.md"
     },
     {
       "method": "GET",
       "path": "/api/citywalk/classics/:id",
       "source": "server/services/classic-citywalks.mjs",
-      "line": 21,
+      "line": 28,
       "reference": "CITYWALK_API.md"
     },
     {
       "method": "GET",
       "path": "/api/admin/citywalks",
       "source": "server/services/classic-citywalks.mjs",
-      "line": 25,
+      "line": 32,
       "reference": "CITYWALK_API.md"
     },
     {
       "method": "GET",
       "path": "/api/admin/citywalk/places",
       "source": "server/services/classic-citywalks.mjs",
-      "line": 26,
+      "line": 33,
       "reference": "CITYWALK_API.md"
     },
     {
       "method": "POST",
       "path": "/api/admin/citywalks",
       "source": "server/services/classic-citywalks.mjs",
-      "line": 52,
+      "line": 59,
       "reference": "ADMIN.md"
     },
     {
       "method": "PUT",
       "path": "/api/admin/citywalks/:id",
       "source": "server/services/classic-citywalks.mjs",
-      "line": 53,
+      "line": 60,
       "reference": "ADMIN.md"
     },
     {
       "method": "PATCH",
       "path": "/api/admin/citywalks/:id/visibility",
       "source": "server/services/classic-citywalks.mjs",
-      "line": 54,
+      "line": 61,
       "reference": "ADMIN.md"
+    },
+    {
+      "method": "GET",
+      "path": "/api/me/style",
+      "source": "server/services/personal-center.mjs",
+      "line": 20,
+      "reference": "API_REFERENCE.md"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/me/style",
+      "source": "server/services/personal-center.mjs",
+      "line": 46,
+      "reference": "API_REFERENCE.md"
+    },
+    {
+      "method": "GET",
+      "path": "/api/me/overview",
+      "source": "server/services/personal-center.mjs",
+      "line": 66,
+      "reference": "API_REFERENCE.md"
+    },
+    {
+      "method": "GET",
+      "path": "/api/me/library/:kind",
+      "source": "server/services/personal-center.mjs",
+      "line": 78,
+      "reference": "API_REFERENCE.md"
+    },
+    {
+      "method": "GET",
+      "path": "/api/me/library/:kind/:id",
+      "source": "server/services/personal-center.mjs",
+      "line": 90,
+      "reference": "API_REFERENCE.md"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/me/library/favorites/:id",
+      "source": "server/services/personal-center.mjs",
+      "line": 103,
+      "reference": "API_REFERENCE.md"
+    },
+    {
+      "method": "GET",
+      "path": "/api/me/report",
+      "source": "server/services/personal-center.mjs",
+      "line": 110,
+      "reference": "API_REFERENCE.md"
     },
     {
       "method": "GET",
