@@ -1,4 +1,7 @@
 import {guestMapStyle} from '../public/guest-policy.js';
+import {installDraftRoutes} from './social/drafts.mjs';
+import {installSocialMedia} from './social/media.mjs';
+import {installWritingRoutes} from './social/writing.mjs';
 import {installPersonalCenter} from './services/personal-center.mjs';
 import {installClassicWalkRoutes,seedClassicWalks} from './services/classic-citywalks.mjs';
 import { installDiscoveryRoutes, publicRoute } from "./services/discovery.mjs";
@@ -123,6 +126,9 @@ const maintenance=installMaintenance(app,{query,transaction,events:operationEven
 installArchiveRoutes(app,{query,transaction,events:operationEvents});
 installCommunityInteractions(app,{auth,query,transaction});
 installPersonalCenter(app,{auth,query,transaction});
+installDraftRoutes(app,{auth,query,transaction});
+installSocialMedia(app,{auth,query,transaction});
+installWritingRoutes(app,{auth,query,transaction});
 app.use('/_AMapService', (req,res,next)=>{
   if(!guestMapStyle(req.path,req.method))return auth(req,res,next);
   const key=req.ip+':map',now=Date.now();let v=rate.get(key);

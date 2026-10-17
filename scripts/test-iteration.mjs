@@ -7,7 +7,7 @@ const excluded=['integration.test.mjs','journey-api.test.mjs','discovery.test.mj
 const files=(await readdir(new URL('../test/',import.meta.url))).filter(f=>f.endsWith('.test.mjs')&&!excluded.includes(f)).sort().map(f=>'test/'+f);
 const env={...process.env};
 delete env.TEST_URL;delete env.TEST_DISCOVERY;
-for(const key of ['ACCOUNTS','OPERATIONS','INBOX','CITYWALK','PERSONAL','GUEST','AGENT','TRIP_SERVICES','ITERATION'])env['TEST_'+key]='1';
+for(const key of ['ACCOUNTS','OPERATIONS','INBOX','CITYWALK','PERSONAL','SOCIAL','GUEST','AGENT','TRIP_SERVICES','ITERATION'])env['TEST_'+key]='1';
 console.log(`Local isolated regression: ${files.length} files; excludes live integration and discovery suites.`);
 const child=spawn(process.execPath,['--test','--test-concurrency=3','--test-timeout=30000',...files],{cwd:root,env,windowsHide:true,stdio:['ignore','pipe','pipe']});
 let output='';
