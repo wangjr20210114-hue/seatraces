@@ -8,6 +8,7 @@ export async function socialNotify(c,{owner,actor,post=null,kind,key}){
 }
 const cardSelect=`p.id,p.user_id,p.title,p.created_at,p.revision,u.nickname,u.avatar,
  p.user_id=$1 AS "isOwn",p.snapshot->'cities' cities,p.snapshot->>'kind' kind,
+ (SELECT coalesce(jsonb_agg(jsonb_build_object('lat',v->'lat','lng',v->'lng')),'[]') FROM (SELECT v FROM jsonb_path_query(p.snapshot,'$.days[*].stops[*]') v LIMIT 16) points) preview,
  jsonb_array_length(coalesce(p.snapshot->'days','[]'::jsonb)) day_count,
  (SELECT media_id FROM post_media WHERE post_id=p.id ORDER BY position LIMIT 1) cover_id,
  (SELECT count(*)::int FROM reactions WHERE post_id=p.id AND kind='like') likes,
@@ -64,6 +65,14 @@ export function installSocialCommunity(app,{auth,query,transaction,rank=async ro
  app.put('/api/social/posts/:id/feedback',auth,async(req,res)=>{
   const id=z.uuid().parse(req.params.id),b=z.object({notInterested:z.boolean()}).strict().parse(req.body);
   await transaction(async c=>{await requireVisiblePost(c,id,true);if(b.notInterested)await c.query("INSERT INTO social_feedback(user_id,post_id,kind) VALUES($1,$2,'not_interested') ON CONFLICT DO NOTHING",[req.user.id,id]);else await c.query('DELETE FROM social_feedback WHERE user_id=$1 AND post_id=$2',[req.user.id,id]);});res.json({ok:true});
+ });
+ app.post('/api/social/posts/:id/adopt',auth,async(req,res)=>{
+  const id=z.uuid().parse(req.params.id);z.object({}).strict().parse(req.body);
+  await transaction(async c=>{await requireVisiblePost(c,id,true);
+   const p=(await c.query('SELECT snapshot FROM posts WHERE id=$1',[id])).rows[0];
+   if(!p?.snapshot?.days?.some(d=>d.stops?.length))throw failure('这篇帖子没有可用路线');
+   await c.query('INSERT INTO social_adoptions(user_id,post_id) VALUES($1,$2) ON CONFLICT DO NOTHING',[req.user.id,id]);
+  });res.json({ok:true,requiresNewDates:true});
  });
  app.post('/api/social/posts/:id/impressions',auth,async(req,res)=>{
   const id=z.uuid().parse(req.params.id),b=z.object({id:z.uuid(),context:z.enum(['feed','detail'])}).strict().parse(req.body);

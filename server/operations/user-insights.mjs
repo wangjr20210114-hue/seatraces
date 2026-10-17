@@ -8,7 +8,7 @@ const list=(rows,limit)=>({items:rows.slice(0,limit),hasMore:rows.length>limit})
 const preferences=value=>Object.fromEntries(['pace','transport','crowd','revisit','interests'].filter(k=>value?.[k]!==undefined).map(k=>[k,value[k]]));
 const cityNames=value=>(Array.isArray(value)?value:[]).slice(0,5).map(c=>typeof c==='string'?c:c?.name).filter(x=>typeof x==='string').map(x=>x.slice(0,100));
 
-export function installUserInsights(app,{query,events}) {
+export function installUserInsights(app,{query,events,readInferred=async()=>({inferred:[],inferenceStatus:'not_connected'})}) {
   async function user(id){
     z.uuid().parse(id);
     const row=(await query(`SELECT u.id,u.username,u.nickname,u.avatar,u.role,u.disabled_at,u.preferences,u.created_at,
@@ -84,7 +84,7 @@ export function installUserInsights(app,{query,events}) {
     const confirmed=(await query(`SELECT dimension,value,strength,confidence,source,version,updated_at,expires_at,expires_at<=now() expired
       FROM user_travel_memory WHERE user_id=$1 ORDER BY dimension`,[u.id])).rows;
     await audit(req,'user.preferences_read');
-    res.json({profile:u.preferences,confirmed,inferred:[],inferenceStatus:'not_connected',rawEvidenceIncluded:false});
+    res.json({profile:u.preferences,confirmed,...await readInferred(u.id),rawEvidenceIncluded:false});
   });
   app.get('/api/admin/users/:id/visits',requireManagement,async(req,res)=>{
     await user(req.params.id);const {limit,offset}=paging.parse(req.query);

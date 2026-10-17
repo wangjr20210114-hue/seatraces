@@ -3,6 +3,7 @@ import {installDraftRoutes} from './social/drafts.mjs';
 import {installSocialMedia} from './social/media.mjs';
 import {installWritingRoutes} from './social/writing.mjs';
 import {installSocialCommunity,socialNotify} from './social/community.mjs';
+import {styleForPlanning,rankSocial,explainStyle,createStyleWorker,refreshPostFeatures,recordPlaceChoice} from './social/style-store.mjs';
 import {installPersonalCenter} from './services/personal-center.mjs';
 import {installClassicWalkRoutes,seedClassicWalks} from './services/classic-citywalks.mjs';
 import { installDiscoveryRoutes, publicRoute } from "./services/discovery.mjs";
@@ -115,7 +116,7 @@ app.use('/api', accounts.gate, accounts.router);
 app.use('/api',withRequestContext);
 const logExports=installOperationsRoutes(app,{auth,query,transaction,events:operationEvents});
 installAccessRoutes(app,{query,transaction,events:operationEvents});
-installUserInsights(app,{query,events:operationEvents});
+installUserInsights(app,{query,events:operationEvents,readInferred:id=>explainStyle(query,id)});
 installAnalytics(app,{query,transaction,events:operationEvents});
 installAgentInsights(app,{query,events:operationEvents});
 installJourneyInsights(app,{query,events:operationEvents});
@@ -129,9 +130,9 @@ installCommunityInteractions(app,{auth,query,transaction,
  onReaction:async(c,{id,userId,kind,active})=>{if(!active||kind==='save')return;const p=(await c.query('SELECT user_id FROM posts WHERE id=$1',[id])).rows[0];if(p)await socialNotify(c,{owner:p.user_id,actor:userId,post:id,kind,key:id});},
  onComment:async(c,{id,userId,commentId})=>{const p=(await c.query('SELECT user_id FROM posts WHERE id=$1',[id])).rows[0];if(p)await socialNotify(c,{owner:p.user_id,actor:userId,post:id,kind:'comment',key:commentId});}
 });
-installSocialCommunity(app,{auth,query,transaction});
+installSocialCommunity(app,{auth,query,transaction,rank:(rows,user)=>rankSocial(query,rows,user)});
 installPersonalCenter(app,{auth,query,transaction});
-installDraftRoutes(app,{auth,query,transaction});
+installDraftRoutes(app,{auth,query,transaction,onPublish:refreshPostFeatures});
 installSocialMedia(app,{auth,query,transaction});
 installWritingRoutes(app,{auth,query,transaction});
 app.use('/_AMapService', (req,res,next)=>{
@@ -284,50 +285,15 @@ app.get("/api/nearby", async (req, res) => {
   res.json({ place: candidates[0] || null });
 });
 async function travelHabit(user) {
-  const remembered = await memoryPreferences(query,user.id);
-  const preferences = {...user.preferences,...remembered};
-  const weights = {};
-  for (const tag of preferences.interests || []) weights[tag] = 5;
-  const completed = (
-    await query(
-      "SELECT request->'interests' tags FROM trips WHERE user_id=$1 AND status='completed'",
-      [user.id],
-    )
-  ).rows;
-  for (const row of completed)
-    for (const tag of row.tags || []) weights[tag] = (weights[tag] || 0) + 2;
-  const reactions = (
-    await query(
-      "SELECT p.tags,r.kind FROM reactions r JOIN posts p ON p.id=r.post_id WHERE r.user_id=$1 AND p.hidden_at IS NULL",
-      [user.id],
-    )
-  ).rows;
-  for (const row of reactions)
-    for (const tag of row.tags)
-      weights[tag] =
-        (weights[tag] || 0) +
-        ({ save: 3, like: 1, recommend: 2 }[row.kind] || 0);
-  const events = (
-    await query(
-      "SELECT p.tags,b.dwell_seconds FROM browse_events b JOIN posts p ON p.id=b.post_id WHERE b.user_id=$1 AND p.hidden_at IS NULL AND b.day>CURRENT_DATE-30",
-      [user.id],
-    )
-  ).rows;
-  for (const row of events)
-    for (const tag of row.tags)
-      weights[tag] =
-        (weights[tag] || 0) + Math.min(row.dwell_seconds / 120, 0.5);
+  const preferences = await styleForPlanning(query,user);
+  const completed = (await query("SELECT count(*)::int n FROM trips WHERE user_id=$1 AND status='completed'",[user.id])).rows[0].n;
   return {
     ...preferences,
-    tagWeights: Object.fromEntries(
-      Object.entries(weights)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 10),
-    ),
-    completedTrips: completed.length,
+    tagWeights: Object.fromEntries([...new Set([...(preferences.interests||[]),...Object.keys(preferences.styleWeights)])].map(t=>[t,(preferences.interests||[]).includes(t)?5:Math.max(0,preferences.styleWeights[t]||0)])),
+    completedTrips: completed,
   };
 }
-installJourneyRoutes(app,{auth,travelHabit});
+installJourneyRoutes(app,{auth,travelHabit,recordWish:recordPlaceChoice});
 installTripServiceRoutes(app,{auth});
 installCityWalkRoutes(app,{auth,travelHabit});
 installClassicWalkRoutes(app,{auth,events:operationEvents});
@@ -462,6 +428,10 @@ app.patch("/api/trips/:id", auth, async (req, res) => {
         )
       ).rows;
       plan = applyEdit(plan, b.operation, ps);
+      const before=new Map(t.plan.days.flatMap(d=>d.stops||[]).map(p=>[p.id,p]));
+      const after=new Map(plan.days.flatMap(d=>d.stops||[]).map(p=>[p.id,p]));
+      for(const [id,p] of before)if(!after.has(id))await recordPlaceChoice(c,{userId:req.user.id,place:p,kind:'edit',value:-1,tripId:t.id});
+      for(const [id,p] of after)if(!before.has(id))await recordPlaceChoice(c,{userId:req.user.id,place:p,kind:'edit',value:1,tripId:t.id});
       reason = b.operation.type;
     }
     if (b.restoreVersion) {
@@ -473,6 +443,7 @@ app.patch("/api/trips/:id", auth, async (req, res) => {
       ).rows[0];
       if (!old) throw Object.assign(new Error("版本不存在"), { status: 404 });
       plan = old.plan;
+      await c.query("DELETE FROM user_place_style_choices WHERE user_id=$1 AND trip_id=$2 AND kind='edit'",[req.user.id,t.id]);
       reason = "恢复版本 " + b.restoreVersion;
     }
     await c.query(
@@ -849,6 +820,8 @@ if (
 await seed();
 await seedClassicWalks();
 maintenance.start();
+const styleWorker=createStyleWorker({query,transaction,onError:()=>console.error('Travel style refresh failed')});
+styleWorker.start();
 const exportCleanup=setInterval(()=>void logExports.cleanup().catch(()=>{}),3600000);exportCleanup.unref();
 export const server = app.listen(
   Number(process.env.PORT || 8787),

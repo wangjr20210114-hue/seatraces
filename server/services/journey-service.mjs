@@ -218,7 +218,7 @@ async function singleFlight(key, fn) {
   pending.set(key, work);
   return work;
 }
-export function installJourneyRoutes(app, { auth, travelHabit }) {
+export function installJourneyRoutes(app, { auth, travelHabit, recordWish=async()=>{} }) {
   // Preview boundaries before the date/session step, using the same shared cache.
   app.get("/api/journey/cities/:cityId/boundary", auth, async (req, res) => {
     const id = z.string().min(1).max(80).parse(req.params.cityId);
@@ -363,6 +363,7 @@ export function installJourneyRoutes(app, { auth, travelHabit }) {
     });
     if (!p) throw error("地点不在候选范围内");
     await transaction(async (db) => {
+      await recordWish(db,{userId:req.user.id,place:p,value:b.wanted?1:0});
       for (const id of [p.id, ...(p.possibleDuplicateIds || [])])
         await db.query(
           "INSERT INTO user_place_wishes(user_id,place_id,wanted) VALUES($1,$2,$3) ON CONFLICT(user_id,place_id) DO UPDATE SET wanted=excluded.wanted,updated_at=now()",
@@ -476,7 +477,7 @@ export function installJourneyRoutes(app, { auth, travelHabit }) {
           current.request,
           current.request.cities,
           pools,
-          b.answers,
+          {...await travelHabit(req.user),...b.answers},
         ),
         id = randomUUID(),
         title =

@@ -95,6 +95,7 @@ export function scorePlace(
     ),
     preference:
       tags.filter((t) => (preferences.interests || []).includes(t)).length * 5,
+    inferredPreference: Math.max(-4, Math.min(4, tags.reduce((n,t)=>n+(Number.isFinite(preferences.styleWeights?.[t])?preferences.styleWeights[t]*4:0),0))),
     novelty: p.visited ? (preferences.revisit === "new" ? -12 : 0) : 0,
     crowd: observed.crowd
       ? -({ avoid: 25, balanced: 12, lively: 3 }[preferences.crowd] ?? 12) *

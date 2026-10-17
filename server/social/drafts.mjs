@@ -21,7 +21,7 @@ async function ownedSource(c,ref,userId){
  if(Buffer.byteLength(JSON.stringify(snapshot))>180000)throw failure('路线较大，请选择较短的行程分享');
  return {snapshot,version:row.version||1,title:row.title};
 }
-export function installDraftRoutes(app,{auth,query,transaction}){
+export function installDraftRoutes(app,{auth,query,transaction,onPublish=async()=>{}}){
  app.post('/api/social/drafts',auth,async(req,res)=>{
   const b=create.parse(req.body);
   const d=await transaction(async c=>{
@@ -80,6 +80,7 @@ export function installDraftRoutes(app,{auth,query,transaction}){
     if(!media.rowCount)throw failure('图片不可用');
     await c.query('INSERT INTO post_media(post_id,media_id,position) VALUES($1,$2,$3)',[id,mediaId,position]);
    }
+   await onPublish(c,id);
    await c.query('UPDATE post_drafts SET published_post_id=$2,updated_at=now() WHERE id=$1',[d.id,id]);return {id,replayed:false};
   });res.json(result);
  });
