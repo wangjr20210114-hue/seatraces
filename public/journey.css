@@ -1143,3 +1143,22 @@ dialog::backdrop {
 .walk-card-wrap {position:relative;}
 .walk-card-wrap .my-walk-card {padding-right:88px;}
 .walk-card-wrap .route-share {position:absolute;right:14px;top:16px;}
+
+/* Personal travel notebook, reusing the application's paper/mint palette. */
+.personal-stats {display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:20px 0;}
+.personal-stats>a,.personal-stats>div {display:flex;align-items:center;flex-direction:column;gap:7px;text-decoration:none;color:#183c40;padding:16px 4px;background:#e4f4e8;border-radius:18px;}
+.personal-stats b {font-size:26px;line-height:1.1;}.personal-stats span {font-size:14px;}
+.personal-letter {padding:24px;background:#fffdf2;border:1.5px solid #bed3be;border-radius:24px;line-height:1.8;overflow-wrap:anywhere;}
+.personal-letter h2 {margin:0 0 18px;}.personal-emblem {font-size:36px;color:#d48a40;}.personal-body {white-space:pre-wrap;}
+.personal-letter fieldset {border:0;padding:0;margin:20px 0;}.personal-letter legend {font-weight:700;margin-bottom:10px;}
+.personal-options {display:flex;gap:10px;flex-wrap:wrap;}.personal-options label {position:relative;cursor:pointer;}
+.personal-options input {position:absolute;opacity:0;width:1px;height:1px;}.personal-options span {display:block;border:1.5px solid #aecabc;border-radius:14px;padding:8px 15px;}
+.personal-options input:checked+span {background:#ffdc7a;border-color:#1b5f59;}.personal-options input:focus-visible+span {outline:3px solid #168e85;outline-offset:3px;}
+.personal-letter details {padding:16px 0;border-bottom:1px dashed #b6cbbd;}.personal-letter summary {font-weight:700;cursor:pointer;}
+.personal-letter details p {margin-bottom:0;}.personal-letter form+form {margin-top:30px;padding-top:16px;border-top:1px dashed #b6cbbd;}
+.personal-tags {display:flex;gap:10px;flex-wrap:wrap;}.personal-tags span {border-radius:14px;background:#f8e6b1;padding:6px 14px;}
+.personal-actions {display:flex;justify-content:flex-end;margin-bottom:20px;}.personal-actions a {text-decoration:none;}
+.personal-list-item {display:flex;gap:14px;align-items:center;border:1.5px solid #c2d8c5;border-radius:18px;padding:18px;background:#fffdf2;margin-bottom:12px;}
+.personal-list-item>a {display:flex;flex:1;gap:8px;flex-direction:column;min-width:0;overflow-wrap:anywhere;color:#183c40;text-decoration:none;}
+.personal-list-item>a span {color:#536b67;}.personal-list-item button {flex-shrink:0;}.settings-menu a {text-decoration:none;color:inherit;}
+@media(max-width:420px){.personal-letter{padding:18px}.personal-stats span{font-size:12px}.personal-list-item{padding:14px;gap:8px}.personal-list-item button{padding:6px;font-size:13px}}

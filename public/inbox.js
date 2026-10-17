@@ -5,6 +5,7 @@ export async function renderInbox({route,content,setTitle,api,navigate,isCurrent
     if(route.page==='settings'){
       const r=await api('/api/me/messages?limit=1');if(!isCurrent())return;
       content.innerHTML=`<div class="settings-menu"><button id="inbox-open" class="profile-card"><span class="tile-icon mint">✉</span><b>消息</b><span class="inbox-count">${r.unread||''}</span><span>→</span></button><button id="settings-account" class="profile-card"><span class="tile-icon peach">☺</span><b>我的账号</b><span>→</span></button></div>`;
+      content.querySelector('.settings-menu').insertAdjacentHTML('beforeend',[['security','◇','账号安全'],['style','✦','旅行偏好'],['help','?','帮助与关于']].map(([path,icon,title])=>`<a class="profile-card" href="#/${path}"><span class="tile-icon yellow">${icon}</span><b>${title}</b><span>→</span></a>`).join(''));
       content.querySelector('#inbox-open').onclick=()=>navigate('/messages');content.querySelector('#settings-account').onclick=()=>navigate('/account');return;
     }
     if(route.id){

@@ -1,4 +1,5 @@
 import {guestMapStyle} from '../public/guest-policy.js';
+import {installPersonalCenter} from './services/personal-center.mjs';
 import {installClassicWalkRoutes,seedClassicWalks} from './services/classic-citywalks.mjs';
 import { installDiscoveryRoutes, publicRoute } from "./services/discovery.mjs";
 import "dotenv/config";
@@ -121,6 +122,7 @@ installModeration(app,{auth,query,transaction,events:operationEvents});
 const maintenance=installMaintenance(app,{query,transaction,events:operationEvents,extraExecutors:{...archiveExecutors({query,transaction,events:operationEvents}),log_export:logExports.execute}});
 installArchiveRoutes(app,{query,transaction,events:operationEvents});
 installCommunityInteractions(app,{auth,query,transaction});
+installPersonalCenter(app,{auth,query,transaction});
 app.use('/_AMapService', (req,res,next)=>{
   if(!guestMapStyle(req.path,req.method))return auth(req,res,next);
   const key=req.ip+':map',now=Date.now();let v=rate.get(key);
@@ -726,32 +728,6 @@ app.get("/api/me/history", auth, async (req, res) =>
     ).rows,
   ),
 );
-app.get("/api/me/report", auth, async (req, res) => {
-  const all = (
-      await query("SELECT status,plan FROM trips WHERE user_id=$1", [
-        req.user.id,
-      ])
-    ).rows,
-    done = all.filter((x) => x.status === "completed"),
-    cities = [
-      ...new Set(done.flatMap((x) => x.plan.cities.map((c) => c.name))),
-    ],
-    stops = done.reduce(
-      (n, x) => n + x.plan.days.reduce((s, d) => s + d.stops.length, 0),
-      0,
-    );
-  res.json({
-    completed: done.length,
-    planned: all.length - done.length,
-    cities,
-    stops,
-    interests: req.user.preferences.interests,
-    summary: done.length
-      ? `你标记完成了 ${done.length} 次旅行，走过 ${cities.length} 座城市、${stops} 处计划中的景点。下一次，也为 ${req.user.preferences.interests.slice(0, 2).join("与")} 留一点时间。`
-      : "你的旅行故事正要开始。完成旅程后，在历史旅行中标记“已完成”，这里会生成你的旅行报告。",
-    source: "本地历史与偏好统计；完成状态由用户标记",
-  });
-});
 const placeSchema = z.object({
   id: z.string().regex(/^[\w-]{1,80}$/),
   name: z.string().min(1).max(200),

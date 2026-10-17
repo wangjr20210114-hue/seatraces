@@ -194,6 +194,34 @@ export function createAccounts({ query, transaction, production = false, mailer 
     });
     res.json({ user: publicUser(await userById(req.user.id)) });
   });
+  router.get('/me/security', requireUser, async(req,res)=>{
+    const row=(await query('SELECT count(*)::int active FROM sessions WHERE user_id=$1 AND expires_at>now()',[req.user.id])).rows[0];
+    res.json({activeSessions:row.active,passwordChangedAt:req.user.password_changed_at||null,emailVerified:!!req.user.email});
+  });
+  router.post('/auth/change-password', requireUser, async(req,res)=>{
+    const b=z.object({currentPassword:password,newPassword:password}).strict().parse(req.body);
+    await throttle('change-password:'+req.user.id);
+    if(b.currentPassword===b.newPassword)throw failure(400,'新密码不能与旧密码相同');
+    const digest=await bcrypt.hash(b.newPassword,12);
+    const token=await transaction(async c=>{
+      const u=(await c.query('SELECT password_hash FROM users WHERE id=$1 FOR UPDATE',[req.user.id])).rows[0];
+      if(!u||!await bcrypt.compare(b.currentPassword,u.password_hash))throw failure(400,'当前密码不正确');
+      await c.query('UPDATE users SET password_hash=$1,password_changed_at=now() WHERE id=$2',[digest,req.user.id]);
+      await c.query('DELETE FROM sessions WHERE user_id=$1',[req.user.id]);
+      await c.query('DELETE FROM account_tokens WHERE user_id=$1',[req.user.id]);
+      return newSession(c,req,req.user.id);
+    });
+    setSession(res,token);res.json({ok:true});
+  });
+  router.post('/auth/revoke-other-sessions',requireUser,async(req,res)=>{
+    const b=z.object({password}).strict().parse(req.body);
+    await throttle('revoke-sessions:'+req.user.id);
+    await transaction(async c=>{
+      const u=(await c.query('SELECT password_hash FROM users WHERE id=$1 FOR UPDATE',[req.user.id])).rows[0];
+      if(!u||!await bcrypt.compare(b.password,u.password_hash))throw failure(400,'当前密码不正确');
+      await c.query('DELETE FROM sessions WHERE user_id=$1 AND token_hash<>$2',[req.user.id,hashToken(req.cookies.st_session)]);
+    });res.json({ok:true});
+  });
   router.put('/me/avatar', requireUser, async (req, res) => {
     const b = z.object({ image: z.string().max(1500000).regex(/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/) }).parse(req.body);
     let image;

@@ -12,6 +12,7 @@ const pages = new Set([
   "agent",
   "settings",
   "messages",
+  "walks", "style", "security", "help",
 ]);
 
 function parseRoute(hash) {
@@ -19,7 +20,7 @@ function parseRoute(hash) {
   const parts = pathname.split("/");
   const page = pages.has(parts[0]) ? parts[0] : "home";
   let id = "";
-  if (["history", "citywalk", "services", "messages"].includes(page) && parts[1]) {
+  if (["history", "citywalk", "services", "messages", "favorites", "browsing"].includes(page) && parts[1]) {
     try {
       id = decodeURIComponent(parts[1]);
     } catch {
@@ -84,6 +85,16 @@ export function createPageNavigation({ onChange, onRepeat }) {
       );
       window.addEventListener("popstate", () => render());
       window.addEventListener("hashchange", () => render());
+      // In-app links must use the same history stack as buttons, otherwise a
+      // native hash entry has no depth and Back skips its parent page.
+      document.addEventListener('click', event => {
+        if(event.defaultPrevented || event.button!==0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey)return;
+        const a=event.target.closest?.('a[href^="#/"]');
+        if(!a || a.hasAttribute('download') || (a.target && a.target!=='_self'))return;
+        const href=a.getAttribute('href');
+        if(!pages.has(href.slice(2).split(/[/?]/)[0]))return;
+        event.preventDefault();go(href);
+      });
       render();
     },
     back() {
@@ -93,7 +104,7 @@ export function createPageNavigation({ onChange, onRepeat }) {
           current?.page==='messages' ? current.id?'/messages':'/settings' : ["citywalk", "services"].includes(current?.page)
             ? "/home"
             : current?.id
-              ? "/history"
+              ? ['favorites','browsing'].includes(current.page)?'/'+current.page:'/history'
               : "/profile",
           { replace: true },
         );

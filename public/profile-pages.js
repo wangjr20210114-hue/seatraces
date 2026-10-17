@@ -1,25 +1,5 @@
 import { renderAccountPage } from "./account-page.js";
-
-const features = {
-  favorites: {
-    title: "我的收藏",
-    icon: "☆",
-    color: "yellow",
-    text: "心动的路线，留给下次出发。",
-  },
-  browsing: {
-    title: "历史浏览",
-    icon: "◷",
-    color: "peach",
-    text: "让偶然遇见的风景，有迹可循。",
-  },
-  report: {
-    title: "旅行报告",
-    icon: "▤",
-    color: "lilac",
-    text: "走过的风景，会变成你的旅行故事。",
-  },
-};
+import {renderPersonalPage} from './personal-center.js';
 
 export async function renderProfilePage({
   route,
@@ -33,6 +13,7 @@ export async function renderProfilePage({
   onUser,
   onLogout,
 }) {
+  if (!['account','history'].includes(route.page)) return renderPersonalPage({route,content,setTitle,api,isCurrent,navigate});
   setTitle(
     route.page === "account"
       ? "我的账号"
@@ -40,7 +21,7 @@ export async function renderProfilePage({
         ? route.id
           ? "旅行详情"
           : "历史行程"
-        : features[route.page].title,
+        : "我的",
   );
   content.innerHTML = '<p class="page-status" role="status">正在打开…</p>';
   try {
@@ -136,11 +117,6 @@ export async function renderProfilePage({
       };
       more.onclick = load;
       await load();
-    } else {
-      const feature = features[route.page];
-      content.innerHTML = `<div class="feature-empty"><span class="tile-icon ${feature.color}" aria-hidden="true">${feature.icon}</span><h2>即将开放</h2><p>${feature.text}</p><button class="primary" data-return-travel>去旅行 ↗</button></div>`;
-      content.querySelector("[data-return-travel]").onclick = () =>
-        navigate("/home");
     }
   } catch (error) {
     if (!isCurrent()) return;

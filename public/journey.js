@@ -5,6 +5,7 @@ import { createCityWalkHome, renderCityWalkEditor } from "./citywalk.js";
 import { createTabMotion } from "./tab-motion.js";
 import { createPageNavigation } from "./page-navigation.js";
 import { renderProfilePage } from "./profile-pages.js";
+import {refreshPersonalOverview} from './personal-center.js';
 import { mountAgent } from "./agent-page.js";
 import { mountAgentLauncher } from './agent-launcher.js';
 import { renderInbox } from './inbox.js';
@@ -376,7 +377,10 @@ const navigation = createPageNavigation({
       $("#page-content").replaceChildren();
       document.title = pageNames[route.page] + " · SeaTraces";
       if (route.page === "discover") pageCleanup = mountDiscovery({ content: $("#discovery-content"), api });
-      if (route.page === "profile") syncProfile();
+      if (route.page === "profile") {
+        syncProfile();
+        void refreshPersonalOverview({element:$('#personal-overview'),api,isCurrent:()=>revision===pageRevision});
+      }
       if (route.page === "home") {
         if (state.trip) paintTrip();
         else paintMap();
