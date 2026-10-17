@@ -1,6 +1,7 @@
 import {randomUUID} from 'node:crypto';
 import {cosine,clamp,validVector} from './features.mjs';
 import {trainTower,trainRanker,towerScore,rankScore,rankInputs,rankingMetrics,encode,artifactDigest} from './model.mjs';
+import {ruleFineScore} from './engine.mjs';
 const groups=rows=>Object.values(Object.groupBy(rows,r=>r.userId));
 export async function trainingSamples(query,scope){
  const rows=(await query(`SELECT e.user_id,e.post_id,e.created_at,e.item_vector,r.user_vector,e.visible_ms,u.synthetic_batch_id,
@@ -15,12 +16,18 @@ export async function trainingSamples(query,scope){
  WHERE u.is_synthetic=$1 AND p.is_synthetic=$1 AND e.visible_ms>=1000 AND e.created_at<now()-interval '7 days'
  AND p.user_id<>e.user_id AND p.hidden_at IS NULL AND NOT p.auto_shared
  ORDER BY e.created_at DESC,e.id LIMIT 20000`,[scope==='synthetic'])).rows;
+ const seen=new Set();
  return rows.filter(r=>validVector(r.user_vector)&&validVector(r.item_vector)&&r.trace_items?.some(p=>p.id===r.post_id&&p.parts)).map(r=>{
   const signals=new Set((r.outcomes||[]).filter(x=>x.active).map(x=>x.kind)),negative=signals.has('not_interested');
   const value=negative||signals.has('dissatisfied')?-4:signals.has('satisfied')?5:signals.has('adopt')?4:signals.has('save')?3:signals.has('recommend')?2:signals.has('like')?1:signals.has('follow')?.6:signals.has('comment')?.5:0;
   const parts=r.trace_items.find(p=>p.id===r.post_id).parts;
   return {userId:r.user_id,postId:r.post_id,syntheticBatchId:r.synthetic_batch_id,at:new Date(r.created_at).getTime(),user:r.user_vector,item:r.item_vector,label:value>0?1:0,weight:value?Math.abs(value):.2,parts};
- }).sort((a,b)=>a.at-b.at);
+ }).sort((a,b)=>a.at-b.at).filter(s=>{
+  // Keep raw browsing events for audit, but let one user/post pair vote only
+  // once in this bounded training dataset, including across time partitions.
+  // Choose its first valid exposure and that exposure's label window.
+  const key=s.userId+':'+s.postId;if(seen.has(key))return false;seen.add(key);return true;
+ });
 }
 export async function trainRecommendations({query,transaction,scope='synthetic',activate=false,epochs=18}){
  if(!['synthetic','real'].includes(scope))throw Error('Unknown model scope');
@@ -39,7 +46,9 @@ export async function trainRecommendations({query,transaction,scope='synthetic',
  const rankSamples=rows=>rows.map(s=>({...s,features:rankInputs({...s.parts,tower:predict(s)})}));
  const ranker=trainRanker(rankSamples(train));
  const rankPredict=s=>rankScore(ranker,rankInputs({...s.parts,tower:predict(s)}));
- const rule=s=>s.parts.coarse;
+ // Compare the learned fine ranker with the exact rule it replaces, using the
+ // same tower. Coarse retrieval has different weights and is not this baseline.
+ const rule=s=>ruleFineScore({...s.parts,tower:predict(s)});
  const rankerMetrics={validation:evaluate(validation,rankPredict),test:evaluate(test,rankPredict),baselineValidation:evaluate(validation,rule),baselineTest:evaluate(test,rule)};
  const common={scope,syntheticData:scope==='synthetic',evaluation:'chronological held-out exposed-candidate pools; 7-day embargo; not real-user quality evidence when synthetic',
   syntheticBatchIds:[...new Set(samples.map(s=>s.syntheticBatchId).filter(Boolean))],

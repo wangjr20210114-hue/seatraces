@@ -15,7 +15,7 @@ const cardSelect=`p.id,p.user_id,p.title,left(p.body,100) excerpt,p.created_at,p
  EXISTS(SELECT 1 FROM reactions WHERE post_id=p.id AND user_id=$1 AND kind='like') liked`;
 export function installSocialCommunity(app,{auth,query,transaction,rank=async rows=>({rows,version:'chronological/1'}),recommend,onImpression=async()=>{},onVisible=async()=>{}}){
  app.get('/api/social/feed',auth,async(req,res)=>{
-  const b=z.object({scope:z.enum(['recommended','following','mine']).default('recommended'),q:z.string().trim().max(60).default(''),limit:z.coerce.number().int().min(1).max(30).default(12),cursor:z.string().max(80).optional()}).strict().parse(req.query);
+  const b=z.object({scope:z.enum(['recommended','following','mine']).default('recommended'),q:z.string().trim().max(60).refine(s=>!s.includes('\0'),'搜索词包含无效字符').default(''),limit:z.coerce.number().int().min(1).max(30).default(12),cursor:z.string().max(80).optional()}).strict().parse(req.query);
   let session,start=0;
   if(b.cursor){
    const [id,index,...extra]=b.cursor.split(':');z.uuid().parse(id);if(extra.length||!/^\d{1,3}$/.test(index))throw failure('分页参数不正确');start=Number(index);

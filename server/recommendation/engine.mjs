@@ -2,6 +2,7 @@ import {randomUUID} from 'node:crypto';
 import {algorithm,profileVector,cosine,validVector,clamp} from './features.mjs';
 import {readProfile} from './profiles.mjs';
 import {encode,validateTower,towerScore,rankInputs,rankScore,sigmoid,artifactDigest} from './model.mjs';
+export const ruleFineScore=p=>sigmoid(p.affinity*3+p.author*.25+p.city*.7+p.quality*.45+p.fresh*.2-p.seen*.8+p.tower);
 export function coarseFeatures(p,userVector,profile,context={},now=Date.now()){
  const affinity=validVector(p.vector)?cosine(userVector,p.vector):0;
  const fresh=1/(1+Math.max(0,(now-new Date(p.created_at))/86400000)/30);
@@ -70,8 +71,7 @@ export async function recommend(query,user,{q='',city='',persist=true,allowSynth
  }
  const merged=new Map();for(const {name,rows} of recalls)for(const p of rows){if(!merged.has(p.id))merged.set(p.id,{...p,channels:[]});const v=merged.get(p.id);v.channels.push(name);if(p.tower)v.tower=p.tower;}
  const coarse=[...merged.values()].map(p=>({...p,parts:coarseFeatures({...p,tower:models.tower&&validVector(p.vector)?towerScore(models.tower.artifact,vector,p.vector):0},vector,profile,context)})).sort((a,b)=>b.parts.coarse-a.parts.coarse||a.id.localeCompare(b.id)).slice(0,150);
- const fine=coarse.map(p=>({...p,fine:models.ranker?rankScore(models.ranker.artifact,rankInputs(p.parts)):
-  sigmoid(p.parts.affinity*3+p.parts.author*.25+p.parts.city*.7+p.parts.quality*.45+p.parts.fresh*.2-p.parts.seen*.8+p.parts.tower)}))
+ const fine=coarse.map(p=>({...p,fine:models.ranker?rankScore(models.ranker.artifact,rankInputs(p.parts)):ruleFineScore(p.parts)}))
   .sort((a,b)=>b.fine-a.fine||a.id.localeCompare(b.id)).slice(0,120);
  const rows=rerank(fine),id=randomUUID(),trace={scope,channels:Object.fromEntries(recalls.map(r=>[r.name,r.rows.length])),counts:{recall:merged.size,coarse:coarse.length,fine:fine.length,rerank:rows.length},
   elapsedMs:Math.round(performance.now()-started),models:{tower:models.tower?.id||null,ranker:models.ranker?.id||null},

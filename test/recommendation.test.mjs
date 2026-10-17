@@ -5,7 +5,7 @@ import {mkdir,writeFile} from 'node:fs/promises';
 import {iterationFixture} from './helpers/iteration-db.mjs';
 import {generateDemo,seedDemo,removeDemo} from '../server/recommendation/demo.mjs';
 import {contentFeatures,profileVector,cosine,validVector,dimensionKeys} from '../server/recommendation/features.mjs';
-import {trainTower,towerScore,validateTower,artifactDigest} from '../server/recommendation/model.mjs';
+import {trainTower,towerScore,validateTower,artifactDigest,rankingMetrics,sigmoid} from '../server/recommendation/model.mjs';
 import {trainRecommendations,trainingSamples} from '../server/recommendation/training.mjs';
 import {recommend,rerank} from '../server/recommendation/engine.mjs';
 import {refreshItem,buildProfile,readProfile} from '../server/recommendation/profiles.mjs';
@@ -101,6 +101,10 @@ test('recommendation database, CPU training, ownership, pressure and reversible 
    const samples=await trainingSamples(f.query,'synthetic');assert.ok(samples.length>3000);assert.ok(samples.some(s=>s.weight===5));
    const r=await trainRecommendations({...f,activate:true});assert.equal(r.status,'evaluated');assert.equal(r.models.length,2);report.training=r;
    assert.ok(r.models.every(m=>m.metrics.counts.train>=150&&m.metrics.syntheticData));
+   const storedTower=(await f.query('SELECT artifact FROM recommendation_models WHERE id=$1',[r.models[0].id])).rows[0].artifact;
+   const testSamples=samples.filter(s=>s.at>=Date.parse(r.models[1].metrics.testStarts));
+   const servingBaseline=s=>{const p=s.parts;return sigmoid(p.affinity*3+p.author*.25+p.city*.7+p.quality*.45+p.fresh*.2-p.seen*.8+towerScore(storedTower,s.user,s.item));};
+   assert.deepEqual(r.models[1].metrics.baselineTest,rankingMetrics(Object.values(Object.groupBy(testSamples,s=>s.userId)),servingBaseline,10),'fine-ranker evaluation must compare the exact serving fallback, not coarse ranking');
    const real=await recommend(f.query,{id:uid,preferences:{}});assert.equal(real.trace.models.tower,null);assert.equal(real.trace.models.ranker,null);
    // Exercise the serving path even when evaluation rightly rejects the model.
    // This forced activation exists only in the disposable test schema.

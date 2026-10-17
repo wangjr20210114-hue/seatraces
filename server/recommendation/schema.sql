@@ -90,7 +90,11 @@ BEGIN
  k:=CASE TG_TABLE_NAME WHEN 'reactions' THEN r->>'kind' WHEN 'comments' THEN 'comment' WHEN 'user_follows' THEN 'follow'
  WHEN 'social_adoptions' THEN 'adopt_intent' WHEN 'social_feedback' THEN 'not_interested' END;
  IF k IS NOT NULL THEN
-  IF TG_TABLE_NAME='comments' THEN enabled:=enabled AND r->>'hidden_at' IS NULL; END IF;
+  IF TG_TABLE_NAME='comments' THEN
+   -- A comment outcome represents topic participation, not the last comment
+   -- row edited. Removing one comment must retain the others' evidence.
+   enabled:=EXISTS(SELECT 1 FROM comments WHERE user_id=uid AND post_id=pid AND hidden_at IS NULL);
+  END IF;
   INSERT INTO recommendation_outcomes(user_id,post_id,author_id,kind,active) VALUES(uid,pid,aid,k,enabled);
  END IF;
  INSERT INTO style_dirty_users(user_id) VALUES(uid) ON CONFLICT(user_id) DO UPDATE SET version=style_dirty_users.version+1,updated_at=now();
