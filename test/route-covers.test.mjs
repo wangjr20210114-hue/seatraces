@@ -15,13 +15,15 @@ test('map cover fits entire geographic curve and converts coordinates exactly on
  assert.equal(staticMapParams({days:[{stops:[{lat:1,lng:1}]}]}).zoom,'17');
 });
 test('provider failures never expose secrets and images and pending work are bounded',async()=>{
- const render=createStaticMapRenderer({env:{AMAP_KEY:'PRIVATE'},schedule:fn=>fn(),fetchImage:async()=>new Response(png,{headers:{'content-type':'image/png'}})});
+ const render=createStaticMapRenderer({env:{AMAP_KEY:'PRIVATE'},reserve:async()=>{},schedule:fn=>fn(),fetchImage:async()=>new Response(png,{headers:{'content-type':'image/png'}})});
  assert.deepEqual(await render(staticMapParams(snapshot)),png);
- const bad=createStaticMapRenderer({env:{AMAP_KEY:'PRIVATE'},schedule:fn=>fn(),fetchImage:async()=>{throw Error('PRIVATE in URL');}});
+ let called=false;const capped=createStaticMapRenderer({env:{AMAP_KEY:'PRIVATE'},reserve:async()=>{throw Object.assign(Error('quota'),{status:429});},schedule:fn=>fn(),fetchImage:async()=>{called=true;}});
+ await assert.rejects(capped({}),e=>e.status===429);assert.equal(called,false);
+ const bad=createStaticMapRenderer({env:{AMAP_KEY:'PRIVATE'},reserve:async()=>{},schedule:fn=>fn(),fetchImage:async()=>{throw Error('PRIVATE in URL');}});
  await assert.rejects(bad({}),e=>e.status===502&&!e.message.includes('PRIVATE'));
- const big=createStaticMapRenderer({env:{AMAP_KEY:'PRIVATE'},schedule:fn=>fn(),fetchImage:async()=>new Response(new Uint8Array(2*1024*1024+1),{headers:{'content-type':'image/png'}})});
+ const big=createStaticMapRenderer({env:{AMAP_KEY:'PRIVATE'},reserve:async()=>{},schedule:fn=>fn(),fetchImage:async()=>new Response(new Uint8Array(2*1024*1024+1),{headers:{'content-type':'image/png'}})});
  await assert.rejects(big({}),/过大/);
- const waits=[];const limited=createStaticMapRenderer({env:{AMAP_KEY:'PRIVATE'},schedule:()=>new Promise((resolve,reject)=>waits.push(reject))});
+ const waits=[];const limited=createStaticMapRenderer({env:{AMAP_KEY:'PRIVATE'},reserve:async()=>{},schedule:()=>new Promise((resolve,reject)=>waits.push(reject))});
  const jobs=Array.from({length:24},()=>limited({}).catch(()=>{}));await assert.rejects(limited({}),e=>e.status===429);waits.forEach(reject=>reject(Error('cancel')));await Promise.all(jobs);
 });
 test('cover authorization precedes rendering and conditional responses',{skip:process.env.TEST_SOCIAL!=='1'},async()=>{

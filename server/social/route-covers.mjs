@@ -1,3 +1,4 @@
+import {reserveApiCall} from '../repositories/api-usage.mjs';
 import {createHash} from 'node:crypto';
 import {z} from 'zod';
 import {routeMap,routeViewport} from '../../public/route-map.js';
@@ -20,13 +21,15 @@ export function staticMapParams(snapshot) {
  return params;
 }
 
-export function createStaticMapRenderer({env=process.env,fetchImage=fetch,schedule=createPacedQueue()}={}) {
+export function createStaticMapRenderer({env=process.env,fetchImage=fetch,schedule=createPacedQueue(),reserve=reserveApiCall,now=Date.now}={}) {
  let pending=0;
  return async params=>{
   if(!env.AMAP_KEY)throw failure('地图暂未配置',503);
   if(pending>=24)throw failure('封面正在生成，请稍后重试',429);
-  pending++;
+  pending++;const queuedAt=now();
   try{return await schedule(async()=>{
+   if(now()-queuedAt>15000)throw failure('封面等待超时，请稍后重试',429);
+   await reserve('Amap');
    const u=new URL('https://restapi.amap.com/v3/staticmap');u.search=new URLSearchParams({...params,key:env.AMAP_KEY});
    const r=await fetchImage(u,{signal:AbortSignal.timeout(12000),redirect:'error'});
    if(!r.ok||!r.headers.get('content-type')?.startsWith('image/png')){await r.body?.cancel();throw failure('地图封面暂未加载',502);}
