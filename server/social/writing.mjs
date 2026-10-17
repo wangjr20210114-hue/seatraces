@@ -34,6 +34,8 @@ export function installWritingRoutes(app,{auth,query,transaction,generate=llmJSO
   let draft;
   try{draft=await transaction(async c=>{
    await c.query('SELECT id FROM users WHERE id=$1 FOR UPDATE',[req.user.id]);
+   const replay=(await c.query('SELECT id,user_id,draft_id,state FROM social_ai_jobs WHERE id=$1',[b.id])).rows[0];
+   if(replay){if(replay.user_id!==req.user.id||replay.draft_id!==req.params.id)throw failure('生成任务不存在',404);return {replay:{id:replay.id,state:replay.state}};}
    const d=await ownedDraft(c,req.params.id,req.user.id,true);assertDraftVersion(d,b.version);
    if(!writingFacts(d).length)throw failure('请先关联一条行程，再生成路线文案');
    if((await c.query("SELECT id FROM social_ai_jobs WHERE user_id=$1 AND created_at>now()-interval '10 minutes'",[req.user.id])).rowCount>=3)throw failure('已连续生成 3 次，请稍后再试',429);
@@ -41,6 +43,7 @@ export function installWritingRoutes(app,{auth,query,transaction,generate=llmJSO
    if((await c.query("SELECT id FROM social_ai_jobs WHERE draft_id=$1 AND state='running'",[d.id])).rowCount)throw failure('这份草稿正在生成，请稍候',409);
    await c.query("INSERT INTO social_ai_jobs(id,user_id,draft_id,draft_version,state) VALUES($1,$2,$3,$4,'running')",[b.id,req.user.id,d.id,d.version]);return d;
   });}catch(e){active--;throw e;}
+  if(draft.replay){active--;return res.json(draft.replay);}
   const task=(async()=>{
    try{
     const result=await generate('为旅行分享草稿选择呈现方式。仅返回 {tone:"lively"|"concise"|"guide",highlightIds:[已提供的 day ID，最多8个],ending:"save"|"question"|"none"}。不生成自由文本，不声称已到访。',{facts:writingFacts(draft),requestedTone:b.tone},{maxTokens:500});

@@ -34,7 +34,7 @@ export function installSocialMedia(app,{auth,query,transaction,mediaDir=fileURLT
  app.get('/api/social/media/:id',auth,async(req,res)=>{
   const id=z.uuid().parse(req.params.id);
   const r=await query(`SELECT m.id FROM social_media m WHERE m.id=$1 AND (m.user_id=$2 OR EXISTS(
-    SELECT 1 FROM post_media pm JOIN posts p ON p.id=pm.post_id WHERE pm.media_id=m.id AND NOT p.auto_shared AND p.hidden_at IS NULL))`,[id,req.user.id]);
+    SELECT 1 FROM post_media pm JOIN posts p ON p.id=pm.post_id JOIN users u ON u.id=p.user_id WHERE pm.media_id=m.id AND NOT p.auto_shared AND p.hidden_at IS NULL AND u.disabled_at IS NULL))`,[id,req.user.id]);
   if(!r.rowCount)throw failure('图片不存在',404);
   const s=await stat(filename(id)).catch(()=>null);if(!s?.isFile())throw failure('图片暂不可用',404);
   res.set({'Content-Type':'image/webp','Content-Length':s.size,'Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff'});
