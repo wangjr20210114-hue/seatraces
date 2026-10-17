@@ -1,28 +1,22 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile, mkdtemp, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { readFile } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import { discoveryCard, publishRoute } from '../public/discovery.js';
 
-test('discovery card escapes author and route data and shows ordered stops', () => {
-  const html = discoveryCard({ title: '<img onerror=alert(1)>', nickname: '<script>', snapshot: { cities: ['城市'], days: [{city:'城市',stops:[{name:'A'},{name:'B'}]}] } });
+test('discovery card escapes author and card content and labels synthetic posts', () => {
+  const html = discoveryCard({ id:'card',title: '<img onerror=alert(1)>', nickname: '<script>',excerpt:'<b>正文</b>',is_synthetic:true });
   assert.ok(!html.includes('<img')); assert.ok(!html.includes('<script>'));
-  assert.match(html, /1 天 · 2 个景点/); assert.ok(html.indexOf('<li>A') < html.indexOf('<li>B'));
+  assert.match(html, /&lt;img onerror=alert\(1\)&gt;/);assert.match(html,/&lt;b&gt;正文&lt;\/b&gt;/);assert.match(html,/模拟内容/);assert.match(html,/#\/post\/card/);
 });
 
 test('PostgreSQL: save stays private; explicit publish is owned, idempotent, sanitized and visible in my posts', { skip: process.env.TEST_DISCOVERY !== '1' }, async () => {
-  const { default: EmbeddedPostgres } = await import('embedded-postgres');
+  const {iterationFixture}=await import('./helpers/iteration-db.mjs');
   const { default: express } = await import('express');
   const { installDiscoveryRoutes } = await import('../server/services/discovery.mjs');
-  const dir = await mkdtemp(join(tmpdir(), 'seatraces-discovery-'));
-  const db = new EmbeddedPostgres({databaseDir:join(dir,'db'), user:'postgres', password:randomUUID(), port:Number(process.env.TEST_DISCOVERY_PORT || 55439), persistent:false, onLog:()=>{}, onError:()=>{}});
-  let client, server;
+  const fixture=await iterationFixture({schemas:['schema.sql','citywalk-schema.sql','discovery-schema.sql']});
+  const client={query:fixture.query};let server;
   try {
-    await db.initialise(); await db.start(); client=db.getPgClient(); await client.connect();
-    for (const file of ['schema.sql','citywalk-schema.sql','discovery-schema.sql'])
-      await client.query(await readFile(new URL('../server/'+file,import.meta.url),'utf8'));
     const owner=randomUUID(), viewer=randomUUID(), trip=randomUUID(), walk=randomUUID();
     for (const [id,name] of [[owner,'author'],[viewer,'viewer']]) await client.query('INSERT INTO users(id,username,password_hash,nickname) VALUES($1,$2,$3,$2)',[id,name,'test']);
     // Simulate the prior version, then ensure migration removes automatic publication.
@@ -67,7 +61,7 @@ test('PostgreSQL: save stays private; explicit publish is owned, idempotent, san
     assert.deepEqual((await client.query('SELECT snapshot FROM posts WHERE trip_id=$1',[trip])).rows[0].snapshot,before);
   } finally {
     if(server){server.closeAllConnections();await new Promise(resolve=>server.close(resolve));}
-    await client?.end(); await db.stop().catch(()=>{}); await rm(dir,{recursive:true,force:true});
+    await fixture.close();
   }
 });
 
@@ -83,5 +77,5 @@ test('publish button prevents concurrent duplicate requests and permits retry af
   reject(Error('网络中断'));await pending;
   assert.equal(button.disabled,false); assert.equal(navigation.length,0);
   await publishRoute({...options,api:async()=>({id:'post'})});
-  assert.deepEqual(navigation,['/discover']); assert.ok(messages.some(m=>m.includes('我的发布')));
+  assert.deepEqual(navigation,['/compose/post?write=1']); assert.ok(messages.includes('网络中断'));
 });
