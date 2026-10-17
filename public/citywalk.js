@@ -49,7 +49,19 @@ export function createCityWalkHome({ api, navigate, toast, authenticated=()=>tru
     )
     .join("");
   }
-  void loadClassicWalks(api).then(paintClassics).catch(()=>{rail.textContent="经典路线暂未加载";});
+  let classicsLoaded = false, classicsRequest = null;
+  function refreshClassics() {
+    if (classicsLoaded) return Promise.resolve();
+    if (classicsRequest) return classicsRequest;
+    classicsRequest = loadClassicWalks(api)
+      .then(() => { paintClassics(); classicsLoaded = true; })
+      .catch(() => {
+        rail.innerHTML = '<button type="button" class="walk-create" data-classics-retry>重新加载 ↻</button>';
+        dots.replaceChildren();
+      })
+      .finally(() => { classicsRequest = null; });
+    return classicsRequest;
+  }
   function syncAuto() {
     auto.textContent = paused ? "▶" : "Ⅱ";
     auto.setAttribute("aria-label", paused ? "开启自动轮播" : "暂停自动轮播");
@@ -110,6 +122,10 @@ export function createCityWalkHome({ api, navigate, toast, authenticated=()=>tru
     }
   });
   rail.onclick = (e) => {
+    if (e.target.closest("[data-classics-retry]")) {
+      void refreshClassics();
+      return;
+    }
     const b = e.target.closest("[data-classic]");
     if (b) navigate("/citywalk/classic-" + b.dataset.classic);
   };
@@ -196,7 +212,7 @@ export function createCityWalkHome({ api, navigate, toast, authenticated=()=>tru
   return {
     setActive(value) {
       active = value;
-      if (value) void refresh();
+      if (value) { void refreshClassics(); void refresh(); }
     },
   };
 }
