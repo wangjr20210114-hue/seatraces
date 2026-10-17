@@ -41,3 +41,26 @@ test('CityWalk selection stays local, debounces nearby reads and rejects stale v
   times.sort((a,b)=>a-b);t.diagnostic(JSON.stringify({rapidSelections:100,routeCallsDuringSelection:0,p95Ms:+times[94].toFixed(2),maxMs:+times[99].toFixed(2)}));assert.ok(times[94]<100,'local ordering should not stall input');
  }finally{disposed=true;cleanup?.();globalThis.window=originalWindow;globalThis.location=originalLocation;}
 });
+
+
+test('new nearby map candidates trigger a fresh fit without changing selection',async()=>{
+ const originalWindow=globalThis.window,originalLocation=globalThis.location;
+ const events={};globalThis.window={addEventListener(name,fn){events[name]=fn;},removeEventListener(){}};globalThis.location={origin:'http://test.local'};
+ const {root,nodes,messages}=surface();let nearbyResolve,cleanup,detailCalls=0;
+ const city={id:'city',name:'上海',lat:31.2,lng:121.4,country:'CN'};
+ const points=[{...city,id:'osm:node/1',name:'起点',category:'attraction'},{...city,id:'two',name:'博物馆',lng:121.401,category:'heritage'}];
+ const api=async path=>path.startsWith('/api/catalog/place?')?(detailCalls++,{description:'有来源的地点介绍',address:'街道 1 号'}):path.startsWith('/api/places?')?[city]:path.startsWith('/api/citywalk/catalog/')?{draftId:'d',clusters:[{id:'g',name:'步行圈',number:1,members:points,memberCount:2,anchor:points[0]}]}:new Promise(r=>nearbyResolve=r);
+ try{
+  cleanup=await renderWalkEditor({route:{id:'new'},content:root,setTitle(){},api,navigate(){},isCurrent:()=>true,toast(){}});await flush();
+  nodes.get('#walk-city-options').onclick({target:{closest:()=>({dataset:{city:'0'}})}});await flush();
+  nodes.get('#walk-areas').onclick({target:{closest:()=>({dataset:{area:'g'}})}});await flush();
+  const before=messages.at(-1);assert.equal(before.services.length,2);assert.ok(before.services.every(p=>p.walkInfo&&p.summary));
+  nearbyResolve({items:[{...points[0],id:'three',name:'咖啡店',lng:121.403,category:'food'}]});await flush();
+  const after=messages.at(-1);assert.equal(after.services.length,3);assert.notEqual(before.fitKey,after.fitKey);assert.equal(nodes.get('#walk-count').textContent,'0 个地点');
+  const frame=nodes.get('#walk-edit-map');const event={origin:'http://test.local',source:frame.contentWindow,data:{type:'seatraces-walk-details',id:'osm:node/1'}};
+  events.message({...event,origin:'https://wrong.invalid'});assert.equal(detailCalls,0);
+  events.message({...event,data:{...event.data,id:'osm:node/999'}});assert.equal(detailCalls,0,'unknown points cannot trigger reads');
+  events.message(event);events.message(event);await flush();assert.equal(detailCalls,1);
+  assert.equal(messages.at(-1).services[0].detail.description,'有来源的地点介绍');assert.equal(messages.at(-1).fitKey,after.fitKey,'details do not move the camera');
+ }finally{cleanup?.();globalThis.window=originalWindow;globalThis.location=originalLocation;}
+});

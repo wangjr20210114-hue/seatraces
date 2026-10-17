@@ -44,6 +44,7 @@ function showLayers(view) {
   document.querySelector("#route-legend").hidden = true;
 }
 function onZoom() {
+  layoutWalkLabels();
   if (!payload || payload.lockView || fitting || !userGesture) return;
   userGesture = false;
   const zoom = map.getZoom();
@@ -120,6 +121,55 @@ function replaceLayer(key, data, build) {
   layerSets.set(key, { signature, layers });
   return layers;
 }
+let walkCard, walkCardId, walkCardPinned = false, walkCardTimer;
+function hideWalkCard() {
+  clearTimeout(walkCardTimer);
+  if (walkCard) walkCard.hidden = true;
+  walkCardId = undefined;
+  walkCardPinned = false;
+}
+function showWalkCard(p, pinned = false) {
+  clearTimeout(walkCardTimer);
+  if (walkCardPinned && !pinned && walkCardId !== p.id) return;
+  if (!walkCard) {
+    walkCard = document.createElement('section');
+    walkCard.className = 'walk-place-detail';
+    walkCard.setAttribute('aria-label','地点详情');
+    document.body.append(walkCard);
+    walkCard.onpointerenter = () => clearTimeout(walkCardTimer);
+    walkCard.onpointerleave = () => { if (!walkCardPinned) walkCardTimer = setTimeout(hideWalkCard,200); };
+    window.addEventListener('keydown',e => { if(e.key==='Escape')hideWalkCard(); });
+  }
+  walkCardPinned = pinned || (walkCardId===p.id && walkCardPinned);
+  walkCardId = p.id;
+  const d = p.detail || {};
+  walkCard.innerHTML = `<button class="walk-detail-close" aria-label="收起地点详情">×</button><span class="walk-detail-category">${escapeText(d.category || '')}</span><h2>${escapeText(p.name)}</h2>${d.description?`<p>${escapeText(d.description)}</p>`:''}${d.address||d.district?`<p class="walk-detail-address">${escapeText(d.address || d.district)}</p>`:''}${d.opening?`<p>开放时间 · ${escapeText(d.opening)}</p>`:''}<button class="walk-detail-pick">${p.selected?'移出路线 −':'加入路线 ＋'}</button>`;
+  walkCard.querySelector('.walk-detail-close').onclick = hideWalkCard;
+  walkCard.querySelector('.walk-detail-pick').onclick = () => {
+    parent.postMessage({type:'seatraces-service-pick',id:p.id},location.origin);
+    hideWalkCard();
+  };
+  walkCard.hidden = false;
+  if(p.detailLoading)walkCard.querySelector('h2').insertAdjacentHTML('afterend','<p role="status">正在读取地点资料…</p>');
+  if(p.detailError)walkCard.querySelector('h2').insertAdjacentHTML('afterend','<p role="status">详细资料暂未连上</p>');
+  if(!p.detailLoaded&&!p.detailLoading)parent.postMessage({type:'seatraces-walk-details',id:p.id},location.origin);
+}
+document.querySelector('#map').addEventListener('focusin', e => {
+  const id = e.target.closest('[data-walk-place]')?.dataset.walkPlace;
+  const point = payload?.services?.find(p => p.id === id);
+  if (point) showWalkCard(point);
+});
+function layoutWalkLabels() {
+  if(!document.querySelectorAll)return;
+  const nodes=[...document.querySelectorAll('.walk-place')].sort((a,b)=>Number(b.classList.contains('selected'))-Number(a.classList.contains('selected')));
+  for(const n of nodes)n.classList.remove('walk-label-muted');
+  const rectangles=nodes.map(n=>n.getBoundingClientRect()),kept=[];
+  nodes.forEach((n,i)=>{
+    const r=rectangles[i];
+    if(kept.some(k=>r.left<k.right+5 && r.right>k.left-5 && r.top<k.bottom+5 && r.bottom>k.top-5))n.classList.add('walk-label-muted');
+    else kept.push(r);
+  });
+}
 function interactivePins(points, kind) {
   return (points || []).map((p, i) => {
     const icon =
@@ -131,8 +181,16 @@ function interactivePins(points, kind) {
       position: p.position,
       anchor: "bottom-center",
       zIndex: p.selected ? 160 : 140,
-      content: `<button class="map-action ${kind} ${p.selected ? "selected" : ""}" aria-label="${escapeText(p.name)}" aria-pressed="${Boolean(p.selected)}"><b>${icon}</b><span>${escapeText(p.name)}</span>${p.saved && p.selected ? "<small>✓</small>" : ""}</button>`,
+      content: p.walkInfo
+        ? `<button class="map-action walk-place ${p.selected?'selected':''}" data-walk-place="${escapeText(p.id)}" aria-label="查看${escapeText(p.name)}详情" aria-pressed="${!!p.selected}"><b>${p.selected?'✓':'+'}</b><span><strong>${escapeText(p.name)}</strong><small>${escapeText(p.summary)}</small></span></button>`
+        : `<button class="map-action ${kind} ${p.selected ? "selected" : ""}" aria-label="${escapeText(p.name)}" aria-pressed="${Boolean(p.selected)}"><b>${icon}</b><span>${escapeText(p.name)}</span>${p.saved && p.selected ? "<small>✓</small>" : ""}</button>`,
     });
+    if(p.walkInfo) {
+      marker.on('mouseover',()=>showWalkCard(p));
+      marker.on('mouseout',()=>{if(!walkCardPinned)walkCardTimer=setTimeout(hideWalkCard,200);});
+      marker.on('click',()=>showWalkCard(p,true));
+      return marker;
+    }
     marker.on("click", () =>
       parent.postMessage(
         {
@@ -193,6 +251,10 @@ function boundaries(b, district) {
 }
 function paint() {
   if (!map || !mapReady || !payload || !document.querySelector("#map").clientWidth || !document.querySelector("#map").clientHeight) return;
+  if(walkCardId) {
+    const point=payload.services?.find(p=>p.id===walkCardId&&p.walkInfo);
+    if(point)showWalkCard(point,walkCardPinned);else hideWalkCard();
+  }
   const context = payload.contextKey || "legacy",
     changed = context !== activeContext;
   if (changed) {
@@ -351,6 +413,7 @@ function paint() {
     el.classList.remove("scene-arrive");
     requestAnimationFrame(() => el.classList.add("scene-arrive"));
   }
+  requestAnimationFrame(layoutWalkLabels);
   if (home) status.hidden = true;
 }
 window.addEventListener("message", (e) => {

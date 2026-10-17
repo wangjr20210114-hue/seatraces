@@ -238,4 +238,11 @@ body,
   border-radius: 6px;
 }
 
-.walk-edit .map-action.service{padding:3px;gap:0;border-radius:50%;min-width:28px;height:28px;box-shadow:0 1px 2px #183c4020}.walk-edit .map-action.service span,.walk-edit .map-action.service small{display:none}.walk-edit .map-action.service:hover span,.walk-edit .map-action.service:focus-visible span{display:block;position:absolute;bottom:34px;left:50%;transform:translateX(-50%);padding:5px 8px;background:#fffdf2;border:1px solid #527f72;border-radius:8px;white-space:nowrap;pointer-events:none}.walk-edit .map-action.service.selected{background:#20c8b6;border-width:2px}
+.walk-place{border-width:1.5px;border-radius:13px;padding:6px 9px;gap:7px;box-shadow:0 2px 6px #183c4017;text-align:left}
+.walk-place b{min-width:22px;height:22px;background:#f9d77a;font-size:16px}
+.walk-place span{max-width:132px}.walk-place strong,.walk-place small{display:block;overflow:hidden;text-overflow:ellipsis}.walk-place strong{font-size:12px}.walk-place small{margin-top:3px;color:#4c7168;font-weight:400;font-size:11px}.walk-place.selected b{background:#fffdf2}.walk-place.selected{box-shadow:0 0 0 2px #fffdf2a0}
+.walk-place-detail{position:absolute;z-index:180;left:12px;bottom:40px;width:min(290px,calc(100% - 70px));box-sizing:border-box;padding:16px;background:#fffdf6;border:1.5px solid #244c50;border-radius:18px;box-shadow:0 6px 20px #183c4020;color:#244c50;font:14px/1.55 system-ui;max-height:65%;overflow-y:auto;animation:map-arrive .16s ease-out}
+.walk-place-detail[hidden]{display:none}.walk-place-detail h2{margin:5px 25px 10px 0;font-size:18px}.walk-place-detail p{margin:8px 0;overflow-wrap:anywhere}.walk-detail-category{font-size:12px;color:#4c7168}.walk-detail-address{color:#4c7168}.walk-detail-close{position:absolute;top:10px;right:10px;width:32px;height:32px;border:0;border-radius:50%;background:#edf2e6;color:#244c50;font-size:22px;cursor:pointer}.walk-detail-pick{width:100%;border:1px solid #244c50;border-radius:12px;margin-top:8px;padding:10px;background:#24c8b7;color:#17484b;font:700 14px system-ui;cursor:pointer}
+@media(prefers-reduced-motion:reduce){.walk-place-detail{animation:none}}
+
+.walk-place.walk-label-muted{padding:3px;min-height:28px;border-radius:50%;gap:0}.walk-label-muted span{display:none}.walk-label-muted b{min-width:20px;height:20px;font-size:14px}.walk-label-muted:focus-visible{outline:3px solid #ed8064}

@@ -1,7 +1,7 @@
 import { uniqueCities } from "./city-selection.js";
 import { orderWalk, walkName, metres, routeMetres } from "./citywalk-route.js";
 import { schematicConnections } from "./route-curves.js";
-import { mainlandEligible, toGcj } from "./coordinates.js";
+import { walkPlace, walkViewportKey } from "./walk-place.js";
 const esc = (s) =>
   String(s ?? "").replace(
     /[&<>"']/g,
@@ -53,10 +53,23 @@ export async function renderWalkEditor({
     notice = "",
     nearbyTimer;
   const nearbyCache = new Map();
+  const placeDetails = new Map();
+  async function readDetails(placeId) {
+    const p=pool.get(placeId);
+    if(!current() || stage!==2 || !p || placeDetails.has(placeId) || !/^osm:(node|way|relation)\/\d+$/.test(placeId))return;
+    placeDetails.set(placeId,{detailLoading:true});
+    paintMap();
+    try {
+      const record=await api('/api/catalog/place?id='+encodeURIComponent(placeId));
+      const compact=walkPlace({...p,...record});
+      placeDetails.set(placeId,{detailLoaded:true,...(compact?{detail:compact.detail,summary:compact.summary}:{})});
+    } catch { placeDetails.set(placeId,{detailLoaded:true,detailError:true}); }
+    if(current()&&stage===2)paintMap();
+  }
   const current = () => !disposed && isCurrent(),
     $ = (s) => content.querySelector(s),
     position = (p) =>
-      mainlandEligible(p) ? toGcj(p).split(",").map(Number) : [p.lng, p.lat];
+      walkPlace(p)?.position;
   let orderRevision = -1, orderedStops = [];
   const ordered = () => {
     if (orderRevision === revision) return orderedStops;
@@ -95,6 +108,7 @@ export async function renderWalkEditor({
       return;
     if (e.data?.type === "seatraces-map-ready") paintMap();
     if (e.data?.type === "seatraces-service-pick") void toggle(e.data.id);
+    if (e.data?.type === "seatraces-walk-details") void readDetails(e.data.id);
   }
   window.addEventListener("message", mapMessage);
   const cleanup = () => {
@@ -237,7 +251,7 @@ export async function renderWalkEditor({
       verified = null;
       title = city.name + " · " + g.name;
     } else {
-      for (const p of selected.values()) pool.set(p.id, p);
+      for (const p of selected.values()) pool.set(p.id, {...pool.get(p.id), ...p});
       anchorId = selected.keys().next().value || "";
     }
     notice = "";
@@ -295,15 +309,10 @@ export async function renderWalkEditor({
   }
   function paintMap() {
     if (!frame || !current() || stage !== 2) return;
-    const stops = ordered().map((p) => ({ ...p, position: position(p) })),
-      points = [...selected.values(), ...mapCandidates()].map((p) => ({
-        ...p,
-        name: (selected.has(p.id) ? "✓ " : "+ ") + walkName(p),
-        position: position(p),
-        selected: selected.has(p.id),
-        saved: selected.has(p.id),
-        kind: p.category === "food" ? "dining" : undefined,
-      }));
+    const stops = ordered().map(p => walkPlace(p,true)).filter(Boolean),
+      points = [...selected.values(), ...mapCandidates()]
+        .map(p => walkPlace({...pool.get(p.id),...p},selected.has(p.id))).filter(Boolean)
+        .map(p=>({...p,...placeDetails.get(p.id)}));
     frame.contentWindow?.postMessage(
       {
         type: "seatraces-route",
@@ -311,9 +320,9 @@ export async function renderWalkEditor({
         contextKey: "walk-edit-" + id,
         view: "day",
         lockView: true,
-        fitKey: "walk-" + revision,
-        viewPadding: [45, 45, 45, 45],
-        focus: position(city),
+        fitKey: walkViewportKey("walk-" + revision,points),
+        viewPadding: [78, 95, 78, 95],
+        focus: points[0]?.position || position(city),
         stops: [],
         services: points,
         connections:

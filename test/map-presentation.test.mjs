@@ -26,6 +26,7 @@ test("day fit excludes city/road overlays; user zoom switches layers without ref
     constructor(options) {
       this.options = options;
     }
+    on(event,fn){(this.handlers ||= {})[event]=fn;}
     show() {}
     hide() {}
   }
@@ -177,5 +178,12 @@ test("day fit excludes city/road overlays; user zoom switches layers without ref
   assert.equal(fits.length,before,'hidden container must not consume its new fit key');
   element('#map').clientWidth=390;listeners.resize();
   assert.equal(fits.length,before+1,'opening a collapsed route refits once after layout');
+  post({type:'seatraces-route',view:'day',kind:'citywalk',lockView:true,fitKey:'candidates',segments:[],services:[{id:'cafe',name:'咖啡馆',summary:'餐饮',walkInfo:true,position:[121.4,31.2]}],stops:[],connections:[]});
+  assert.equal(fits.at(-1).items.length,1,'an empty selection still fits candidate pins');
+  assert.deepEqual(Array.from(fits.at(-1).items[0].options.position),[121.4,31.2]);
+  assert.match(fits.at(-1).items[0].options.content,/咖啡馆/);
+  assert.match(fits.at(-1).items[0].options.content,/餐饮/);
+  assert.ok(fits.at(-1).items[0].handlers.mouseover);
+  assert.ok(fits.at(-1).items[0].handlers.click);
 });
 
