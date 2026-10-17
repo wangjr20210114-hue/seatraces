@@ -6,6 +6,7 @@ import { uniqueCities } from "./city-selection.js";
 import { createCityWalkHome, renderCityWalkEditor } from "./citywalk.js";
 import { createTabMotion } from "./tab-motion.js";
 import { createPageNavigation } from "./page-navigation.js";
+import { createPageMotion } from "./page-motion.js";
 import { renderProfilePage } from "./profile-pages.js";
 import {refreshPersonalOverview} from './personal-center.js';
 import { mountAgent } from "./agent-page.js";
@@ -237,13 +238,14 @@ const cityWalkHome = createCityWalkHome({
   navigate: (path) => navigation.go(path),
   toast,
 });
+const pageMotion = createPageMotion();
 const navigation = createPageNavigation({
   onRepeat: (route) =>
     $(panels[route.page] || "#detail-page").scrollTo({
       top: 0,
       behavior: reducedMotion() ? "auto" : "smooth",
     }),
-  onChange: (route, { animate }) => {
+  onChange: (route, { animate, direction }) => {
     if(me?.user) void fetch('/api/activity',{method:'POST',headers:{'Content-Type':'application/json','X-Seatraces':'1'},body:JSON.stringify({page:route.page,action:'open'})}).catch(()=>{});
     if(route.page!=='agent')agentContext={page:route.page,...(['history','services'].includes(route.page)&&route.id?{tripId:route.id,...(route.params?.day?{day:Number(route.params.day)}:{})}:state.trip?{tripId:state.trip.id,day:state.day}:{})};
     document.body.classList.toggle('agent-open',route.page==='agent');
@@ -267,6 +269,7 @@ const navigation = createPageNavigation({
     $("#detail-page").hidden = !detail;
     $(".bottom-nav").hidden = detail;
     document.body.classList.toggle("detail-open", detail);
+    pageMotion($(detail ? '#page-content' : panels[serviceView ? 'home' : route.page]), {animate,direction});
     tabMotion.select(detail ? "profile" : serviceView ? "home" : route.page, {
       animate: animate && !detail,
     });

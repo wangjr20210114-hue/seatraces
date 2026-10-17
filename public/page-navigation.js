@@ -51,13 +51,17 @@ function parseRoute(hash) {
 
 // Same-document history keeps the map and in-progress questionnaire alive.
 export function createPageNavigation({ onChange, onRepeat }) {
-  let current,
+  let current, currentDepth = 0,
     started = false;
   function render(animate = false) {
     const route = parseRoute(location.hash);
     if (route.path === current?.path) return;
+    const depth = history.state?.seatracesPage?.depth || 0;
+    const main = ['home','discover','profile'];
+    const direction = depth < currentDepth ? 'back' : main.includes(current?.page) && main.includes(route.page) ? 'tab' : 'forward';
     current = route;
-    onChange(route, { animate });
+    currentDepth = depth;
+    onChange(route, { animate, direction });
   }
   function go(path, { replace = false } = {}) {
     const route = parseRoute(path);
@@ -84,8 +88,8 @@ export function createPageNavigation({ onChange, onRepeat }) {
         "",
         "#" + route.path,
       );
-      window.addEventListener("popstate", () => render());
-      window.addEventListener("hashchange", () => render());
+      window.addEventListener("popstate", () => render(true));
+      window.addEventListener("hashchange", () => render(true));
       // In-app links must use the same history stack as buttons, otherwise a
       // native hash entry has no depth and Back skips its parent page.
       document.addEventListener('click', event => {
