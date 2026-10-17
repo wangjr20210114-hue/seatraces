@@ -102,7 +102,18 @@ test('recommendation database, CPU training, ownership, pressure and reversible 
    const r=await trainRecommendations({...f,activate:true});assert.equal(r.status,'evaluated');assert.equal(r.models.length,2);report.training=r;
    assert.ok(r.models.every(m=>m.metrics.counts.train>=150&&m.metrics.syntheticData));
    const storedTower=(await f.query('SELECT artifact FROM recommendation_models WHERE id=$1',[r.models[0].id])).rows[0].artifact;
+   const cutoff=Date.parse(r.models[0].metrics.cutoff),testStart=Date.parse(r.models[0].metrics.testStarts),week=7*86400000;
+   const trainSamples=samples.filter(s=>s.at+week<cutoff),validationSamples=samples.filter(s=>s.at>=cutoff&&s.at+week<testStart);
    const testSamples=samples.filter(s=>s.at>=Date.parse(r.models[1].metrics.testStarts));
+   assert.deepEqual(r.models[0].metrics.counts,{total:samples.length,train:trainSamples.length,validation:validationSamples.length,test:testSamples.length});
+   assert.ok(Math.max(...trainSamples.map(s=>s.at+week))<Math.min(...validationSamples.map(s=>s.at)));
+   assert.ok(Math.max(...validationSamples.map(s=>s.at+week))<Math.min(...testSamples.map(s=>s.at)));
+   const pairs=samples.map(s=>s.userId+':'+s.postId);assert.equal(new Set(pairs).size,pairs.length,'a user/post pair must not cross partitions');
+   // Reproduce weights using only the independently partitioned training rows:
+   // an accidental inclusion of validation/test data changes this digest.
+   assert.equal(artifactDigest(storedTower),artifactDigest(trainTower(trainSamples,{epochs:18}).model),'model must be trained exclusively on the embargoed training partition');
+   const qualifies=m=>m.validation.groups>=5&&m.test.groups>=5&&m.validation.ndcgAtK>m.baselineValidation.ndcgAtK+.005&&m.test.ndcgAtK>m.baselineTest.ndcgAtK+.005;
+   for(const m of r.models){const eligible=qualifies(m.metrics)&&(m.kind==='two_tower'||qualifies(r.models[0].metrics));assert.equal(m.metrics.eligible,eligible);assert.equal(m.state,eligible?'active':'rejected');}
    const servingBaseline=s=>{const p=s.parts;return sigmoid(p.affinity*3+p.author*.25+p.city*.7+p.quality*.45+p.fresh*.2-p.seen*.8+towerScore(storedTower,s.user,s.item));};
    assert.deepEqual(r.models[1].metrics.baselineTest,rankingMetrics(Object.values(Object.groupBy(testSamples,s=>s.userId)),servingBaseline,10),'fine-ranker evaluation must compare the exact serving fallback, not coarse ranking');
    const real=await recommend(f.query,{id:uid,preferences:{}});assert.equal(real.trace.models.tower,null);assert.equal(real.trace.models.ranker,null);

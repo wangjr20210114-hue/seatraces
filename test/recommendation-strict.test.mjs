@@ -4,7 +4,9 @@ import {randomUUID} from 'node:crypto';
 import {readFile} from 'node:fs/promises';
 import {iterationFixture} from './helpers/iteration-db.mjs';
 import {recommend,rerank} from '../server/recommendation/engine.mjs';
-import {refreshItem,buildProfile,readProfile} from '../server/recommendation/profiles.mjs';
+import {refreshItem,buildProfile,readProfile,recommendationPreferences} from '../server/recommendation/profiles.mjs';
+import {createStyleWorker} from '../server/social/style-store.mjs';
+import {scorePlace} from '../server/domain/scenic-clusters.mjs';
 import {recordExposure,updateExposure} from '../server/recommendation/events.mjs';
 import {trainingSamples} from '../server/recommendation/training.mjs';
 import {profileVector} from '../server/recommendation/features.mjs';
@@ -104,6 +106,14 @@ test('strict recommendation HTTP and temporal data contracts',{skip:process.env.
    await f.query("INSERT INTO recommendation_outcomes(user_id,post_id,kind,active,occurred_at) VALUES($1,$2,'save',true,$3)",[uid,p,new Date(at.getTime()+9*day)]);
    await f.query('UPDATE recommendation_items SET vector=$2 WHERE post_id=$1',[p,Array(96).fill(0)]);
    const samples=(await trainingSamples(f.query,'real')).filter(s=>s.postId===p);assert.equal(samples.length,1);assert.equal(samples[0].label,0);assert.deepEqual(samples[0].item,vector);assert.deepEqual(samples[0].parts,parts);
+   await f.query("INSERT INTO recommendation_outcomes(user_id,post_id,kind,active,occurred_at) VALUES($1,$2,'like',true,$3)",[uid,p,new Date(at.getTime()+7*day)]);
+   assert.equal((await trainingSamples(f.query,'real')).find(s=>s.postId===p).label,0,'exactly seven days is outside the first exposure label window');
+   await f.query("INSERT INTO recommendation_outcomes(user_id,post_id,kind,active,occurred_at) VALUES($1,$2,'like',true,$3)",[uid,p,new Date(at.getTime()+7*day-1)]);
+   assert.equal((await trainingSamples(f.query,'real')).find(s=>s.postId===p).label,1,'one millisecond before the boundary is valid');
+   await f.query("INSERT INTO recommendation_outcomes(user_id,post_id,kind,active,occurred_at) VALUES($1,$2,'not_interested',true,$3)",[uid,p,new Date(at.getTime()+6*day)]);
+   assert.equal((await trainingSamples(f.query,'real')).find(s=>s.postId===p).label,0,'explicit negative overrides a positive vote');
+   await f.query("INSERT INTO recommendation_outcomes(user_id,post_id,kind,active,occurred_at) VALUES($1,$2,'not_interested',false,$3)",[uid,p,new Date(at.getTime()+6*day+1)]);
+   assert.equal((await trainingSamples(f.query,'real')).find(s=>s.postId===p).label,1,'retracting negative feedback restores the remaining positive signal');
   });
   await t.test('REC-S12 satisfaction validation, ownership, rating reversal and neutral state',async()=>{
    const trip=randomUUID(),session=randomUUID();await f.query("INSERT INTO trips(id,user_id,title,request,plan,status) VALUES($1,$2,'评价测试','{}','{}','completed')",[trip,uid]);await f.query("INSERT INTO journey_sessions(id,user_id,request) VALUES($1,$2,'{}')",[session,uid]);await f.query('INSERT INTO recommendation_trip_sources(session_id,user_id,post_id,trip_id) VALUES($1,$2,$3,$4)',[session,uid,ids[0],trip]);
@@ -122,6 +132,24 @@ test('strict recommendation HTTP and temporal data contracts',{skip:process.env.
   await t.test('REC-S15 database failure is sanitized and the next request recovers',async()=>{
    failRecommendation=true;try{const r=await f.request('/api/social/feed',{user:'user'});assert.equal(r.status,500);assert.ok(!JSON.stringify(r.data).includes('private-database'));}finally{failRecommendation=false;}
    assert.equal((await f.request('/api/social/feed',{user:'user'})).status,200);
+  });
+  await t.test('REC-S16 real profile worker connects a saved post to both feed affinity and next-trip scoring, then reverses',async()=>{
+   const reader={id:f.users.admin.id,preferences:{}},museum=await post('博物馆文物与历史'),place={name:'博物馆',category:'attraction',traits:{tourism:'museum'}};
+   await f.query('DELETE FROM style_dirty_users');
+   const initial=(await recommend(f.query,reader)).rows.find(p=>p.id===museum).parts.affinity;
+   const initialPreferences=await recommendationPreferences(f.query,reader),initialScore=scorePlace(place,initialPreferences).total;
+   const errors=[],worker=createStyleWorker({...f,afterRebuild:buildProfile,onError:e=>errors.push(e)});
+   const action='/api/posts/'+museum+'/reactions';
+   assert.equal((await f.request(action,{body:{kind:'save',active:true}})).status,200);
+   await worker.tick();assert.deepEqual(errors,[]);
+   const liked=await recommendationPreferences(f.query,reader);
+   assert.ok(liked.styleWeights['人文']>0);assert.ok(scorePlace(place,liked).total>initialScore);
+   assert.ok((await recommend(f.query,reader)).rows.find(p=>p.id===museum).parts.affinity>initial);
+   const explicit=await recommendationPreferences(f.query,reader,{interests:['自然'],pace:'relaxed'});
+   assert.deepEqual(explicit.interests,['自然']);assert.equal(explicit.pace,'relaxed');
+   assert.equal((await f.request(action,{body:{kind:'save',active:false}})).status,200);await worker.tick();assert.deepEqual(errors,[]);
+   assert.equal(scorePlace(place,await recommendationPreferences(f.query,reader)).total,initialScore);
+   assert.equal(Object.keys((await readProfile(f.query,reader)).travel).length,0);
   });
  }finally{await f.close();}
 });
