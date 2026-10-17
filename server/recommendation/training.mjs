@@ -4,25 +4,39 @@ import {trainTower,trainRanker,towerScore,rankScore,rankInputs,rankingMetrics,en
 import {ruleFineScore} from './engine.mjs';
 const groups=rows=>Object.values(Object.groupBy(rows,r=>r.userId));
 export async function trainingSamples(query,scope){
- const rows=(await query(`SELECT e.user_id,e.post_id,e.created_at,e.item_vector,r.user_vector,e.visible_ms,u.synthetic_batch_id,
-  r.trace->'items' trace_items,p.created_at post_at,i.features,i.cities,
+ // Freeze maturity at the database clock; keyset cursors retain PostgreSQL's
+ // microseconds (a JavaScript Date would skip rows at a page boundary).
+ const asOf=(await query('SELECT now()::text AS as_of')).rows[0].as_of;
+ const samples=[];let cursorAt=null,cursorId=null,read=0;
+ while(read<20000){
+  const limit=Math.min(500,20000-read);
+  const rows=(await query(`WITH page AS MATERIALIZED (
+   SELECT e.*,u.synthetic_batch_id,p.user_id author_id FROM recommendation_exposures e
+   JOIN recommendation_requests r ON r.id=e.request_id JOIN users u ON u.id=e.user_id JOIN posts p ON p.id=e.post_id
+   WHERE u.is_synthetic=$1 AND p.is_synthetic=$1 AND e.visible_ms>=1000 AND e.created_at<$4::timestamptz-interval '7 days'
+    AND p.user_id<>e.user_id AND p.hidden_at IS NULL AND NOT p.auto_shared
+    AND ($2::timestamptz IS NULL OR e.created_at<$2::timestamptz OR (e.created_at=$2::timestamptz AND e.id>$3::uuid))
+   ORDER BY e.created_at DESC,e.id LIMIT $5
+  ) SELECT e.user_id,e.post_id,e.created_at,e.created_at::text cursor_at,e.id cursor_id,e.item_vector,r.user_vector,e.synthetic_batch_id,
+  (SELECT item->'parts' FROM jsonb_array_elements(r.trace->'items') item WHERE item->>'id'=e.post_id::text LIMIT 1) parts,
   (SELECT jsonb_agg(jsonb_build_object('kind',s.kind,'active',s.active)) FROM (
    SELECT DISTINCT ON(o.kind) o.kind,o.active FROM recommendation_outcomes o WHERE o.user_id=e.user_id
-    AND (o.post_id=e.post_id OR (o.kind='follow' AND o.author_id=p.user_id))
+    AND (o.post_id=e.post_id OR (o.kind='follow' AND o.author_id=e.author_id))
     AND o.occurred_at>=e.created_at AND o.occurred_at<e.created_at+interval '7 days'
    ORDER BY o.kind,o.occurred_at DESC,o.id DESC) s) outcomes
- FROM recommendation_exposures e JOIN recommendation_requests r ON r.id=e.request_id JOIN users u ON u.id=e.user_id
- JOIN posts p ON p.id=e.post_id LEFT JOIN recommendation_items i ON i.post_id=p.id
- WHERE u.is_synthetic=$1 AND p.is_synthetic=$1 AND e.visible_ms>=1000 AND e.created_at<now()-interval '7 days'
- AND p.user_id<>e.user_id AND p.hidden_at IS NULL AND NOT p.auto_shared
- ORDER BY e.created_at DESC,e.id LIMIT 20000`,[scope==='synthetic'])).rows;
- const seen=new Set();
- return rows.filter(r=>validVector(r.user_vector)&&validVector(r.item_vector)&&r.trace_items?.some(p=>p.id===r.post_id&&p.parts)).map(r=>{
+ FROM page e JOIN recommendation_requests r ON r.id=e.request_id
+ ORDER BY e.created_at DESC,e.id`,[scope==='synthetic',cursorAt,cursorId,asOf,limit])).rows;
+  for(const r of rows){
+  if(!validVector(r.user_vector)||!validVector(r.item_vector)||!r.parts)continue;
   const signals=new Set((r.outcomes||[]).filter(x=>x.active).map(x=>x.kind)),negative=signals.has('not_interested');
   const value=negative||signals.has('dissatisfied')?-4:signals.has('satisfied')?5:signals.has('adopt')?4:signals.has('save')?3:signals.has('recommend')?2:signals.has('like')?1:signals.has('follow')?.6:signals.has('comment')?.5:0;
-  const parts=r.trace_items.find(p=>p.id===r.post_id).parts;
-  return {userId:r.user_id,postId:r.post_id,syntheticBatchId:r.synthetic_batch_id,at:new Date(r.created_at).getTime(),user:r.user_vector,item:r.item_vector,label:value>0?1:0,weight:value?Math.abs(value):.2,parts};
- }).sort((a,b)=>a.at-b.at).filter(s=>{
+  samples.push({userId:r.user_id,postId:r.post_id,syntheticBatchId:r.synthetic_batch_id,at:new Date(r.created_at).getTime(),user:r.user_vector,item:r.item_vector,label:value>0?1:0,weight:value?Math.abs(value):.2,parts:r.parts});
+  }
+  read+=rows.length;if(rows.length<limit)break;
+  cursorAt=rows.at(-1).cursor_at;cursorId=rows.at(-1).cursor_id;
+ }
+ const seen=new Set();
+ return samples.sort((a,b)=>a.at-b.at).filter(s=>{
   // Keep raw browsing events for audit, but let one user/post pair vote only
   // once in this bounded training dataset, including across time partitions.
   // Choose its first valid exposure and that exposure's label window.
