@@ -68,5 +68,15 @@ test('feeds, follows, visibility, pagination and bounded behavioral evidence',{s
    assert.equal((await call('/api/social/posts/'+ids[2]+'/adopt',{})).status,404);
    assert.equal((await call('/api/social/feed')).data.items.length,0);
   });
+  await t.test('notifications and read state remain recipient scoped',async()=>{
+   await f.query('UPDATE users SET disabled_at=NULL WHERE id=$1',[author]);
+   const own=await f.request('/api/social/notifications',{user:'other'});assert.equal(own.data.items.length,1);
+   const id=own.data.items[0].id;assert.equal(own.data.items[0].read_at,null);
+   assert.equal((await call('/api/social/notifications')).data.items.length,0);
+   await call('/api/social/notifications/'+id+'/read',{},'PUT');
+   assert.equal((await f.query('SELECT read_at FROM social_notifications WHERE id=$1',[id])).rows[0].read_at,null);
+   await f.request('/api/social/notifications/'+id+'/read',{user:'other',method:'PUT',body:{}});
+   assert.ok((await f.query('SELECT read_at FROM social_notifications WHERE id=$1',[id])).rows[0].read_at);
+  });
  }finally{await f.close();}
 });

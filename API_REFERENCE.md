@@ -436,3 +436,50 @@ AgentReply 的公共字段：`text,intent,conversationId,revision`。可选：`c
 错误码记录在任务 `error_code`：`EXPORT_SOURCE_CHANGED`源记录消失、`EXPORT_ACCESS_REVOKED`权限失效、`EXPORT_OVERSIZE`内容过大、`EXPORT_EXPIRED`过期；其他错误用维护任务通用安全码。租约失效不自动重放，重新从日志页创建。数据成员固定，但用户名等非日志字段以实际分批读取时为准。
 
 旧 `GET /api/admin/events/export` 继续接受筛选、返回gzip并最多20,000条，内部改为分批流式处理。源日志在未恢复归档中时，新旧导出都返回409而非导出缺失数据。统一动作执行器未改变用户状态、消息发送、经典路线5个既有HTTP合同；详情见 [ADMIN.md](ADMIN.md)。
+
+## 图文发现、草稿与旅行风格（2026-10-17）
+
+新版页面流程取代上面的旧发现页面说明，旧 HTTP 合同继续兼容。所有 `/api/social/*` 都要求正常登录 Cookie；写请求要求 `X-Seatraces: 1` 和现有来源检查。游客401、资源不属于本人404、乐观锁/状态冲突409、额度/并发限制429；参数错误400。不存在任意用户ID写画像接口，智能体不会自动获得这些工具。实现、表、算法与边界见 [SOCIAL_LOOP.md](SOCIAL_LOOP.md)。
+
+### 草稿 → 图片 → AI建议 → 主动发布
+
+| 接口 | 输入 | 返回和副作用 |
+|---|---|---|
+| POST `/api/social/drafts` | `{id:UUID,source?:{kind:journey或citywalk,id:UUID},postId?:UUID}`；source/postId互斥 | 私有draft；同一ID重试返回原稿。他人来源404。postId用于编辑本人已发布帖子。最多100份未发布稿。 |
+| GET `/api/social/drafts` | limit默认12最大30；offset默认0最大10000 | `{items:[{id,title,version,source_kind,updated_at}],hasMore}`，本人未发布稿 |
+| GET `/api/social/drafts/:id` | 草稿UUID | 本人完整draft，包含白名单snapshot及media_ids；不返回原始私有行程 |
+| PUT `/api/social/drafts/:id` | `{version,title,body,tags,mediaIds}`，不接受额外字段 | 当前版本更新，version加1；title≤100、body≤4000、tags≤8且每项1–20字、mediaIds≤9个UUID；均不可重复。 |
+| DELETE `/api/social/drafts/:id` | `{version}` | `{ok:true}`，只删本人未发布稿；不删除已发布帖子或路线 |
+| POST `/api/social/drafts/:id/media` | `{image:"data:image/jpeg;base64,..."}`，也支持PNG/WebP | `{id,width,height,bytes}`图片元数据；重新解码、去EXIF、转WebP。输入≤180万字符/1600万像素，存储≤1.5MB；用户100MiB，草稿30次上传，全局同时处理2张。 |
+| GET `/api/social/media/:id` | 图片UUID | 二进制WebP，private/no-store；本人或关联可见已发布帖且作者未停用，其他404 |
+| POST `/api/social/drafts/:id/generate` | `{id:新任务UUID,version,tone?:lively或concise或guide}` | 202 `{id,state}`；必须有路线事实，固定ID重试复用任务，不发布或修改正文。同用户3次/10分钟，全局2个任务；模型18秒超时。 |
+| GET `/api/social/writing/:id` | 任务UUID | 本人任务：id/state、成功时result、失败时error；state为running/ready/failed。result含title/body/tags，用户审阅后用PUT草稿保存。 |
+| POST `/api/social/drafts/:id/publish` | `{version}` | `{id:postId,replayed:boolean}`；标题正文不能为空。发布/编辑与图片关联/特征更新同事务；重复请求返回同一帖。编辑校验原帖revision和可见性。 |
+
+draft主要字段：id、user_id、title、body、tags、source_kind、source_id、source_version、snapshot、version、media_ids、edit_post_id、edit_post_version、published_post_id、created_at、updated_at。来源快照只含公开路线白名单，保留城市/坐标系等地图必要信息，去掉起点、具体日期、答案、到访状态及原始数据树。
+
+AI流程：创建任务→轮询→显示建议→用户采用→PUT保存→POST发布。若轮询期间用户编辑导致版本变化，前端拒绝套用旧建议。AI仅选择事实中的日程ID、语气与结尾，服务端组合正文；不能编造消费、开放时间、已到访体验。任务失败显示错误，已有草稿仍可正常手写发布。
+
+### 社区、分页与浏览信号
+
+| 接口 | 输入 | 返回和副作用 |
+|---|---|---|
+| GET `/api/social/feed` | scope=recommended/following/mine（默认recommended），q≤60，limit默认12最大30，cursor可选 | `{items,nextCursor}`；首屏固定最近最多120个可见候选ID，游标`UUID:offset`仅本人30分钟有效。下一页须同scope，过期410。推荐/搜索只在候选范围内；不是全库搜索。 |
+| GET `/api/social/posts/:id` | post UUID | 帖子、body/tags/snapshot、按序media、following、reactions、not_interested、isOwn；隐藏/旧自动发布/作者停用返回404 |
+| PUT `/api/social/authors/:id/follow` | `{active:boolean}` | `{following:boolean}`；不能关注自己；幂等写关注及通知 |
+| PUT `/api/social/posts/:id/feedback` | `{notInterested:boolean}` | `{ok:true}`；取消/设置不感兴趣，排除推荐并重算负向证据 |
+| POST `/api/social/posts/:id/adopt` | `{}` | `{ok:true,requiresNewDates:true}`；去重记录参考行为，**不创建行程**。页面通过原城市/问卷/想去接口继续确认起点、日期和当前可用地点。 |
+| POST `/api/social/posts/:id/impressions` | `{id:UUID,context:feed或detail}` | `{id}`；可见帖子且本人ID重试复用；每用户每分钟最多60个新记录 |
+| PUT `/api/social/impressions/:id` | `{visibleMs:整数0..120000}` | `{ok:true}`；记录一天内本人累计可见时长，用实际经过时间夹取、只计增量。同帖每天有效browse_events累计最多120秒。 |
+| GET `/api/social/notifications` | limit默认12最大30；offset默认0最大10000 | `{items,hasMore}`；本人互动消息，含kind、actor昵称/头像、post_id/title、read_at、created_at |
+| PUT `/api/social/notifications/:id/read` | 无必需body | `{ok:true}`；仅更新本人消息，重复读取无额外影响 |
+
+feed卡片字段为id、user_id、title、created_at、revision、nickname、avatar、isOwn、cities、kind、preview（最多16个坐标点）、day_count、cover_id、likes、liked；不携带完整帖子正文/路线树。翻页时再检查隐藏、作者停用、不感兴趣和关注状态，所以某页可少于limit；以nextCursor决定是否继续。
+
+点赞/收藏/推荐继续用 `POST /api/posts/:id/reactions` `{kind:like或save或recommend,active:boolean}`；评论用 `GET /api/posts/:id/comments`、`POST /api/posts/:id/comments` `{body:1–500字}`。分享使用系统分享/复制链接，无自动对外发布。浏览前端只累计页面前台且卡片可见时间；不采集评论文本来推断喜好。
+
+### 画像闭环与后台
+
+明确偏好继续走原账号/确认记忆接口。行为写入触发同事务脏标记，工作线程有界重建；没有客户端直写分数的接口。`GET /api/admin/users/:id/preferences` 继续要求独立后台会话与原用户查看权限，新增inferred和dimensions/evidence/coverage等解释数据，具体响应组织见 `server/operations/user-insights.mjs` 和 `public/admin-style.js`。此读接口不改变显式偏好。
+
+推荐与下一次规划使用同一画像；本次问卷硬约束优先，推断只贡献最多±4的景点排序项。预算/同行人等缺证据维度保持未知。字典数量不代表已识别用户的全部属性。

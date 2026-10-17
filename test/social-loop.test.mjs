@@ -1,0 +1,40 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {randomUUID} from 'node:crypto';
+import {iterationFixture} from './helpers/iteration-db.mjs';
+import {installDraftRoutes} from '../server/social/drafts.mjs';
+import {installSocialCommunity} from '../server/social/community.mjs';
+import {installCommunityInteractions} from '../server/services/community-interactions.mjs';
+import {installWritingRoutes} from '../server/social/writing.mjs';
+import {refreshPostFeatures,rankSocial,rebuildStyle,styleForPlanning} from '../server/social/style-store.mjs';
+import {scorePlace} from '../server/domain/scenic-clusters.mjs';
+test('INT-SOCIAL: own trip → private AI draft → publish → follow/save → adopt → next itinerary ranking',{skip:process.env.TEST_SOCIAL!=='1'},async()=>{
+ const f=await iterationFixture({schemas:['schema.sql','citywalk-schema.sql','discovery-schema.sql','agent/schema.sql','social/schema.sql','social/style-schema.sql']});let writer,release;
+ try{
+  installDraftRoutes(f.app,{...f,onPublish:refreshPostFeatures});installSocialCommunity(f.app,{...f,rank:(rows,user)=>rankSocial(f.query,rows,user)});installCommunityInteractions(f.app,f);
+  let modelCalls=0;const wait=new Promise(r=>release=r);
+  writer=installWritingRoutes(f.app,{...f,generate:async()=>{modelCalls++;await wait;return {tone:'guide',highlightIds:['day-0'],ending:'none'};}});await f.start();
+  const trip=randomUUID(),draft=randomUUID(),author=f.users.user.id,reader=f.users.other.id;
+  await f.query('INSERT INTO trips(id,user_id,title,request,plan) VALUES($1,$2,$3,$4,$5)',[trip,author,'北京博物馆一日',JSON.stringify({start:'2030-01-01',origin:'我的家'}),JSON.stringify({cities:[{name:'北京'}],days:[{city:'北京',stops:[{id:'museum',name:'博物馆',category:'attraction',lat:39.9,lng:116.4}]}]})]);
+  const call=(path,body,method,user='user')=>f.request(path,{body,method,user});
+  assert.equal((await call('/api/social/drafts',{id:draft,source:{kind:'journey',id:trip}})).status,200);
+  const job=randomUUID();const starts=await Promise.all([call('/api/social/drafts/'+draft+'/generate',{id:job,version:1}),call('/api/social/drafts/'+draft+'/generate',{id:job,version:1})]);
+  assert.ok(starts.every(r=>[200,202].includes(r.status)),JSON.stringify(starts));release();await writer.drain();assert.equal(modelCalls,1);
+  const suggestion=(await call('/api/social/writing/'+job)).data.result;assert.ok(!JSON.stringify(suggestion).includes('我的家'));assert.ok(!JSON.stringify(suggestion).includes('2030'));
+  assert.equal((await call('/api/social/feed',undefined,undefined,'other')).data.items.length,0);
+  assert.equal((await call('/api/social/drafts/'+draft,{version:1,title:suggestion.title,body:suggestion.body,tags:['人文'],mediaIds:[]},'PUT')).status,200);
+  const post=(await call('/api/social/drafts/'+draft+'/publish',{version:2})).data.id;assert.ok(post);
+  assert.equal((await call('/api/social/authors/'+author+'/follow',{active:true},'PUT','other')).status,200);
+  assert.equal((await call('/api/social/feed?scope=following',undefined,undefined,'other')).data.items[0].id,post);
+  assert.equal((await call('/api/posts/'+post+'/reactions',{kind:'save',active:true},undefined,'other')).status,200);
+  assert.equal((await call('/api/social/posts/'+post+'/adopt',{},undefined,'other')).status,200);
+  await f.transaction(c=>rebuildStyle(c,reader));
+  const preferences=await styleForPlanning(f.query,{id:reader,preferences:{}},{pace:'relaxed'});
+  assert.equal(preferences.pace,'relaxed');assert.ok(preferences.styleWeights['人文']>0);
+  const place={name:'博物馆',category:'attraction',traits:{tourism:'museum'}};
+  assert.ok(scorePlace(place,preferences).total>scorePlace(place,{}).total);
+  const evidence=(await f.query("SELECT weight FROM user_style_evidence WHERE user_id=$1 AND dimension='interest.museum'",[reader])).rows;
+  assert.equal(evidence.length,1);assert.equal(evidence[0].weight,3);
+  await f.transaction(c=>rebuildStyle(c,author));assert.equal((await f.query('SELECT count(*) n FROM user_style_evidence WHERE user_id=$1',[author])).rows[0].n,'0');
+ }finally{release?.();await writer?.drain();await f.close();}
+});

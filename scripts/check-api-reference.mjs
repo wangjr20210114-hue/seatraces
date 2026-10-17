@@ -10,6 +10,7 @@ const files = [
   "server/services/discovery.mjs",
   "server/services/classic-citywalks.mjs",
   "server/services/personal-center.mjs",
+  ...(await readdir('server/social')).filter(name=>name.endsWith('.mjs')).sort().map(name=>'server/social/'+name),
   ...(await readdir('server/operations')).filter(name=>name.endsWith('.mjs')).sort().map(name=>'server/operations/'+name),
   "server/frontend.mjs",
 ];

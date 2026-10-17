@@ -99,5 +99,14 @@ test('social drafts, safe media, AI review and concurrent publication',{skip:pro
    await Promise.all(Array.from({length:12},async()=>{while(next++<200){const s=performance.now(),r=await call('/api/social/drafts?limit=12');assert.equal(r.status,200);assert.ok(r.data.items.length<=12);times.push(performance.now()-s);peak=Math.max(peak,process.memoryUsage().rss);}}));
    times.sort((a,b)=>a-b);t.diagnostic('SOCIAL_PRESSURE '+JSON.stringify({requests:times.length,concurrency:12,p95Ms:Math.round(times[189]),elapsedMs:Math.round(performance.now()-start),peakRssMiB:Math.round(peak/1048576)}));
   });
+  await t.test('draft removal is owner/version scoped and cannot delete published posts',async()=>{
+   const id=randomUUID();await call('/api/social/drafts',{id});
+   assert.equal((await f.request(base+id,{user:'other',method:'DELETE',body:{version:1}})).status,404);
+   assert.equal((await call(base+id,{version:2},'DELETE')).status,409);
+   assert.equal((await call(base+id,{version:1},'DELETE')).status,200);
+   assert.equal((await call(base+id)).status,404);
+   assert.equal((await call(base+draft,{version:2},'DELETE')).status,409);
+   assert.equal((await f.query('SELECT id FROM posts WHERE id=$1',[post])).rowCount,1);
+  });
  }finally{await writer?.drain();await f.close();await rm(mediaDir,{recursive:true,force:true});}
 });
