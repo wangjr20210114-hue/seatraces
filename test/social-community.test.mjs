@@ -60,5 +60,13 @@ test('feeds, follows, visibility, pagination and bounded behavioral evidence',{s
    assert.equal((await call('/api/social/feed?q='+encodeURIComponent("' OR 1=1--"))).data.items.length,0);
    assert.ok((await call('/api/social/feed?q='+encodeURIComponent('人文'))).data.items.length>0);
   });
+  await t.test('disabled authors are unavailable through legacy writes as well as new details',async()=>{
+   await f.query('UPDATE users SET disabled_at=now() WHERE id=$1',[author]);
+   assert.equal((await call('/api/social/posts/'+ids[2])).status,404);
+   assert.equal((await call('/api/posts/'+ids[2]+'/comments',{body:'不能继续写'})).status,404);
+   assert.equal((await call('/api/posts/'+ids[2]+'/reactions',{kind:'like',active:true})).status,404);
+   assert.equal((await call('/api/social/posts/'+ids[2]+'/adopt',{})).status,404);
+   assert.equal((await call('/api/social/feed')).data.items.length,0);
+  });
  }finally{await f.close();}
 });

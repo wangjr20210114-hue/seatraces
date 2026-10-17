@@ -2,7 +2,7 @@ import {z} from 'zod';
 import {randomUUID} from 'node:crypto';
 export const visiblePost=(alias='p')=>`${alias}.hidden_at IS NULL AND NOT ${alias}.auto_shared`;
 export async function requireVisiblePost(c,id,lock=false){
-  const p=(await c.query(`SELECT p.id FROM posts p WHERE p.id=$1 AND ${visiblePost()}${lock?' FOR SHARE':''}`,[id])).rows[0];
+  const p=(await c.query(`SELECT p.id FROM posts p WHERE p.id=$1 AND ${visiblePost()} AND EXISTS(SELECT 1 FROM users u WHERE u.id=p.user_id AND u.disabled_at IS NULL)${lock?' FOR SHARE':''}`,[id])).rows[0];
   if(!p)throw Object.assign(Error('内容不存在或已隐藏'),{status:404});return p;
 }
 export function installCommunityInteractions(app,{query,transaction,auth,onReaction=async()=>{},onComment=async()=>{}}){
