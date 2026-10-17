@@ -1,5 +1,5 @@
 import { uniqueCities } from "./city-selection.js";
-import { orderWalk, walkName, metres } from "./citywalk-route.js";
+import { orderWalk, walkName, metres, routeMetres } from "./citywalk-route.js";
 import { schematicConnections } from "./route-curves.js";
 import { mainlandEligible, toGcj } from "./coordinates.js";
 const esc = (s) =>
@@ -50,16 +50,22 @@ export async function renderWalkEditor({
     saving = false,
     filter = "",
     nearbySequence = 0,
-    notice = "";
+    notice = "",
+    nearbyTimer;
+  const nearbyCache = new Map();
   const current = () => !disposed && isCurrent(),
     $ = (s) => content.querySelector(s),
     position = (p) =>
       mainlandEligible(p) ? toGcj(p).split(",").map(Number) : [p.lng, p.lat];
-  const ordered = () =>
-    orderWalk([...selected.values()], startId).map((p) => ({
+  let orderRevision = -1, orderedStops = [];
+  const ordered = () => {
+    if (orderRevision === revision) return orderedStops;
+    orderRevision = revision;
+    return orderedStops = orderWalk([...selected.values()], startId).map((p) => ({
       ...p,
       name: walkName(p),
     }));
+  };
   const fail = (e) => {
     if (current()) {
       const el = $("#walk-error");
@@ -96,6 +102,7 @@ export async function renderWalkEditor({
     revision++;
     nearbySequence++;
     clearTimeout(timer);
+    clearTimeout(nearbyTimer);
     window.removeEventListener("message", mapMessage);
   };
   setTitle(version ? "编辑 CityWalk" : "我的 CityWalk");
@@ -249,10 +256,10 @@ export async function renderWalkEditor({
       const b = e.target.closest("[data-place]");
       if (b) void toggle(b.dataset.place);
     };
-    $("#walk-save").onclick = save;
+    $("#walk-save").onclick = () => verified?.status === "verified" ? save() : refreshRoute();
     filter = "";
     paint();
-    if (restore) void refreshRoute();
+    // Restoring or editing a selection is local; only an explicit confirmation routes it.
     void loadNearby(anchorId || g.anchor?.id || g.members[0]?.id);
   }
   function candidates() {
@@ -273,7 +280,7 @@ export async function renderWalkEditor({
       candidates()
         .map(
           (p) =>
-            `<button class="walk-sight" data-place="${esc(p.id)}" ${busy || saving ? "disabled" : ""}><span class="walk-check">+</span><span><b>${esc(walkName(p))}</b><small>${categoryLabel(p)}${anchorId ? " · " + Math.round(metres(pool.get(anchorId), p)) + "m" : ""}</small></span></button>`,
+            `<button class="walk-sight" data-place="${esc(p.id)}" ${saving || verified?.blocked ? "disabled" : ""}><span class="walk-check">+</span><span><b>${esc(walkName(p))}</b><small>${categoryLabel(p)}${anchorId ? " · " + Math.round(metres(pool.get(anchorId), p)) + "m" : ""}</small></span></button>`,
         )
         .join("") || '<p class="walk-prompt">附近暂无更多匹配地点</p>';
   }
@@ -328,12 +335,12 @@ export async function renderWalkEditor({
       busy ||
       saving ||
       stops.length < 2 ||
-      verified?.status !== "verified" ||
-      verified.blocked;
+      !!verified?.blocked;
+    $("#walk-save").textContent = saving ? "正在保存…" : busy ? "规划中…" : verified?.status === "verified" ? "保存路线 ✓" : "规划步行路线 →";
     $("#walk-route-state").className =
       "walk-route-state" +
       (busy ? " loading" : "") +
-      (verified?.warning ? " warning" : "");
+      (verified?.warning || verified?.blocked ? " warning" : "");
     $("#walk-route-state").textContent = busy
       ? "正在核验步行路线…"
       : notice ||
@@ -345,8 +352,8 @@ export async function renderWalkEditor({
               ? "步行 " +
                 (verified.distanceM / 1000).toFixed(2) +
                 " 公里" +
-                (verified.warning ? " · 超过 10 公里，建议分段走" : "")
-              : "仅预览 · 步行距离暂未核验");
+                (verified.blocked ? " · 达到 15 公里，请减少地点" : verified.warning ? " · 超过 10 公里，建议分段走" : "")
+              : "连线约 " + (routeMetres(stops) / 1000).toFixed(2) + " 公里 · 选好后规划步行路线");
     $("#walk-selected").innerHTML = stops.length
       ? `<div class="walk-order"><label>从这里出发<select id="walk-start">${stops.map((p) => `<option value="${esc(p.id)}" ${p.id === startId ? "selected" : ""}>${esc(p.name)}</option>`).join("")}</select></label><ol>${stops.map((p) => `<li><span>${esc(p.name)}</span><button data-remove="${esc(p.id)}" aria-label="移除${esc(p.name)}" ${saving ? "disabled" : ""}>×</button></li>`).join("")}</ol>${verified?.status === "preview" ? '<button class="walk-create" id="walk-recheck">重新核验 ↻</button>' : ""}</div>`
       : "";
@@ -356,7 +363,7 @@ export async function renderWalkEditor({
     };
     $("#walk-start")?.addEventListener("change", (e) => {
       startId = e.target.value;
-      void refreshRoute();
+      selectionChanged();
     });
     $("#walk-recheck")?.addEventListener("click", () => void refreshRoute());
     paintCandidates();
@@ -368,7 +375,8 @@ export async function renderWalkEditor({
       valid = () => current() && stage === 2 && seq === nearbySequence;
     $("#walk-nearby-state").textContent = "正在找附近地点…";
     try {
-      const r = await poll(
+      const cacheKey = data.draftId + ':' + group.id + ':' + anchor;
+      const r = nearbyCache.get(cacheKey) || await poll(
         "/api/citywalk/drafts/" + data.draftId + "/nearby",
         {
           clusterIds: [group.id],
@@ -378,6 +386,9 @@ export async function renderWalkEditor({
         valid,
       );
       if (!r) return;
+      if (!valid()) return;
+      nearbyCache.set(cacheKey, r);
+      if (nearbyCache.size > 100) nearbyCache.delete(nearbyCache.keys().next().value);
       for (const p of r.items) pool.set(p.id, p);
       $("#walk-nearby-state").textContent = "";
       paintCandidates();
@@ -390,7 +401,16 @@ export async function renderWalkEditor({
       }
     }
   }
-  async function refreshRoute(before) {
+  function selectionChanged() {
+    revision++;
+    busy = false;
+    verified = null;
+    notice = "";
+    if ($("#walk-error")) $("#walk-error").textContent = "";
+    paint();
+  }
+  async function refreshRoute() {
+    if (busy || saving || selected.size < 2) return;
     const own = ++revision;
     verified = null;
     notice = "";
@@ -410,14 +430,8 @@ export async function renderWalkEditor({
         () => current() && stage === 2 && own === revision,
       );
       if (!r) return;
-      if (r.route.blocked && before) {
-        selected = before.selected;
-        startId = before.startId;
-        anchorId = before.anchorId;
-        verified = before.verified;
-        notice = "达到 15 公里，已取消新增地点";
-        toast(notice);
-      } else verified = r.route;
+      verified = r.route;
+      if (verified.status !== "verified") notice = "步行路线暂不可用，已保留连线预览";
     } catch (e) {
       if (own === revision) {
         verified = { status: "preview" };
@@ -432,17 +446,16 @@ export async function renderWalkEditor({
     }
     return own;
   }
-  async function toggle(placeId) {
+  function toggle(placeId) {
     if (!current() || stage !== 2 || saving) return;
     const p = pool.get(placeId);
     if (!p) return;
     const adding = !selected.has(placeId);
-    if (adding && busy) return;
+    if (adding && verified?.blocked) { fail(Error("实际步行达到 15 公里，请先减少地点")); return; }
     if (adding && selected.size >= 100) {
       fail(Error("一条路线最多选择 100 个地点"));
       return;
     }
-    const before = { selected: new Map(selected), startId, anchorId, verified };
     if (adding) {
       selected.set(placeId, p);
       anchorId = placeId;
@@ -451,9 +464,11 @@ export async function renderWalkEditor({
       if (anchorId === placeId) anchorId = selected.keys().next().value || "";
     }
     if (!selected.has(startId)) startId = selected.keys().next().value || "";
-    const own = await refreshRoute(adding ? before : null);
-    if (current() && stage === 2 && own === revision)
-      void loadNearby(anchorId || group.anchor?.id);
+    selectionChanged();
+    // Local candidates stay interactive while the next neighbourhood loads.
+    nearbySequence++;
+    clearTimeout(nearbyTimer);
+    nearbyTimer = setTimeout(() => void loadNearby(anchorId || group.anchor?.id), 220);
   }
   async function save() {
     if (
