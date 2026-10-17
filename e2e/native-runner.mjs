@@ -4,7 +4,7 @@ import { readFile, writeFile, mkdir, cp } from "node:fs/promises";
 import path from "node:path";
 import { coverage } from "./coverage.mjs";
 
-export async function runNative({ appRoot, root, password }) {
+export async function runNative({ appRoot, root, password,dbPort=55439 }) {
   await cp(path.join(root, "test"), path.join(appRoot, "test"), {
     recursive: true,
   });
@@ -13,7 +13,7 @@ export async function runNative({ appRoot, root, password }) {
   });
   await mkdir(path.join(appRoot, ".runtime"), { recursive: true });
   const config = path.join(appRoot, ".runtime/local.json");
-  await writeFile(config, JSON.stringify({ port: 55439, password }), {
+  await writeFile(config, JSON.stringify({ port: dbPort, password }), {
     mode: 0o600,
   });
   const files = [

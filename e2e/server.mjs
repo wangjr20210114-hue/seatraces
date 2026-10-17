@@ -14,9 +14,11 @@ import { runNative } from "./native-runner.mjs";
 const root = fileURLToPath(new URL("../", import.meta.url));
 process.chdir(root);
 const runtime = path.join(root, ".runtime/ui-test");
+const dbPort=Number(process.env.UI_DB_PORT||55439);
+if(!Number.isInteger(dbPort)||dbPort<1024||dbPort>65535||[19887,19888,54329].includes(dbPort))throw Error('Invalid isolated UI database port');
 await mkdir(runtime, { recursive: true });
 // Fail before starting PostgreSQL if another test/application owns a test port.
-for (const port of [19887, 19888, 55439])
+for (const port of [19887, 19888, dbPort])
   await new Promise((resolve, reject) => {
     const s = net.createServer();
     s.once("error", () =>
@@ -50,7 +52,7 @@ const db = new EmbeddedPostgres({
   databaseDir: dir,
   user: "seatraces_ui",
   password,
-  port: 55439,
+  port: dbPort,
   persistent: false,
   authMethod: "scram-sha-256",
   initdbFlags: ["--encoding=UTF8", "--locale=C"],
@@ -160,7 +162,7 @@ try {
       delete process.env[k];
   Object.assign(process.env, {
     DOTENV_CONFIG_PATH: path.join(runtime, "no-env-file"),
-    DATABASE_URL: `postgresql://seatraces_ui:${password}@127.0.0.1:55439/seatraces_ui`,
+    DATABASE_URL: `postgresql://seatraces_ui:${password}@127.0.0.1:${dbPort}/seatraces_ui`,
     NODE_ENV: "test",
     PORT: "19887",
     HOST: "127.0.0.1",
@@ -350,7 +352,7 @@ try {
     JSON.stringify(testState),
     { mode: 0o600 },
   );
-  await runNative({ appRoot, root, password });
+  await runNative({ appRoot, root, password,dbPort });
   nativeReady = true;
   console.log(
     "UI regression ready: isolated PostgreSQL, real app, no paid providers.",

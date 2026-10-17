@@ -61,7 +61,7 @@ if (command === "catalog") {
     args = [...args, "--grep", id];
   }
   console.log(
-    "SeaTraces UI: isolated app 19888, backend 19887, temporary PostgreSQL 55439.",
+    `SeaTraces UI: isolated app 19888, backend 19887, temporary PostgreSQL ${process.env.UI_DB_PORT||55439}.`,
   );
   const result = spawnSync(process.execPath, [cli, ...args, ...extra], {
     stdio: "inherit",

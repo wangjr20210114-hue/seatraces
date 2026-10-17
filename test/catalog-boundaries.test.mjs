@@ -688,7 +688,8 @@ run(
     const cfg = JSON.parse(
       await readFile(process.env.ITERATION_DB_CONFIG, "utf8"),
     );
-    assert.equal(cfg.port, 55439);
+    assert.equal(cfg.port, Number(process.env.UI_DB_PORT||55439));
+    assert.ok(![54329,19887,19888].includes(cfg.port));
     assert.match(process.env.ITERATION_DB_CONFIG, /reports[\\/]ui[\\/]app-/);
     const s = await state();
     assert.equal(s.a.username, "ui_a");
