@@ -1,3 +1,4 @@
+import {installRouteCovers} from './social/route-covers.mjs';
 import {guestMapStyle} from '../public/guest-policy.js';
 import {installDraftRoutes} from './social/drafts.mjs';
 import {installSocialMedia} from './social/media.mjs';
@@ -134,6 +135,7 @@ installSocialCommunity(app,{auth,query,transaction,rank:(rows,user)=>rankSocial(
 installPersonalCenter(app,{auth,query,transaction});
 installDraftRoutes(app,{auth,query,transaction,onPublish:refreshPostFeatures});
 installSocialMedia(app,{auth,query,transaction});
+installRouteCovers(app,{auth,query});
 installWritingRoutes(app,{auth,query,transaction});
 app.use('/_AMapService', (req,res,next)=>{
   if(!guestMapStyle(req.path,req.method))return auth(req,res,next);

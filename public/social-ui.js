@@ -8,8 +8,15 @@ export function routeCover(snapshot={},title='下一程，去哪里？'){
  const path=xy.slice(1).map(([x,y],i)=>{const [a,b]=xy[i];return `M${a},${b} Q${(a+x)/2-(y-b)*.12},${(b+y)/2+(x-a)*.12} ${x},${y}`;}).join(' ');
  return `<div class="social-cover route-cover"><svg viewBox="0 0 320 220" role="img" aria-label="路线示意"><path d="${path}" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>${xy.map(([x,y],i)=>`<circle cx="${x}" cy="${y}" r="${i===0?7:4}" fill="${i===0?'#faab86':'#20baa9'}" stroke="currentColor"/>`).join('')}</svg><span>${esc((snapshot.cities||[]).join(' · '))}</span></div>`;
 }
+export function mapCover(kind,id,title='',revision=''){
+ return `<div class="social-cover map-cover"><span>地图加载中</span><img loading="lazy" src="/api/social/route-covers/${esc(kind)}/${esc(id)}?v=${esc(revision)}" alt="${esc(title)} · 路线地图"></div>`;
+}
+if(typeof document!=='undefined'){
+ document.addEventListener('load',e=>{if(e.target.matches?.('.map-cover img'))e.target.parentElement.classList.add('map-loaded');},true);
+ document.addEventListener('error',e=>{if(e.target.matches?.('.map-cover img')){e.target.hidden=true;e.target.parentElement.querySelector('span').textContent='地图暂未加载';}},true);
+}
 export function socialCard(p){
- const cover=p.cover_id?`<img class="social-cover" loading="lazy" src="/api/social/media/${esc(p.cover_id)}" alt="${esc(p.title)}">`:routeCover({cities:p.cities||[],days:p.preview?[{stops:p.preview}]:[]},p.title);
+ const cover=p.cover_id?`<img class="social-cover" loading="lazy" src="/api/social/media/${esc(p.cover_id)}" alt="${esc(p.title)}">`:p.day_count||p.preview?.length?mapCover('post',p.id,p.title,p.revision):routeCover({},p.title);
  return `<article class="social-card" data-post="${esc(p.id)}"><a href="#/post/${esc(p.id)}">${cover}<h2>${esc(p.title)}</h2></a><footer><span>${esc(p.avatar||'🌊')} ${esc(p.nickname||'旅行者')}</span><button data-like="${esc(p.id)}" aria-label="${p.liked?'取消点赞':'点赞'}" aria-pressed="${!!p.liked}">${p.liked?'♥':'♡'} <span>${p.likes||0}</span></button></footer></article>`;
 }
 export function bindCardActions(container,{api,toast=()=>{}}){

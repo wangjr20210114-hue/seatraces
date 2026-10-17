@@ -483,3 +483,14 @@ feed卡片字段为id、user_id、title、created_at、revision、nickname、ava
 明确偏好继续走原账号/确认记忆接口。行为写入触发同事务脏标记，工作线程有界重建；没有客户端直写分数的接口。`GET /api/admin/users/:id/preferences` 继续要求独立后台会话与原用户查看权限，新增inferred和dimensions/evidence/coverage等解释数据，具体响应组织见 `server/operations/user-insights.mjs` 和 `public/admin-style.js`。此读接口不改变显式偏好。
 
 推荐与下一次规划使用同一画像；本次问卷硬约束优先，推断只贡献最多±4的景点排序项。预算/同行人等缺证据维度保持未知。字典数量不代表已识别用户的全部属性。
+
+
+## 路线地图封面（2026-10-17）
+
+`GET /api/social/route-covers/:kind/:id`：已登录用户读取 480×480 高德真实静态地图 PNG。`kind` 为 `post|draft|journey|citywalk`，`id` 为 UUID；可选 `v` 仅用于前端资源版本标识。输入坐标始终从后端对应路线读取，不接受任意外部 URL、Key 或用户 ID。草稿、行程、CityWalk 仅所有者可读；帖子须公开可见且作者未禁用。
+
+按整条平滑路线计算镜头范围，保留地图地名和高德署名。用户上传照片仍优先作为封面。无坐标为 422；未登录 401；无权或不存在 404；队列满 429；配置缺失 503；高德失败 502。页面失败时显示简短占位，不伪造地图。
+
+响应 `Content-Type: image/png`，`Cache-Control: private, no-cache`；携带 `ETag` 的条件请求仍先鉴权，再决定是否返回 304。Web 服务密钥仅在后端使用。单图最多 2 MiB，最多 200 个路线点，最多 24 个待生成任务；不改变现有行程与发帖接口，不新增封面数据库表。
+
+服务依据：[高德静态地图官方文档](https://developer.amap.com/api/webservice/guide/api/staticmaps/)。
