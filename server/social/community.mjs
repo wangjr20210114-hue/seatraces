@@ -6,7 +6,7 @@ export async function socialNotify(c,{owner,actor,post=null,kind,key}){
  if(owner===actor)return;
  await c.query(`INSERT INTO social_notifications(user_id,actor_id,post_id,kind,resource_key) VALUES($1,$2,$3,$4,$5) ON CONFLICT DO NOTHING`,[owner,actor,post,kind,key]);
 }
-const cardSelect=`p.id,p.user_id,p.title,p.created_at,p.revision,u.nickname,u.avatar,
+const cardSelect=`p.id,p.user_id,p.title,left(p.body,100) excerpt,p.created_at,p.revision,u.nickname,u.avatar,
  p.user_id=$1 AS "isOwn",p.snapshot->'cities' cities,p.snapshot->>'kind' kind,
  (SELECT coalesce(jsonb_agg(jsonb_build_object('lat',v->'lat','lng',v->'lng')),'[]') FROM (SELECT v FROM jsonb_path_query(p.snapshot,'$.days[*].stops[*]') v LIMIT 16) points) preview,
  jsonb_array_length(coalesce(p.snapshot->'days','[]'::jsonb)) day_count,

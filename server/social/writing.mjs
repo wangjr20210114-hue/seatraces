@@ -15,13 +15,17 @@ export function composeSuggestion(draft,decision){
  const b=z.object({tone:z.enum(['lively','concise','guide']),highlightIds:z.array(z.string()).max(8),ending:z.enum(['save','question','none'])}).strict().parse(decision);
  if(new Set(b.highlightIds).size!==b.highlightIds.length||b.highlightIds.some(id=>!facts.some(f=>f.id===id)))throw failure('模型引用了不存在的行程，未修改草稿',502);
  const cities=[...new Set(facts.map(f=>f.city))].join(' · ');
- const title=(`${cities||'我的旅行'}｜${b.tone==='lively'?'把想去的地方串起来 ✨':b.tone==='guide'?'一份路线安排':'下一程路线'}`).slice(0,100);
- const intro=b.tone==='lively'?'把期待装进行程里，下一程这样安排 ✨':b.tone==='guide'?'整理了一份路线安排，出发前可以参考：':'这份行程准备这样走：';
- const lines=facts.map((f,i)=>`${b.highlightIds.includes(f.id)?'📍 ':''}Day ${i+1} · ${f.city}\n${f.stops.join(' → ')}`);
- const ending={save:'先收好这份路线，等出发时再确认开放与交通。',question:'你还想把哪里加入这条路线？',none:''}[b.ending];
+ const featured=facts.find(f=>b.highlightIds.includes(f.id)) || facts[0];
+ const first=featured?.stops[0],last=featured?.stops.at(-1);
+ const title=(`${cities||'我的旅行'}｜${b.tone==='lively'?(first&&first!==last?`从${first}，逛到${last} ✨`:'把想去的地方，放进下一程 ✨'):b.tone==='guide'?`${facts.length} 天路线清单`:'我的下一程路线'}`).slice(0,100);
+ const intro=b.tone==='lively'?`下一次去${cities||'旅行'}，想这样逛！\n先把心动的地点收进行程，留一份可以照着修改的出发清单。`:b.tone==='guide'?'这份行程按天整理好了，路线和地点放在下面：':'这份行程准备这样走：';
+ const lines=facts.map((f,i)=>b.tone==='lively'
+   ? `${b.highlightIds.includes(f.id)?'✨':'📍'} ${facts.length===1?'这一天':`DAY ${i+1}`} · ${f.city}\n${f.stops.map((name,n)=>`${String(n+1).padStart(2,'0')}  ${name}`).join('\n')}`
+   : `Day ${i+1} · ${f.city}\n${f.stops.join(' → ')}`);
+ const ending={save:'🗺️ 路线卡放在下面，喜欢就收进下一程。\n出发前再确认开放时间与交通安排。',question:'这份行程里，你最想先去哪一站？',none:''}[b.ending];
  const body=[intro,...lines,ending].filter(Boolean).join('\n\n');
  if(body.length>4000)throw failure('路线较长，请手动精简分享内容',400);
- return {title,body,tags:[...new Set(facts.map(f=>f.city))].filter(x=>x.length<=20).slice(0,8),source:'route_facts',requiresReview:true};
+ return {title,body,tags:[...new Set([...facts.map(f=>f.city),'旅行计划',...(draft.snapshot?.kind==='citywalk'?['CityWalk']:[])])].filter(x=>x.length<=20).slice(0,8),source:'route_facts',requiresReview:true};
 }
 export function installWritingRoutes(app,{auth,query,transaction,generate=llmJSON}){
  let active=0;

@@ -1,3 +1,4 @@
+import {icon} from './ui-icons.js';
 import {esc,socialCard,bindCardActions,trackVisible} from './social-ui.js';
 export const discoveryCard=socialCard;
 export async function publishRoute({button,kind,id,api,navigate,toast}){
@@ -7,7 +8,7 @@ export async function publishRoute({button,kind,id,api,navigate,toast}){
 }
 export function mountDiscovery({content,api,navigate,toast}){
  let dead=false,revision=0,scope='recommended',cursor=null,busy=false,q='';
- content.innerHTML=`<div class="social-toolbar"><form role="search"><input name="search" maxlength="60" aria-label="搜索旅行灵感" placeholder="寻找旅行灵感"><button aria-label="搜索">⌕</button></form><button class="primary social-write">＋ 发帖</button></div><div class="social-tabs"><button data-scope="recommended" aria-pressed="true">推荐</button><button data-scope="following" aria-pressed="false">关注</button></div><div class="social-feed"></div><p role="status"></p><button class="loadmore" hidden>更多灵感 ↓</button>`;
+ content.innerHTML=`<div class="social-toolbar"><form role="search"><input name="search" maxlength="60" aria-label="搜索旅行灵感" placeholder="寻找旅行灵感"><button aria-label="搜索">${icon('search')}</button></form><button class="primary social-write">${icon('edit')}<span>发帖</span></button></div><div class="social-tabs"><button data-scope="recommended" aria-pressed="true">推荐</button><button data-scope="following" aria-pressed="false">关注</button></div><div class="social-feed"></div><p role="status"></p><button class="loadmore" hidden>更多灵感 ↓</button>`;
  const feed=content.querySelector('.social-feed'),status=content.querySelector('[role=status]'),more=content.querySelector('.loadmore');
  const unbind=bindCardActions(feed,{api,toast}),tracker=trackVisible(feed,{api});
  async function load(append=false){if(append&&busy)return;const rev=++revision;busy=true;more.disabled=true;status.textContent='正在找灵感…';
