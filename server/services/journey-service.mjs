@@ -48,6 +48,7 @@ export const journeyRequest = z
     cityIds: z.array(z.string().min(1).max(80)).min(1).max(5),
     start: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
     end: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    sourcePostId: z.uuid().optional(),
   })
   .strict();
 export function mergeVisits(completed, declared, inferred = []) {
@@ -218,7 +219,7 @@ async function singleFlight(key, fn) {
   pending.set(key, work);
   return work;
 }
-export function installJourneyRoutes(app, { auth, travelHabit, recordWish=async()=>{} }) {
+export function installJourneyRoutes(app, { auth, travelHabit, recordWish=async()=>{},onSource=async()=>{},onGenerated=async()=>{} }) {
   // Preview boundaries before the date/session step, using the same shared cache.
   app.get("/api/journey/cities/:cityId/boundary", auth, async (req, res) => {
     const id = z.string().min(1).max(80).parse(req.params.cityId);
@@ -251,10 +252,10 @@ export function installJourneyRoutes(app, { auth, travelHabit, recordWish=async(
       throw error("同一座城市只选一次就好");
     allocateDates(input, cities);
     const id = randomUUID();
-    await query(
-      "INSERT INTO journey_sessions(id,user_id,request) VALUES($1,$2,$3)",
-      [id, req.user.id, JSON.stringify({ ...input, cities })],
-    );
+    await transaction(async c=>{
+      await c.query("INSERT INTO journey_sessions(id,user_id,request) VALUES($1,$2,$3)",[id,req.user.id,JSON.stringify({...input,cities})]);
+      await onSource(c,{sessionId:id,userId:req.user.id,postId:input.sourcePostId});
+    });
     res.status(201).json({ id, cities });
   });
   app.post(
@@ -507,6 +508,7 @@ export function installJourneyRoutes(app, { auth, travelHabit, recordWish=async(
           "UPDATE journey_sessions SET trip_id=$2,updated_at=now() WHERE id=$1",
           [s.id, id],
         );
+        await onGenerated(c,{sessionId:s.id,userId:req.user.id,tripId:id,plan});
       });
       return ownTrip(id, req.user.id);
     });

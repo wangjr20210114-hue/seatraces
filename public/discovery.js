@@ -13,7 +13,7 @@ export function mountDiscovery({content,api,navigate,toast}){
  const unbind=bindCardActions(feed,{api,toast}),tracker=trackVisible(feed,{api});
  async function load(append=false){if(append&&busy)return;const rev=++revision;busy=true;more.disabled=true;status.textContent='正在找灵感…';
   try{const params=new URLSearchParams({scope,q,limit:12,...(append&&cursor?{cursor}:{})});const r=await api('/api/social/feed?'+params);
-   if(dead||revision!==rev)return;if(!append)feed.replaceChildren();feed.insertAdjacentHTML('beforeend',r.items.map(socialCard).join(''));tracker.observe();cursor=r.nextCursor;more.hidden=!cursor;status.textContent=feed.childElementCount?'':scope==='following'?'关注喜欢的作者，下一程有新灵感':'还没有帖子，分享第一程吧';
+   if(dead||revision!==rev)return;if(!append)feed.replaceChildren();feed.insertAdjacentHTML('beforeend',r.items.map(p=>socialCard({...p,requestId:r.requestId})).join(''));tracker.observe();cursor=r.nextCursor;more.hidden=!cursor;status.textContent=feed.childElementCount?'':scope==='following'?'关注喜欢的作者，下一程有新灵感':'还没有帖子，分享第一程吧';
   }catch(e){if(!dead&&revision===rev){status.textContent=e.message;more.hidden=false;more.textContent='重新加载';cursor=null;}}
   finally{if(!dead&&revision===rev){busy=false;more.disabled=false;}}
  }

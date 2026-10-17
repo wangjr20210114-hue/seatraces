@@ -11,7 +11,7 @@ const cityNames=value=>(Array.isArray(value)?value:[]).slice(0,5).map(c=>typeof 
 export function installUserInsights(app,{query,events,readInferred=async()=>({inferred:[],inferenceStatus:'not_connected'})}) {
   async function user(id){
     z.uuid().parse(id);
-    const row=(await query(`SELECT u.id,u.username,u.nickname,u.avatar,u.role,u.disabled_at,u.preferences,u.created_at,
+    const row=(await query(`SELECT u.id,u.username,u.nickname,u.avatar,u.role,u.is_synthetic,u.disabled_at,u.preferences,u.created_at,
       EXISTS(SELECT 1 FROM user_emails e WHERE e.user_id=u.id) email_verified
       FROM users u WHERE u.id=$1`,[id])).rows[0];
     if(!row)throw fail('用户不存在',404);

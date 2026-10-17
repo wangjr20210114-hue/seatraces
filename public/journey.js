@@ -859,6 +859,7 @@ $("#next").onclick = async () => {
         state.session = await api("/api/journey/sessions", {
           origin: state.origin,
           cityIds: state.cities.map((c) => c.id),
+          ...(state.inspiration?.postId?{sourcePostId:state.inspiration.postId}:{}),
           start: state.start,
           end: state.end,
         });

@@ -6,14 +6,14 @@ export async function socialNotify(c,{owner,actor,post=null,kind,key}){
  if(owner===actor)return;
  await c.query(`INSERT INTO social_notifications(user_id,actor_id,post_id,kind,resource_key) VALUES($1,$2,$3,$4,$5) ON CONFLICT DO NOTHING`,[owner,actor,post,kind,key]);
 }
-const cardSelect=`p.id,p.user_id,p.title,left(p.body,100) excerpt,p.created_at,p.revision,u.nickname,u.avatar,
+const cardSelect=`p.id,p.user_id,p.title,left(p.body,100) excerpt,p.created_at,p.revision,p.is_synthetic,u.nickname,u.avatar,
  p.user_id=$1 AS "isOwn",p.snapshot->'cities' cities,p.snapshot->>'kind' kind,
  (SELECT coalesce(jsonb_agg(jsonb_build_object('lat',v->'lat','lng',v->'lng')),'[]') FROM (SELECT v FROM jsonb_path_query(p.snapshot,'$.days[*].stops[*]') v LIMIT 16) points) preview,
  jsonb_array_length(coalesce(p.snapshot->'days','[]'::jsonb)) day_count,
  (SELECT media_id FROM post_media WHERE post_id=p.id ORDER BY position LIMIT 1) cover_id,
  (SELECT count(*)::int FROM reactions WHERE post_id=p.id AND kind='like') likes,
  EXISTS(SELECT 1 FROM reactions WHERE post_id=p.id AND user_id=$1 AND kind='like') liked`;
-export function installSocialCommunity(app,{auth,query,transaction,rank=async rows=>({rows,version:'chronological/1'})}){
+export function installSocialCommunity(app,{auth,query,transaction,rank=async rows=>({rows,version:'chronological/1'}),recommend,onImpression=async()=>{},onVisible=async()=>{}}){
  app.get('/api/social/feed',auth,async(req,res)=>{
   const b=z.object({scope:z.enum(['recommended','following','mine']).default('recommended'),q:z.string().trim().max(60).default(''),limit:z.coerce.number().int().min(1).max(30).default(12),cursor:z.string().max(80).optional()}).strict().parse(req.query);
   let session,start=0;
@@ -24,23 +24,24 @@ export function installSocialCommunity(app,{auth,query,transaction,rank=async ro
   }else{
    // A bounded, frozen list of IDs prevents duplicate or skipped cards when a
    // new post or a preference change arrives between page requests.
-   let rows=(await query(`SELECT p.id,p.user_id,p.tags,p.created_at,ps.kind source_kind FROM posts p JOIN users u ON u.id=p.user_id LEFT JOIN post_sources ps ON ps.post_id=p.id
+   const recommendation=b.scope==='recommended'&&recommend?await recommend(req.user,{q:b.q}):null;
+   let rows=recommendation?.rows||(await query(`SELECT p.id,p.user_id,p.tags,p.created_at,ps.kind source_kind FROM posts p JOIN users u ON u.id=p.user_id LEFT JOIN post_sources ps ON ps.post_id=p.id
      WHERE ${visiblePost()} AND u.disabled_at IS NULL
      AND ($2<>'mine' OR p.user_id=$1)
      AND ($2<>'following' OR EXISTS(SELECT 1 FROM user_follows f WHERE f.user_id=$1 AND f.author_id=p.user_id))
      AND NOT EXISTS(SELECT 1 FROM social_feedback f WHERE f.user_id=$1 AND f.post_id=p.id)
      AND ($3='' OR p.title ILIKE $3 ESCAPE '\\' OR $4=ANY(p.tags)) ORDER BY p.created_at DESC,p.id DESC LIMIT 120`,[req.user.id,b.scope,b.q?'%'+b.q.replace(/[\\%_]/g,'\\$&')+'%':'',b.q])).rows;
-   let version='chronological/1';if(b.scope==='recommended'){const r=await rank(rows,req.user);rows=r.rows;version=r.version;}
-   session={id:randomUUID(),post_ids:rows.map(p=>p.id),scope:b.scope};
+   let version=recommendation?.version||'chronological/1';if(b.scope==='recommended'&&!recommendation){const r=await rank(rows,req.user);rows=r.rows;version=r.version;}
+   session={id:randomUUID(),post_ids:rows.map(p=>p.id),scope:b.scope,recommendation_id:recommendation?.requestId||null};
    await transaction(async c=>{await c.query('SELECT id FROM users WHERE id=$1 FOR UPDATE',[req.user.id]);
     await c.query(`DELETE FROM social_feed_sessions WHERE user_id=$1 AND (expires_at<=now() OR id IN(SELECT id FROM social_feed_sessions WHERE user_id=$1 ORDER BY expires_at DESC OFFSET 5))`,[req.user.id]);
-    await c.query('INSERT INTO social_feed_sessions(id,user_id,post_ids,scope,profile_version) VALUES($1,$2,$3,$4,$5)',[session.id,req.user.id,session.post_ids,b.scope,version]);});
+    await c.query('INSERT INTO social_feed_sessions(id,user_id,post_ids,scope,profile_version,recommendation_id) VALUES($1,$2,$3,$4,$5,$6)',[session.id,req.user.id,session.post_ids,b.scope,version,session.recommendation_id]);});
   }
   const ids=session.post_ids.slice(start,start+b.limit);
   const items=ids.length?(await query(`SELECT ${cardSelect} FROM posts p JOIN users u ON u.id=p.user_id WHERE p.id=ANY($2::uuid[]) AND ${visiblePost()} AND u.disabled_at IS NULL
    AND NOT EXISTS(SELECT 1 FROM social_feedback f WHERE f.user_id=$1 AND f.post_id=p.id)
    AND ($3<>'following' OR EXISTS(SELECT 1 FROM user_follows f WHERE f.user_id=$1 AND f.author_id=p.user_id)) ORDER BY array_position($2::uuid[],p.id)`,[req.user.id,ids,b.scope])).rows:[];
-  const next=start+b.limit;res.json({items,nextCursor:next<session.post_ids.length?session.id+':'+next:null});
+  const next=start+b.limit;res.json({items,nextCursor:next<session.post_ids.length?session.id+':'+next:null,requestId:session.recommendation_id||null});
  });
  app.get('/api/social/posts/:id',auth,async(req,res)=>{
   const id=z.uuid().parse(req.params.id);
@@ -75,13 +76,14 @@ export function installSocialCommunity(app,{auth,query,transaction,rank=async ro
   });res.json({ok:true,requiresNewDates:true});
  });
  app.post('/api/social/posts/:id/impressions',auth,async(req,res)=>{
-  const id=z.uuid().parse(req.params.id),b=z.object({id:z.uuid(),context:z.enum(['feed','detail'])}).strict().parse(req.body);
+  const id=z.uuid().parse(req.params.id),b=z.object({id:z.uuid(),context:z.enum(['feed','detail']),requestId:z.uuid().optional()}).strict().parse(req.body);
   const r=await transaction(async c=>{await requireVisiblePost(c,id,true);
    await c.query('SELECT id FROM users WHERE id=$1 FOR UPDATE',[req.user.id]);
    const existing=(await c.query('SELECT id,user_id,post_id FROM social_impressions WHERE id=$1',[b.id])).rows[0];
    if(existing){if(existing.user_id!==req.user.id||existing.post_id!==id)throw failure('浏览记录不存在',404);return {id:b.id};}
    if((await c.query("SELECT id FROM social_impressions WHERE user_id=$1 AND created_at>now()-interval '1 minute' LIMIT 61",[req.user.id])).rowCount>=60)throw failure('浏览记录过于频繁',429);
-   await c.query('INSERT INTO social_impressions(id,user_id,post_id,context) VALUES($1,$2,$3,$4)',[b.id,req.user.id,id,b.context]);return {id:b.id};
+   await c.query('INSERT INTO social_impressions(id,user_id,post_id,context) VALUES($1,$2,$3,$4)',[b.id,req.user.id,id,b.context]);
+   await onImpression(c,{id:b.id,userId:req.user.id,postId:id,requestId:b.requestId});return {id:b.id};
   });res.json(r);
  });
  app.put('/api/social/impressions/:id',auth,async(req,res)=>{
@@ -91,6 +93,7 @@ export function installSocialCommunity(app,{auth,query,transaction,rank=async ro
    await requireVisiblePost(c,i.post_id,true);
    const n=Math.max(i.visible_ms,Math.min(b.visibleMs,Math.max(0,Date.now()-new Date(i.created_at)))),delta=Math.floor(n/1000)-Math.floor(i.visible_ms/1000);
    await c.query('UPDATE social_impressions SET visible_ms=$2,updated_at=now() WHERE id=$1',[id,n]);
+   await onVisible(c,{id,visibleMs:n});
    if(delta>0)await c.query(`INSERT INTO browse_events(user_id,post_id,dwell_seconds) VALUES($1,$2,$3) ON CONFLICT(user_id,post_id,day)
     DO UPDATE SET dwell_seconds=LEAST(120,browse_events.dwell_seconds+excluded.dwell_seconds),created_at=now()`,[req.user.id,i.post_id,Math.min(120,delta)]);
   });res.json({ok:true});

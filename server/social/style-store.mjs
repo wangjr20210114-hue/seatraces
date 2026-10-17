@@ -71,11 +71,11 @@ export async function rebuildStyle(c,userId){
   SELECT $1,x.source_kind,x.source_id,x.source_version,x.features FROM jsonb_to_recordset($2::jsonb) AS x(source_kind text,source_id uuid,source_version int,features jsonb)`,[userId,JSON.stringify(featureTrips)]);
  return {evidence:rows.length,dimensions:aggregates.length,posts:posts.length,trips:trips.length,walks:walks.length};
 }
-export function createStyleWorker({query,transaction,intervalMs=3000,onError=()=>{}}){
+export function createStyleWorker({query,transaction,intervalMs=3000,onError=()=>{},afterRebuild=async()=>{}}){
  let timer,running=false;
  async function tick(){if(running)return;running=true;
   try{return await transaction(async c=>{const j=(await c.query('SELECT user_id,version FROM style_dirty_users ORDER BY updated_at LIMIT 1 FOR UPDATE SKIP LOCKED')).rows[0];if(!j)return null;
-   const result=await rebuildStyle(c,j.user_id);await c.query('DELETE FROM style_dirty_users WHERE user_id=$1 AND version=$2',[j.user_id,j.version]);return result;
+   const result=await rebuildStyle(c,j.user_id);await afterRebuild(c,j.user_id);await c.query('DELETE FROM style_dirty_users WHERE user_id=$1 AND version=$2',[j.user_id,j.version]);return result;
   });}catch(e){onError(e);return {error:true};}finally{running=false;}}
  return {tick,start(){if(!timer){timer=setInterval(()=>void tick(),intervalMs);timer.unref();}},stop(){clearInterval(timer);timer=null;}};
 }

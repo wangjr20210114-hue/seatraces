@@ -464,17 +464,17 @@ AI流程：创建任务→轮询→显示建议→用户采用→PUT保存→POS
 
 | 接口 | 输入 | 返回和副作用 |
 |---|---|---|
-| GET `/api/social/feed` | scope=recommended/following/mine（默认recommended），q≤60，limit默认12最大30，cursor可选 | `{items,nextCursor}`；首屏固定最近最多120个可见候选ID，游标`UUID:offset`仅本人30分钟有效。下一页须同scope，过期410。推荐/搜索只在候选范围内；不是全库搜索。 |
+| GET `/api/social/feed` | scope=recommended/following/mine（默认recommended），q≤60，limit默认12最大30，cursor可选 | `{items,nextCursor,requestId}`；recommended先全库分路召回、粗排、精排、重排，再固定最多120个ID。其他scope维持时间顺序。游标`UUID:offset`仅本人30分钟有效，下一页须同scope，过期410。requestId是可选曝光关联；没有此值的旧客户端仍可调用。 |
 | GET `/api/social/posts/:id` | post UUID | 帖子、body/tags/snapshot、按序media、following、reactions、not_interested、isOwn；隐藏/旧自动发布/作者停用返回404 |
 | PUT `/api/social/authors/:id/follow` | `{active:boolean}` | `{following:boolean}`；不能关注自己；幂等写关注及通知 |
 | PUT `/api/social/posts/:id/feedback` | `{notInterested:boolean}` | `{ok:true}`；取消/设置不感兴趣，排除推荐并重算负向证据 |
 | POST `/api/social/posts/:id/adopt` | `{}` | `{ok:true,requiresNewDates:true}`；去重记录参考行为，**不创建行程**。页面通过原城市/问卷/想去接口继续确认起点、日期和当前可用地点。 |
-| POST `/api/social/posts/:id/impressions` | `{id:UUID,context:feed或detail}` | `{id}`；可见帖子且本人ID重试复用；每用户每分钟最多60个新记录 |
+| POST `/api/social/posts/:id/impressions` | `{id:UUID,context:feed或detail,requestId?:UUID}` | `{id}`；可见帖子且本人ID重试复用；每用户每分钟最多60个新记录。传requestId时校验属于本人、未超过1天、包含该帖；不满足404。帖子修订版本变化后保留浏览但不写错版本训练特征。 |
 | PUT `/api/social/impressions/:id` | `{visibleMs:整数0..120000}` | `{ok:true}`；记录一天内本人累计可见时长，用实际经过时间夹取、只计增量。同帖每天有效browse_events累计最多120秒。 |
 | GET `/api/social/notifications` | limit默认12最大30；offset默认0最大10000 | `{items,hasMore}`；本人互动消息，含kind、actor昵称/头像、post_id/title、read_at、created_at |
 | PUT `/api/social/notifications/:id/read` | 无必需body | `{ok:true}`；仅更新本人消息，重复读取无额外影响 |
 
-feed卡片字段为id、user_id、title、created_at、revision、nickname、avatar、isOwn、cities、kind、preview（最多16个坐标点）、day_count、cover_id、likes、liked；不携带完整帖子正文/路线树。翻页时再检查隐藏、作者停用、不感兴趣和关注状态，所以某页可少于limit；以nextCursor决定是否继续。
+feed卡片字段为id、user_id、title、created_at、revision、nickname、avatar、isOwn、is_synthetic、cities、kind、preview（最多16个坐标点）、day_count、cover_id、likes、liked；不携带完整帖子正文/路线树。is_synthetic=true时前端标记“模拟内容”。翻页时再检查隐藏、作者停用、不感兴趣和关注状态，所以某页可少于limit；以nextCursor决定是否继续。
 
 点赞/收藏/推荐继续用 `POST /api/posts/:id/reactions` `{kind:like或save或recommend,active:boolean}`；评论用 `GET /api/posts/:id/comments`、`POST /api/posts/:id/comments` `{body:1–500字}`。分享使用系统分享/复制链接，无自动对外发布。浏览前端只累计页面前台且卡片可见时间；不采集评论文本来推断喜好。
 
@@ -494,3 +494,20 @@ feed卡片字段为id、user_id、title、created_at、revision、nickname、ava
 响应 `Content-Type: image/png`，`Cache-Control: private, no-cache`；携带 `ETag` 的条件请求仍先鉴权，再决定是否返回 304。Web 服务密钥仅在后端使用。单图最多 2 MiB，最多 200 个路线点，最多 24 个待生成任务；不改变现有行程与发帖接口，不新增封面数据库表。
 
 服务依据：[高德静态地图官方文档](https://developer.amap.com/api/webservice/guide/api/staticmaps/)。
+
+## 推荐 v2 与行程反馈（2026-10-17，本机）
+
+| 接口 | 输入 | 返回/校验 |
+|---|---|---|
+| GET `/api/journey/trips/:id/feedback` | 行程UUID | `{feedback:null或{rating,experience,aspects,updated_at}}`，仅行程本人；他人/不存在404 |
+| PUT `/api/journey/trips/:id/feedback` | `{rating:整数1..5,experience:'plan'或'trip',aspects?:{places?:整数1..5,pace?:'too_busy'或'good'或'too_slow'}}` | `{ok:true}`；同一行程覆盖原评价，排队重建画像。experience=trip要求行程已标记completed；未知字段/不合法值400。私有评价不发布到发现 |
+| DELETE `/api/journey/trips/:id/feedback` | 无必需body | `{ok:true}`，只撤回本人评价，记录撤销信号 |
+| GET `/api/admin/recommendation/models` | 无 | `{items}`最近20个模型的版本、scope、state、metrics、cutoff等；不返回模型权重；独立后台会话＋analytics.read |
+| GET `/api/admin/recommendation/users/:id/preview` | 用户UUID | `{algorithm,synthetic,trace,items}`，前20个标题＋通道/阶段/分数解释；不创建浏览行为，不写排序请求；独立后台会话＋users.read |
+| GET `/api/admin/recommendation/requests/:id` | 排序请求UUID | 所属用户、画像版本、上下文、trace及时间；不返回用户原始向量；独立后台会话＋users.read，不存在404 |
+
+`POST /api/journey/sessions` 增加可选 `sourcePostId:UUID`。传入时要求已通过原 `/api/social/posts/:id/adopt` 表达参考意向，且帖子仍可见；与创建问卷同事务。行程生成成功并保存后，校验与原帖共享地点才记录实际采用；点击参考本身不算保存。其他参数和响应保持兼容。
+
+`GET /api/admin/users/:id/preferences` 增加 `recommendation`：travel/content/authors/evidence/version/algorithm/updated_at等，仅后台展示，不向普通用户公开。默认后台排队异步刷新，不能把短时无变化当成请求未执行。
+
+模型训练/导入/清理是本机CLI，不向智能体开放训练或任意SQL工具。部署前须执行 `server/recommendation/schema.sql`，不能仅更新静态页面。旧接口的鉴权、X-Seatraces请求校验、限流继续生效。

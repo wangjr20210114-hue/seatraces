@@ -1,4 +1,8 @@
 import {installRouteCovers} from './social/route-covers.mjs';
+import {recommend} from './recommendation/engine.mjs';
+import {buildProfile,readProfile,refreshItem,backfillItems,recommendationPreferences} from './recommendation/profiles.mjs';
+import {recordExposure,updateExposure,recordInspiration,confirmAdoption} from './recommendation/events.mjs';
+import {installRecommendationRoutes} from './recommendation/routes.mjs';
 import {guestMapStyle} from '../public/guest-policy.js';
 import {installDraftRoutes} from './social/drafts.mjs';
 import {installSocialMedia} from './social/media.mjs';
@@ -117,7 +121,7 @@ app.use('/api', accounts.gate, accounts.router);
 app.use('/api',withRequestContext);
 const logExports=installOperationsRoutes(app,{auth,query,transaction,events:operationEvents});
 installAccessRoutes(app,{query,transaction,events:operationEvents});
-installUserInsights(app,{query,events:operationEvents,readInferred:id=>explainStyle(query,id)});
+installUserInsights(app,{query,events:operationEvents,readInferred:async id=>({...await explainStyle(query,id),recommendation:await readProfile(query,{id})})});
 installAnalytics(app,{query,transaction,events:operationEvents});
 installAgentInsights(app,{query,events:operationEvents});
 installJourneyInsights(app,{query,events:operationEvents});
@@ -131,9 +135,10 @@ installCommunityInteractions(app,{auth,query,transaction,
  onReaction:async(c,{id,userId,kind,active})=>{if(!active||kind==='save')return;const p=(await c.query('SELECT user_id FROM posts WHERE id=$1',[id])).rows[0];if(p)await socialNotify(c,{owner:p.user_id,actor:userId,post:id,kind,key:id});},
  onComment:async(c,{id,userId,commentId})=>{const p=(await c.query('SELECT user_id FROM posts WHERE id=$1',[id])).rows[0];if(p)await socialNotify(c,{owner:p.user_id,actor:userId,post:id,kind:'comment',key:commentId});}
 });
-installSocialCommunity(app,{auth,query,transaction,rank:(rows,user)=>rankSocial(query,rows,user)});
+installSocialCommunity(app,{auth,query,transaction,recommend:(user,opts)=>recommend(query,user,opts),onImpression:recordExposure,onVisible:updateExposure});
+installRecommendationRoutes(app,{auth,query,transaction,events:operationEvents,production});
 installPersonalCenter(app,{auth,query,transaction});
-installDraftRoutes(app,{auth,query,transaction,onPublish:refreshPostFeatures});
+installDraftRoutes(app,{auth,query,transaction,onPublish:async(c,id)=>{await refreshPostFeatures(c,id);await refreshItem(c,id);}});
 installSocialMedia(app,{auth,query,transaction});
 installRouteCovers(app,{auth,query});
 installWritingRoutes(app,{auth,query,transaction});
@@ -287,7 +292,7 @@ app.get("/api/nearby", async (req, res) => {
   res.json({ place: candidates[0] || null });
 });
 async function travelHabit(user) {
-  const preferences = await styleForPlanning(query,user);
+  const preferences = await recommendationPreferences(query,user);
   const completed = (await query("SELECT count(*)::int n FROM trips WHERE user_id=$1 AND status='completed'",[user.id])).rows[0].n;
   return {
     ...preferences,
@@ -295,11 +300,11 @@ async function travelHabit(user) {
     completedTrips: completed,
   };
 }
-installJourneyRoutes(app,{auth,travelHabit,recordWish:recordPlaceChoice});
+installJourneyRoutes(app,{auth,travelHabit,recordWish:recordPlaceChoice,onSource:recordInspiration,onGenerated:confirmAdoption});
 installTripServiceRoutes(app,{auth});
 installCityWalkRoutes(app,{auth,travelHabit});
 installClassicWalkRoutes(app,{auth,events:operationEvents});
-installDiscoveryRoutes(app,{auth});
+installDiscoveryRoutes(app,{auth,onPublish:refreshItem});
 installAgentRoutes(app,{auth,query,transaction,port:()=>server.address().port});
 app.get("/api/questions", auth, async (req, res) =>
   res.json(await personalizedQuestions(await travelHabit(req.user))),
@@ -821,9 +826,11 @@ if (
   );
 await seed();
 await seedClassicWalks();
+await backfillItems(query);
 maintenance.start();
-const styleWorker=createStyleWorker({query,transaction,onError:()=>console.error('Travel style refresh failed')});
+const styleWorker=createStyleWorker({query,transaction,afterRebuild:buildProfile,onError:()=>console.error('Travel style refresh failed')});
 styleWorker.start();
+export const stopRecommendationWorker=()=>styleWorker.stop();
 const exportCleanup=setInterval(()=>void logExports.cleanup().catch(()=>{}),3600000);exportCleanup.unref();
 export const server = app.listen(
   Number(process.env.PORT || 8787),

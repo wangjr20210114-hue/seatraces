@@ -16,7 +16,7 @@ export function publicRoute(kind, route) {
   };
 }
 
-export function installDiscoveryRoutes(app, { auth, query = dbQuery }) {
+export function installDiscoveryRoutes(app, { auth, query = dbQuery, onPublish=async()=>{} }) {
   app.post('/api/discovery/publish', auth, async (req, res) => {
     const { kind, id } = z.object({ kind: z.enum(['journey','citywalk']), id: z.uuid() }).strict().parse(req.body);
     const table = kind === 'citywalk' ? 'citywalks' : 'trips';
@@ -31,6 +31,7 @@ export function installDiscoveryRoutes(app, { auth, query = dbQuery }) {
       RETURNING *`, [randomUUID(),req.user.id,id,route.title.slice(0,100),
       kind === 'citywalk' ? `${route.stops.length} 个景点，串成一条 CityWalk。` : `${snapshot.days.length} 天路线，看看沿途有哪些好风景。`,
       kind === 'citywalk' ? ['CityWalk'] : route.request.interests || [], JSON.stringify(snapshot)])).rows[0];
+    await onPublish({query},post.id);
     res.json(post);
   });
   app.get('/api/discovery/mine', auth, async (req, res) => {

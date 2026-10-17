@@ -2,6 +2,7 @@
 -- and their unique constraints remain intact for old publishing clients.
 ALTER TABLE posts ADD COLUMN IF NOT EXISTS revision integer NOT NULL DEFAULT 1;
 ALTER TABLE posts ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT now();
+ALTER TABLE posts ADD COLUMN IF NOT EXISTS is_synthetic boolean NOT NULL DEFAULT false;
 CREATE TABLE IF NOT EXISTS post_drafts (
  id uuid PRIMARY KEY, user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
  title varchar(100) NOT NULL DEFAULT '', body varchar(4000) NOT NULL DEFAULT '', tags text[] NOT NULL DEFAULT '{}',
@@ -55,6 +56,7 @@ CREATE TABLE IF NOT EXISTS social_feed_sessions (
  profile_version text NOT NULL DEFAULT 'chronological/1', expires_at timestamptz NOT NULL DEFAULT now()+interval '30 minutes'
 );
 CREATE INDEX IF NOT EXISTS social_feed_expiry ON social_feed_sessions(expires_at);
+ALTER TABLE social_feed_sessions ADD COLUMN IF NOT EXISTS recommendation_id uuid;
 CREATE TABLE IF NOT EXISTS social_impressions (
  id uuid PRIMARY KEY, user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE, post_id uuid NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
  context text NOT NULL CHECK(context IN ('feed','detail')), visible_ms integer NOT NULL DEFAULT 0 CHECK(visible_ms BETWEEN 0 AND 120000),

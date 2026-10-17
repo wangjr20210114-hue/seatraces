@@ -8,12 +8,15 @@ export const roles = Object.freeze({
   analyst: {name:'只读分析', permissions:['overview.read','analytics.read']},
 });
 export function managementAccess(user) {
-  if(!user || user.disabled_at || /^demo_[a-f0-9]{8}$/.test(user.username||'')) return null;
+  if(!user || user.disabled_at || user.is_synthetic || /^demo_[a-f0-9]{8}$/.test(user.username||'')) return null;
   const role = user.role==='admin' ? 'administrator' : user.management_enabled ? user.management_role : null;
   return roles[role] ? {role,name:roles[role].name,permissions:[...roles[role].permissions],version:role==='administrator'?0:user.management_version} : null;
 }
 export const can=(access,permission)=>!!access && (access.permissions.includes('*')||access.permissions.includes(permission));
 const rules=[
+  ['GET',/^\/recommendation\/models$/, 'analytics.read'],
+  ['GET',/^\/recommendation\/users\/[^/]+\/preview$/, 'users.read'],
+  ['GET',/^\/recommendation\/requests\/[^/]+$/, 'users.read'],
   ['GET',/^\/events\/exports(?:\/[^/]+(?:\/file)?)?$/, 'events.export'],
   ['POST',/^\/events\/exports$/, 'events.export'],
   ...adminActionRoutes,

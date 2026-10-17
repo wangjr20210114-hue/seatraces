@@ -1,6 +1,7 @@
 import { renderAccountPage } from "./account-page.js";
 import {renderPersonalPage} from './personal-center.js';
 import {publishRoute} from './discovery.js';
+import {mountTripFeedback} from './trip-feedback.js';
 
 export async function renderProfilePage({
   route,
@@ -66,6 +67,7 @@ export async function renderProfilePage({
       const mapButton = content.querySelector(".page-map-action");
       if (mapButton) mapButton.onclick = () => onTrip(trip);
       content.querySelector('[data-share-trip]').onclick=e=>publishRoute({button:e.currentTarget,api,kind:'journey',id:trip.id,navigate,toast:message=>{if(isCurrent())content.querySelector('.share-status').textContent=message;}});
+      await mountTripFeedback({content,trip,api,isCurrent});
     } else if (route.page === "history") {
       content.innerHTML =
         '<a class="inline-action" href="#/report">旅行报告 ↗</a><div class="history-list"></div><p class="page-status" role="status"></p><button class="loadmore" hidden>更多行程 ↓</button>';

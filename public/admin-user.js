@@ -1,4 +1,4 @@
-import {stylePanel} from './admin-style.js';
+import {stylePanel,recommendationPanel,bindRecommendationPreview} from './admin-style.js';
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const time=v=>v?new Date(v).toLocaleString('zh-CN',{timeZone:'Asia/Shanghai',hour12:false}):'暂无记录';
 const labels={overview:'概览',timeline:'操作轨迹',trips:'历史行程',citywalks:'CityWalk',preferences:'旅行偏好',visits:'想去与到访',messages:'消息'};
@@ -15,7 +15,7 @@ export async function mountAdminUser({content,status,api,id,tab='overview',isCur
   const u=v.user,c=v.counts;let offset=0,filters={},visitKind=new URLSearchParams(search).get('kind')||'wishes',generation=0;
   if(!['wishes','marked','presence','favorites'].includes(visitKind))visitKind='wishes';
   content.innerHTML=`<div class="user-breadcrumb"><button id="back-users">← 用户列表</button><span>用户全景</span></div>
-    <article class="user-heading"><div class="user-avatar">${esc(u.avatar)}</div><div><h2>${esc(u.nickname)}</h2><p>${esc(u.username)} <span class="badge ${u.disabled_at?'paused':''}">${u.disabled_at?'已停用':'正常'}</span></p></div><button id="user-account">账号与会话</button></article>
+    <article class="user-heading"><div class="user-avatar">${esc(u.avatar)}</div><div><h2>${esc(u.nickname)}</h2><p>${esc(u.username)} ${u.is_synthetic?'<span class="badge">模拟用户</span>':''}<span class="badge ${u.disabled_at?'paused':''}">${u.disabled_at?'已停用':'正常'}</span></p></div><button id="user-account">账号与会话</button></article>
     <div class="user-meta"><span>注册 ${time(u.created_at)}</span><span>最近操作 ${time(c.last_activity_at)}</span><span>邮箱${u.email_verified?'已验证':'未绑定'}</span></div>
     <div class="admin-tabs" role="tablist" aria-label="用户资料">${Object.entries(labels).map(([key,name])=>`<button role="tab" aria-selected="${key===tab}" data-tab="${key}">${name}</button>`).join('')}</div><section id="user-panel"></section>`;
   content.querySelector('#back-users').onclick=()=>navigate('users');
@@ -42,6 +42,8 @@ export async function mountAdminUser({content,status,api,id,tab='overview',isCur
         if(tab==='citywalks')panel.innerHTML=table(['路线','城市','地点数','步行距离','核验','更新时间'],result.items.map(w=>`<tr><td><button data-walk="${w.id}">${esc(w.title)}</button></td><td>${esc(w.city||'—')}</td><td>${w.stop_count}</td><td>${(w.distance_m/1000).toFixed(2)} km</td><td>${w.verification==='verified'?'已核验':'未核验'}</td><td>${time(w.updated_at)}</td></tr>`));
         if(tab==='preferences'){
           panel.innerHTML=`<article class="admin-card"><h3>账号设置</h3>${Object.entries(result.profile).map(([k,v])=>`<p>${esc(styles[k]||k)}：${esc(value(v))}</p>`).join('')||'<p>暂无设置</p>'}</article><h3 class="section-caption">用户明确确认的记忆</h3>${table(['维度','内容','强度 / 置信度','状态','更新时间'],result.confirmed.map(m=>`<tr><td>${esc(styles[m.dimension])}</td><td>${esc(value(m.value))}</td><td>${Math.round(m.strength*100)}% / ${Math.round(m.confidence*100)}%</td><td>${m.expired?'已过期':'有效'}</td><td>${time(m.updated_at)}</td></tr>`))}${stylePanel(result)}`;
+          panel.insertAdjacentHTML('beforeend',recommendationPanel(result));
+          bindRecommendationPreview(panel,{api,id,isCurrent});
         }
         if(tab==='messages')panel.innerHTML=table(['消息','送达时间','阅读状态'],result.items.map(m=>`<tr><td>${esc(m.title)}</td><td>${time(m.created_at)}</td><td>${m.read_at?'已读 · '+time(m.read_at):'未读'}</td></tr>`));
         if(tab==='visits'){

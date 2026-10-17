@@ -35,3 +35,4 @@
 @media(prefers-reduced-motion:reduce){.social-card,.source-card,.social-action,.social-tabs button{transition:none}.social-like[aria-pressed=true] .ui-icon,.social-action[aria-pressed=true] .ui-icon{animation:none}.social-card:hover,.source-card:hover{transform:none}}
 
 #discover-page .shell-content{max-width:980px} @media(min-width:900px){#discover-page{padding-inline:36px}}
+.synthetic-label{display:inline-flex;border:1px solid #becfc4;background:#edf3e8;color:#3e6556;border-radius:8px;padding:3px 7px;font-size:12px;line-height:1.4}.trip-feedback form{display:grid;gap:12px}.trip-feedback label{display:grid;grid-template-columns:80px 1fr;align-items:center;gap:12px}.trip-feedback select{min-height:44px;background:#fffef8;border:1px solid #bed1c3;border-radius:12px;padding:8px;color:inherit}.trip-feedback button{min-height:44px}.trip-feedback [role=status]:empty{display:none}
