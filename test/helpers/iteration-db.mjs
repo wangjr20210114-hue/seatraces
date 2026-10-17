@@ -59,7 +59,16 @@ export async function iterationFixture({schemas=[],production=false}={}) {
       users[name]={id,username:'fixture_'+name,cookie,appCookie};
     }
     return {app,users,password,query,transaction,events,auth:requireUser,schema,
-      async start(){app.use((err,req,res,next)=>{events.systemError(req,err);res.status(err.status||(err.name==='ZodError'?400:500)).json({error:err.status?err.message:err.name==='ZodError'?'invalid':'internal'});});server=app.listen(0,'127.0.0.1');await new Promise(resolve=>server.once('listening',resolve));return server.address().port;},
+      async start(){app.use((err,req,res,next)=>{events.systemError(req,err);res.status(err.status||(err.name==='ZodError'?400:500)).json({error:err.status?err.message:err.name==='ZodError'?'invalid':'internal'});});
+        // Some Windows hosts allocate low ephemeral ports such as 10080, which
+        // Fetch rejects before any request reaches Express. Never use that range.
+        for(let attempt=0;attempt<10;attempt++){
+          server=app.listen(0,'127.0.0.1');await new Promise((resolve,reject)=>{server.once('listening',resolve);server.once('error',reject);});
+          const port=server.address().port;if(port>=16384)return port;
+          await new Promise(resolve=>server.close(resolve));server=null;
+        }
+        throw Error('Could not allocate a Fetch-compatible local test port');
+      },
       async request(path,{user='admin',body,method,headers={}}={}){
         const r=await fetch('http://127.0.0.1:'+server.address().port+path,{method:method||(body?'POST':'GET'),headers:{'Content-Type':'application/json','X-Seatraces':'1',...(user?{Cookie:users[user].cookie}:{}),...headers},...(body?{body:JSON.stringify(body)}:{})});
         const data=r.headers.get('content-type')?.includes('json')?await r.json():Buffer.from(await r.arrayBuffer());return {status:r.status,data,headers:r.headers};
