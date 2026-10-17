@@ -20,7 +20,13 @@
     "test:citywalk": "node --test test/citywalk.test.mjs test/classic-citywalks.test.mjs test/walk-expansion.test.mjs",
     "test:iteration": "node scripts/test-iteration.mjs",
     "test:personal": "node --test test/personal-center.test.mjs test/page-navigation.test.mjs",
-    "test:social:pressure": "node --max-old-space-size=320 --max-semi-space-size=8 --expose-gc scripts/test-social-pressure.mjs"
+    "test:social:pressure": "node --max-old-space-size=320 --max-semi-space-size=8 --expose-gc scripts/test-social-pressure.mjs",
+    "test:ui": "node scripts/ui-test.mjs run",
+    "test:ui:open": "node scripts/ui-test.mjs open",
+    "test:ui:headed": "node scripts/ui-test.mjs headed",
+    "test:ui:report": "node scripts/ui-test.mjs report",
+    "test:ui:catalog": "node scripts/ui-test.mjs catalog",
+    "test:ui:repeat": "node scripts/ui-test.mjs repeat"
   },
   "dependencies": {
     "@huggingface/transformers": "4.3.1",
@@ -38,6 +44,7 @@
     "zod": "^4.1.12"
   },
   "devDependencies": {
+    "@playwright/test": "1.64.1",
     "embedded-postgres": "18.4.0-beta.17",
     "prettier": "^3.6.2"
   }
