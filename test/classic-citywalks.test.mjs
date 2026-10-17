@@ -3,7 +3,21 @@ import assert from 'node:assert/strict';
 import {iterationFixture} from './helpers/iteration-db.mjs';
 import {installClassicWalkRoutes,seedClassicWalks} from '../server/services/classic-citywalks.mjs';
 import {createWalkingRouter,walkDistanceState} from '../server/services/citywalk-routing.mjs';
-import {writeFile,mkdir} from 'node:fs/promises';
+import {writeFile,mkdir,readFile} from 'node:fs/promises';
+const seeds=JSON.parse(await readFile(new URL('../server/data/classic-citywalks.json',import.meta.url),'utf8'));
+
+test('researched classics keep unique nearby landmarks and verified walking legs',()=>{
+  assert.equal(seeds.length,12);assert.equal(new Set(seeds.map(w=>w.city.name)).size,5);
+  for(const w of seeds){
+    assert.ok(w.stops.length>=4&&w.stops.length<=7,w.id);
+    assert.equal(new Set(w.stops.map(p=>p.id)).size,w.stops.length);
+    assert.ok(w.stops.every(p=>p.country==='CN'&&Number.isFinite(p.lng)&&Number.isFinite(p.lat)));
+    assert.ok(w.sources.length&&w.sources.every(s=>s.url.startsWith('https://')&&s.checkedAt));
+    assert.equal(w.route.status,'verified');assert.ok(w.route.distanceM>1000&&w.route.distanceM<4000);
+    assert.equal(w.route.legs.length,w.stops.length-1);
+    assert.ok(w.route.legs.every(l=>l.paths.length&&l.paths.every(p=>p.length>=2)));
+  }
+});
 test('CityWalk distance boundaries use raw walking metres',()=>{
   for(const [m,warning,blocked] of [[9999,false,false],[10000,false,false],[10001,true,false],[14999,true,false],[15000,true,true],[15001,true,true]])assert.deepEqual(walkDistanceState(m),{verified:true,warning,blocked});
   for(const v of [null,NaN,Infinity,-1])assert.equal(walkDistanceState(v).verified,false);
@@ -19,7 +33,12 @@ test('classic route management, cached walking geometry and publication',{skip:p
     await f.query("CREATE TABLE places(id text PRIMARY KEY,name text,category text,country text,province text,lat double precision,lng double precision,timezone text);INSERT INTO places VALUES('city1','测试城','city','CN','测试',31,121,'Asia/Shanghai')");
     installClassicWalkRoutes(f.app,{auth:f.auth,query:f.query,transaction:f.transaction,events:f.events,verify:routing.verify,resolve:async id=>points.find(p=>p.id===id),search:async()=>({status:'live',items:points})});await f.start();
     await t.test('CW-01 classic seed is idempotent and never overwrites edits',async()=>{
-      await seedClassicWalks(f.query);assert.equal((await f.request('/api/citywalk/classics')).data.items.length,3);
+      const old=seeds.find(w=>w.id==='shanghai-riverside');
+      await f.query('INSERT INTO classic_citywalks(id,title,city,stops,sources,theme,motif,route,enabled) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)',[old.id,old.replaces.title,JSON.stringify(old.city),JSON.stringify(old.replaces.stops),JSON.stringify(old.replaces.sources),old.theme,old.motif,'{}',old.replaces.enabled]);
+      await seedClassicWalks(f.query);assert.equal((await f.request('/api/citywalk/classics')).data.items.length,12);
+      const upgraded=(await f.query('SELECT title,stops,version FROM classic_citywalks WHERE id=$1',[old.id])).rows[0];
+      assert.equal(upgraded.title,old.title);assert.equal(upgraded.stops.length,6);assert.equal(upgraded.version,2);
+      await seedClassicWalks(f.query);assert.equal((await f.query('SELECT version FROM classic_citywalks WHERE id=$1',[old.id])).rows[0].version,2);
       await f.query("UPDATE classic_citywalks SET enabled=false,title='人工调整' WHERE id='beijing-hutong'");await seedClassicWalks(f.query);
       assert.equal((await f.query("SELECT title FROM classic_citywalks WHERE id='beijing-hutong'")).rows[0].title,'人工调整');
       assert.equal((await f.request('/api/citywalk/classics/beijing-hutong')).status,404);
@@ -48,7 +67,7 @@ test('classic route management, cached walking geometry and publication',{skip:p
     });
     await t.test('200 concurrent catalogue reads do not call external APIs',async()=>{
       let cursor=0,errors=0;const before=calls,start=performance.now(),times=[];
-      await Promise.all(Array.from({length:20},async()=>{while(cursor++<200){const t=performance.now(),r=await f.request('/api/citywalk/classics');if(r.status!==200||r.data.items.length!==2)errors++;times.push(performance.now()-t);}}));
+      await Promise.all(Array.from({length:20},async()=>{while(cursor++<200){const t=performance.now(),r=await f.request('/api/citywalk/classics');if(r.status!==200||r.data.items.length!==11)errors++;times.push(performance.now()-t);}}));
       assert.equal(errors,0);assert.equal(calls,before);times.sort((a,b)=>a-b);const result={requests:200,concurrency:20,errors,p50Ms:Math.round(times[99]),p95Ms:Math.round(times[189]),elapsedMs:Math.round(performance.now()-start),externalCalls:0};
       await mkdir(new URL('../validation/iteration-20261016/',import.meta.url),{recursive:true});await writeFile(new URL('../validation/iteration-20261016/classic-pressure.json',import.meta.url),JSON.stringify(result,null,2));console.log('CLASSIC_PRESSURE '+JSON.stringify(result));
     });

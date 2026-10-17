@@ -101,7 +101,7 @@ test(
       assert.equal(
         (await f.request("/api/citywalk/classics", { user: null })).data.items
           .length,
-        3,
+        12,
       );
       assert.equal(
         (await f.request("/api/citywalks", { user: null })).status,

@@ -39,13 +39,13 @@ export function createCityWalkHome({ api, navigate, toast, authenticated=()=>tru
   rail.innerHTML = classicWalks
     .map(
       (w, i) =>
-        `<article class="walk-slide ${w.theme}" aria-label="${i + 1} / ${classicWalks.length} · ${esc(w.city)}"><button data-classic="${w.id}" class="classic-open"><span class="walk-city">${esc(w.city)} <span aria-hidden="true">↗</span></span>${walkArt(w.motif)}<div class="walk-caption"><h3>${esc(w.title)}</h3><p>${w.stops.map(esc).join(" → ")}</p></div></button></article>`,
+        `<article class="walk-slide ${w.theme}" aria-label="${i + 1} / ${classicWalks.length} · ${esc(w.city)}"><button data-classic="${w.id}" class="classic-open"><span class="walk-city">${esc(w.city)} <span aria-hidden="true">↗</span></span>${walkArt(w.motif)}<div class="walk-caption"><h3>${esc(w.title)}</h3><b>${w.stops.length} 站${Number.isFinite(w.distance_m)?' · '+(w.distance_m/1000).toFixed(1)+' 公里':''}</b><p>${w.stops.map(esc).join(" → ")}</p></div></button></article>`,
     )
     .join("");
   dots.innerHTML = classicWalks
     .map(
       (w, i) =>
-        `<button data-walk-dot="${i}" aria-label="查看${esc(w.city)}路线" aria-current="${i === 0}"></button>`,
+        `<button data-walk-dot="${i}" aria-label="查看${esc(w.city)}${esc(w.title)}" aria-current="${i === 0}"></button>`,
     )
     .join("");
   }
