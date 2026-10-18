@@ -1,3 +1,4 @@
+import {traceSpan} from '../operations/tracing.mjs';
 import { reserveApiCall } from "../repositories/api-usage.mjs";
 
 // Every commercial call passes the same budget gate. No automatic paid retries.
@@ -8,6 +9,7 @@ export function createJsonRequester({
   timeoutMs = 18000,
 } = {}) {
   return async function request(provider, url, options = {}) {
+    return traceSpan(provider==='DeepSeek'?'model':['AMap','Amap','高德地图','Google','Google Routes','Google Places','GoogleRoutes','QWeather'].includes(provider)?'map':'http','external.request',async()=>{
     await reserve(provider);
     try {
       const response = await fetchImpl(url, {
@@ -22,6 +24,7 @@ export function createJsonRequester({
         status: 502,
       });
     }
+    },{provider:['Amap','AMap','QWeather','DeepSeek'].includes(provider)?provider:provider.startsWith('Google')?'Google':'external'});
   };
 }
 export const request = createJsonRequester();

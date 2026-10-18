@@ -1,4 +1,5 @@
 import pg from "pg";
+import {traceSpan} from './operations/tracing.mjs';
 import { readFile } from "node:fs/promises";
 import {requestContext,applyRequestContext,trackedMutation} from './operations/request-context.mjs';
 export const pool = new pg.Pool({
@@ -16,14 +17,15 @@ pool.on("error", (error) =>
       ")",
   ),
 );
+const tracedQuery=(sql,fn)=>traceSpan('db','db.query',fn,{sqlOperation:typeof sql==='string'?(sql.trim().match(/^[A-Za-z]+/)?.[0]||'OTHER').toUpperCase():'OTHER'});
 export const query = (sql, values) => requestContext()&&trackedMutation(sql)
-  ? transaction(c=>c.query(sql,values)) : pool.query(sql, values);
+  ? transaction(c=>c.query(sql,values)) : tracedQuery(sql,()=>pool.query(sql, values));
 export async function transaction(fn) {
   const c = await pool.connect();
   try {
     await c.query("BEGIN");
     await applyRequestContext(c);
-    const r = await fn(c);
+    const r = await fn({query:(sql,values)=>tracedQuery(sql,()=>c.query(sql,values))});
     await c.query("COMMIT");
     return r;
   } catch (e) {
@@ -86,6 +88,7 @@ export async function migrate() {
   await transaction(async c => c.query(await readFile(new URL('./mail-outbox-schema.sql', import.meta.url), 'utf8')));
   await transaction(async c => c.query(await readFile(new URL('./planning-previews-schema.sql', import.meta.url), 'utf8')));
   await transaction(async c => c.query(await readFile(new URL('./place-facts-schema.sql', import.meta.url), 'utf8')));
+  await transaction(async c => c.query(await readFile(new URL('./operations/tracing-schema.sql', import.meta.url), 'utf8')));
 }
 export async function savePlace(p, c = pool) {
   const search = [p.name, ...(p.aliases || []), p.city, p.province].join(" ");

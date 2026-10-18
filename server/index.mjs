@@ -1,3 +1,4 @@
+import {createRequestTracer,createDatabaseTraceSink,installTraceRoutes} from './operations/tracing.mjs';
 import {installRouteCovers} from './social/route-covers.mjs';
 import {recommend} from './recommendation/engine.mjs';
 import {ensureCurrentProfile} from './recommendation/freshness.mjs';
@@ -121,6 +122,8 @@ app.use("/api", (req, res, next) => {
 });
 const mailer=createOutboxMailer({query,transaction,transport:createMailer()});
 const accounts = createAccounts({ query, transaction, production, mailer });
+const requestTracer=createRequestTracer({write:createDatabaseTraceSink((sql,values)=>pool.query(sql,values))});
+app.use('/api',requestTracer.middleware);
 app.use(['/api','/_AMapService'], accounts.attach);
 const operationEvents=createEventRecorder({query});
 app.use('/api',operationEvents.middleware);
@@ -129,6 +132,7 @@ app.use('/api', accounts.gate, accounts.router);
 app.use('/api',withRequestContext);
 const logExports=installOperationsRoutes(app,{auth,query,transaction,events:operationEvents});
 installAccessRoutes(app,{query,transaction,events:operationEvents});
+installTraceRoutes(app,{query,tracer:requestTracer});
 installMailOutboxRoutes(app,{query,mailer});
 installUserInsights(app,{query,events:operationEvents,readInferred:async id=>({...await explainStyle(query,id),recommendation:await readProfile(query,{id})})});
 installAnalytics(app,{query,transaction,events:operationEvents});
@@ -775,12 +779,13 @@ await seed();
 await seedOfficialSources(query);
 await seedClassicWalks();
 await backfillItems(query);
+requestTracer.start();
 maintenance.start();
 officialFacts.start();
 mailer.start();
 const styleWorker=createStyleWorker({query,transaction,afterRebuild:buildProfile,onError:()=>console.error('Travel style refresh failed')});
 styleWorker.start();
-export const stopRecommendationWorker=()=>{styleWorker.stop();mailer.stop();officialFacts.stop();};
+export const stopRecommendationWorker=()=>{styleWorker.stop();mailer.stop();officialFacts.stop();void requestTracer.close();};
 const exportCleanup=setInterval(()=>void logExports.cleanup().catch(()=>{}),3600000);exportCleanup.unref();
 export const server = app.listen(
   Number(process.env.PORT || 8787),

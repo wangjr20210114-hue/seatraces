@@ -1,3 +1,4 @@
+import {mountDiagnostics} from './admin-diagnostics.js';
 import {mountArchives} from './admin-archives.js';
 const esc = (s) =>
   String(s ?? "").replace(
@@ -114,7 +115,7 @@ export async function mountMaintenance({ content, status, api, isCurrent }) {
     status.textContent = "正在读取维护状态…";
     try {
       const path =
-        tab === "archives" ? '/api/admin/archives/policy' : tab === "jobs"
+        tab === "traces" ? "/api/admin/traces" : tab === "archives" ? '/api/admin/archives/policy' : tab === "jobs"
           ? "/api/admin/maintenance/tasks?" +
             new URLSearchParams({ state, offset })
           : tab === "health"
@@ -128,6 +129,7 @@ export async function mountMaintenance({ content, status, api, isCurrent }) {
       content.innerHTML = `<div class="admin-tabs">${[
         ["jobs", "维护任务"],
         ["health", "服务监测"],
+        ["traces", "请求链路与邮件"],
         ["alerts", "告警"],
         ["archives", "归档与汇总"],
         ["imports", "地点导入"],
@@ -137,7 +139,8 @@ export async function mountMaintenance({ content, status, api, isCurrent }) {
             `<button data-maint-tab="${k}" aria-selected="${tab === k}">${name}</button>`,
         )
         .join("")}</div>`;
-      if (tab === 'archives') {
+      if(tab==='traces'){await mountDiagnostics({content,status,api,isCurrent:()=>current(n),initial:v});}
+      else if (tab === 'archives') {
         content.insertAdjacentHTML('beforeend','<section id="archive-panel"></section>');
         await mountArchives({content:content.querySelector('#archive-panel'),status,api,isCurrent:()=>current(n),policy:v,openTask:id=>void detail(id)});
       } else if (tab === "jobs") {
