@@ -40,20 +40,21 @@ export function createOfficialFacts({query,transaction,fetchPage=fetchOfficialPa
   for(const source of rows){await checkpoint({step:'refreshing_official_sources',processed:result.processed,total:rows.length});
    try{
     const page=await fetchPage(source.url);await checkpoint();
-    const now=new Date().toISOString(),changed=page.sha256!==source.source_hash;let facts=[];
-    if((changed||source.last_status==='model_unavailable')&&enabled())facts=validateExtractedFacts(await model(extractionInstruction,{placeId:source.place_id,name:source.place_name,evidence:[{id:source.id,publisher:source.publisher,url:source.url,text:page.text,sha256:page.sha256,retrievedAt:now,fields:source.fields,scope:'ordinary_published_rules'}]},{maxTokens:1800}),
+    const now=new Date().toISOString(),changed=page.sha256!==source.source_hash,shouldExtract=(changed||source.needs_extraction)&&enabled();let facts=[];
+    if(shouldExtract)facts=validateExtractedFacts(await model(extractionInstruction,{placeId:source.place_id,name:source.place_name,evidence:[{id:source.id,publisher:source.publisher,url:source.url,text:page.text,sha256:page.sha256,retrievedAt:now,fields:source.fields,scope:'ordinary_published_rules'}]},{maxTokens:1800}),
       {placeId:source.place_id,evidence:[{id:source.id,publisher:source.publisher,url:source.url,text:page.text,sha256:page.sha256,retrievedAt:now,fields:source.fields,scope:'ordinary_published_rules'}]},now);
     await checkpoint();
     await transaction(async c=>{
      const live=(await c.query('SELECT source_hash FROM official_place_sources WHERE id=$1 FOR UPDATE',[source.id])).rows[0];if(live.source_hash!==source.source_hash)throw fail('来源已被其他任务更新',409);
-     await c.query("UPDATE official_place_sources SET checked_at=now(),refresh_after=now()+interval '1 day',source_hash=$2,source_text=$3,last_status=$4,version=version+1 WHERE id=$1",[source.id,page.sha256,page.text,changed?(enabled()?'changed':'model_unavailable'):'unchanged']);
-     if(changed||facts.length){
+     const needsExtraction=(changed||source.needs_extraction)&&!shouldExtract;
+     await c.query("UPDATE official_place_sources SET checked_at=now(),refresh_after=now()+interval '1 day',source_hash=$2,source_text=$3,last_status=$4,needs_extraction=$5,version=version+1 WHERE id=$1",[source.id,page.sha256,page.text,needsExtraction?'model_unavailable':changed?'changed':'unchanged',needsExtraction]);
+     if(changed||shouldExtract){
       await c.query("UPDATE official_place_facts SET fact=jsonb_set(fact,'{status}','\"needs_review\"'),version=version+1 WHERE source_id=$1",[source.id]);
       await c.query("UPDATE official_fact_reviews SET state='superseded',version=version+1 WHERE source_id=$1 AND state='pending'",[source.id]);
       for(const f of facts)await c.query('INSERT INTO official_fact_reviews(id,source_id,place_id,field,fact) VALUES($1,$2,$3,$4,$5)',[randomUUID(),source.id,source.place_id,f.field,{value:f.value,source:f.sourceName,sourceUrl:f.sourceUrl,verifiedAt:null,status:'needs_review',evidence:f.evidence}]);
      }else{
       const accepted=(await c.query('SELECT field,fact FROM official_place_facts WHERE source_id=$1',[source.id])).rows;
-      for(const r of accepted){const fact=r.fact;if(fact.evidence?.reviewStatus!=='accepted'||!page.text.includes(fact.evidence.quote))continue;
+      for(const r of accepted){const fact=r.fact;if(fact.status==='needs_review'||fact.evidence?.reviewStatus!=='accepted'||fact.evidence.sourceHash!==page.sha256||!page.text.includes(fact.evidence.quote))continue;
        fact.status='evidence_reviewed';fact.verifiedAt=now;fact.evidence.retrievedAt=now;fact.evidence.reviewAfter=new Date(Date.parse(now)+86400000).toISOString();
        await c.query('UPDATE official_place_facts SET fact=$3,version=version+1 WHERE place_id=$1 AND field=$2',[source.place_id,r.field,fact]);}
      }

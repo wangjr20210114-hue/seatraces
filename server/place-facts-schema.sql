@@ -3,6 +3,7 @@ CREATE TABLE IF NOT EXISTS official_place_sources (
  fields jsonb NOT NULL,enabled boolean NOT NULL DEFAULT true,checked_at timestamptz,refresh_after timestamptz,
  source_hash text,source_text text,last_status text NOT NULL DEFAULT 'unfetched',version int NOT NULL DEFAULT 1
 );
+ALTER TABLE official_place_sources ADD COLUMN IF NOT EXISTS needs_extraction boolean NOT NULL DEFAULT true;
 CREATE TABLE IF NOT EXISTS official_place_facts (
  place_id text NOT NULL,field text NOT NULL,source_id text NOT NULL REFERENCES official_place_sources(id),
  fact jsonb NOT NULL,version int NOT NULL DEFAULT 1,PRIMARY KEY(place_id,field)
