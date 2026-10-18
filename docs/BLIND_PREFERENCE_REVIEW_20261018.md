@@ -34,8 +34,14 @@ node scripts/serve-preference-review.mjs --local
 # 导入队友下载的答案；路径含空格时加引号
 node scripts/import-preference-review.mjs --local "path/to/seatraces-review-xxx.json"
 
+# 全部评审者交卷后，在本机生成 JSON 和 Markdown 诊断报告
+node scripts/summarize-preference-review.mjs --local
+
+# 若一个人提交多份不同答案，默认拒绝合并。明确列出每人的最终版本
+node scripts/summarize-preference-review.mjs --local "final-answer-a.json" "final-answer-b.json"
+
 # 隔离测试，不连接生产库
-node --test test/preference-review.test.mjs
+node --test test/preference-review.test.mjs test/preference-review-analysis.test.mjs
 ```
 
 生成器拒绝覆盖已冻结题集。服务仅绑定 `127.0.0.1:8796`，不需要启动主应用，不连接生产数据库，不开放局域网访问。停止时在运行窗口按 Ctrl+C。
@@ -49,8 +55,11 @@ node --test test/preference-review.test.mjs
 | `protocol-private.json` | 模型、语料摘要和题目映射 | 否 |
 | `answers/*.json` | 匿名评审 ID、选项顺序、答案、用时 | 仅负责人收集 |
 | `answers/*.summary.json` | 单人诊断汇总，不用于模型启用 | 全部交卷后再分析 |
+| `analysis.json` / `analysis.md` | 去重后各比较组计数、逐题分歧和一致性 | 全部交卷后讨论 |
 
 重复提交相同答案不重复写文件；修改后保留版本。分析时按 `reviewerId` 去重，先确定每人最终版本，不能把文件数量当作人数。浏览器只发规范化答案，不上传账号、密码、真实用户画像或浏览记录。HTTP 接口限制同源 JSON、校验 Host、拒绝任意路径，限制请求体 64 KiB。静态站点不提供私有映射、答案或统计文件。
+
+汇总脚本只读本机答案，不连接数据库；无答案时输出 `awaiting_reviews`，不给出方法优劣。存在同一评审者多个版本时中止，不擅自挑选“更有利”的版本。输入无效时不会输出部分计分。默认不生成总体置信区间，因为同一人的多题判断不是独立用户样本，这个小题集也不是随机抽取的全量信息流。
 
 ## 如何解释结果
 
@@ -74,5 +83,7 @@ node --test test/preference-review.test.mjs
 ## 验收记录
 
 8 项自动化测试通过，覆盖分歧选样、非法/缺失/重复答案、左右打乱后的统计、不重复计分、三种非胜负答案、HTML 注入、幂等保存、同源和大小限制、离线命令限制。HTTP 测试使用随机本机端口，不触碰生产服务。
+
+另有 4 项汇总测试，覆盖空数据无结论、同人重复版本拒绝、左右打乱及分歧/重复题统计、无效资料不产生部分结果。
 
 浏览器在独立 `8797` 测试题集验证：未选答案不能下一题、选择后可继续、刷新恢复第二题、返回保留原选择、完成及保存成功。测试答案单独写入 QA 文件，没有进入真实盲评答案目录。已点击测试下载且未见浏览器错误，但应用内浏览器未返回下载文件路径，因此不把下载落盘算作已核实。正式 24 题页面已人工检查展示，尚未代替用户作答。
