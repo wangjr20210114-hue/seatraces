@@ -4,6 +4,7 @@ const files = [
   "server/index.mjs",
   "server/auth.mjs",
   "server/services/journey-service.mjs",
+  "server/services/place-descriptions.mjs",
   "server/services/citywalk-service.mjs",
   "server/services/trip-services.mjs",
   "server/agent/routes.mjs",

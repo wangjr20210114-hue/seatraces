@@ -6,6 +6,21 @@
 
 ## 约定
 
+### 2026-10-18 个性化闭环补充
+
+| 接口 | 输入 | 返回与边界 |
+|---|---|---|
+| POST /api/social/feed | `{scope:"recommended",q?:string,limit?:1..30,exclude:UUID[]}`，exclude 最多600个，未知字段拒绝 | 与原 GET 相同的 `{items,nextCursor,requestId,...}`；重新生成排除已显示帖子的推荐池，保留兴趣与多样性，每5个位置加入一个随机探索位；冻结池内部仍用 GET cursor 分页，不改变现有 GET 行为。登录和同源写请求头必需。 |
+| POST /api/journey/sessions/:id/places/:placeId/description | 当前用户问卷 UUID，encodeURIComponent 编码地点 ID，body 为 `{}` | `{placeId,shortText,fullText,evidence,method,generatedAt,refreshAfter,cached}`。仅允许本人问卷最外层候选地点；其他用户/子地点404，未登录401，并行生成繁忙429。已有缓存直接返回；缺少时单点读取，按已存证据摘录或返回基础介绍，保存 PostgreSQL `place_descriptions`。 |
+
+`GET /api/me/library/:kind` 的 items 增补昵称、作者头像、封面/路线预览、正文摘要、城市、天数、`created_at`（发帖）、`saved_at`（收藏或最近浏览）、`record_days`（发生浏览的自然日数）和 `dwell_seconds`。页面分别展示发帖与收藏/浏览时间，不把浏览天数称为访问次数。无权查看、隐藏、作者停用的帖子不返回。
+
+景点 `score.personalInterest` 为兴趣匹配排序分，不是景点名气；顶层列表先按该分数、再按既有总分排列。已选问卷不会偷偷改答案；新问卷选项和提问顺序根据本人的近期习惯与明确偏好调整，规划仍优先遵守本次“想去”、时间及交通约束。
+
+景点简介在业务 PostgreSQL 中作为地点扩展资料保存，以 canonical OSM ID 关联，未修改只读 OSM 原始表。已核验的历史资料保留来源与核验时间；LLM 只摘录提供的文字，不能猜测价格/开放时间。只有名称/城市/分类时直接展示基础介绍，不调用模型扩写。模型摘录30天复查、基础回退1天复查；并发生成最多2个，相同地点共用一次。完整简介不复制进问卷快照。
+
+发现单次页面最多保留600条，达到后提示本轮结束，重新进入开始新一轮；旧卡片在加载失败时保留，点击重试继续。问 AI 的知识检索使用本机 BGE 512维 + 关键词混合检索；模型文件缺失时明确在接口 `retrieval` 返回 lexical。实验双塔未达到验证门槛，不更改生产激活状态，诊断见 `docs/TOWER_DIAGNOSIS_20261018.md`。
+
 2026-10-16 后台认证修复：`/admin.html` 由后端认证后返回，未登录转 `/admin-login.html`。新增 `POST /api/auth/admin/login`（账号、密码）、`GET /api/auth/admin/me`、`POST /api/auth/admin/logout`，返回值见 ADMIN.md。所有管理 API 需要独立的 30 分钟 `st_admin` 会话，应用 `st_session` 不再授予管理权限；普通业务接口不变。新增 `GET /api/admin/cities?q=上海` 供管理界面搜索城市。
 
 - 云端同源入口：`https://trip.seatraces.com`，业务接口前缀 `/api`。本地前端默认 8788，后端 8787。代理转发 Cookie，不将数据库暴露到公网。

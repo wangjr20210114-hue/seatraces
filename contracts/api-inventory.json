@@ -6,245 +6,245 @@
       "method": "GET",
       "path": "/api/health",
       "source": "server/index.mjs",
-      "line": 149,
+      "line": 154,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "DELETE",
       "path": "/api/me/history",
       "source": "server/index.mjs",
-      "line": 153,
+      "line": 158,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "GET",
       "path": "/api/status",
       "source": "server/index.mjs",
-      "line": 157,
+      "line": 162,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "GET",
       "path": "/api/regions",
       "source": "server/index.mjs",
-      "line": 184,
+      "line": 189,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "GET",
       "path": "/api/catalog/coverage",
       "source": "server/index.mjs",
-      "line": 200,
+      "line": 205,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "GET",
       "path": "/api/catalog/site-coverage",
       "source": "server/index.mjs",
-      "line": 201,
+      "line": 206,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "GET",
       "path": "/api/catalog/site",
       "source": "server/index.mjs",
-      "line": 202,
+      "line": 207,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "GET",
       "path": "/api/catalog/hierarchy-coverage",
       "source": "server/index.mjs",
-      "line": 203,
+      "line": 208,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "GET",
       "path": "/api/catalog/entity-coverage",
       "source": "server/index.mjs",
-      "line": 204,
+      "line": 209,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "GET",
       "path": "/api/catalog/hierarchy",
       "source": "server/index.mjs",
-      "line": 205,
+      "line": 210,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "GET",
       "path": "/api/maps/config",
       "source": "server/index.mjs",
-      "line": 206,
+      "line": 211,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "GET",
       "path": "/api/maps/google/config",
       "source": "server/index.mjs",
-      "line": 207,
+      "line": 212,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "GET",
       "path": "/_AMapService/v4/map/styles",
       "source": "server/index.mjs",
-      "line": 212,
+      "line": 217,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "GET",
       "path": "/api/_AMapService/v4/map/styles",
       "source": "server/index.mjs",
-      "line": 212,
+      "line": 217,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "GET",
       "path": "/api/catalog/search",
       "source": "server/index.mjs",
-      "line": 224,
+      "line": 229,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "GET",
       "path": "/api/catalog/nearby",
       "source": "server/index.mjs",
-      "line": 225,
+      "line": 230,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "POST",
       "path": "/api/catalog/candidates",
       "source": "server/index.mjs",
-      "line": 227,
+      "line": 232,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "GET",
       "path": "/api/catalog/place",
       "source": "server/index.mjs",
-      "line": 228,
+      "line": 233,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "GET",
       "path": "/api/catalog/opening",
       "source": "server/index.mjs",
-      "line": 234,
+      "line": 239,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "GET",
       "path": "/api/places",
       "source": "server/index.mjs",
-      "line": 241,
+      "line": 246,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "GET",
       "path": "/api/nearby",
       "source": "server/index.mjs",
-      "line": 273,
+      "line": 278,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "GET",
       "path": "/api/questions",
       "source": "server/index.mjs",
-      "line": 304,
+      "line": 309,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "POST",
       "path": "/api/trips",
       "source": "server/index.mjs",
-      "line": 318,
+      "line": 323,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "GET",
       "path": "/api/trips",
       "source": "server/index.mjs",
-      "line": 353,
+      "line": 358,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "GET",
       "path": "/api/trips/:id",
       "source": "server/index.mjs",
-      "line": 383,
+      "line": 388,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "GET",
       "path": "/api/trips/:id/versions",
       "source": "server/index.mjs",
-      "line": 386,
+      "line": 391,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "PATCH",
       "path": "/api/trips/:id",
       "source": "server/index.mjs",
-      "line": 404,
+      "line": 409,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "POST",
       "path": "/api/trips/:id/assistant",
       "source": "server/index.mjs",
-      "line": 464,
+      "line": 469,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "POST",
       "path": "/api/routes",
       "source": "server/index.mjs",
-      "line": 545,
+      "line": 550,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "POST",
       "path": "/api/places/:id/match",
       "source": "server/index.mjs",
-      "line": 575,
+      "line": 580,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "POST",
       "path": "/api/transport",
       "source": "server/index.mjs",
-      "line": 585,
+      "line": 590,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "POST",
       "path": "/api/posts",
       "source": "server/index.mjs",
-      "line": 597,
+      "line": 602,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "GET",
       "path": "/api/posts",
       "source": "server/index.mjs",
-      "line": 702,
+      "line": 707,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "GET",
       "path": "/api/me/history",
       "source": "server/index.mjs",
-      "line": 705,
+      "line": 710,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "POST",
       "path": "/api/admin/places/import",
       "source": "server/index.mjs",
-      "line": 757,
+      "line": 762,
       "reference": "API_REFERENCE.md"
     },
     {
@@ -356,77 +356,84 @@
       "method": "GET",
       "path": "/api/journey/cities/:cityId/boundary",
       "source": "server/services/journey-service.mjs",
-      "line": 223,
+      "line": 226,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "POST",
       "path": "/api/journey/sessions",
       "source": "server/services/journey-service.mjs",
-      "line": 234,
+      "line": 237,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "POST",
       "path": "/api/journey/sessions/:id/cities/:cityId",
       "source": "server/services/journey-service.mjs",
-      "line": 260,
+      "line": 263,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "GET",
       "path": "/api/journey/sessions/:id/cities/:cityId/boundary",
       "source": "server/services/journey-service.mjs",
-      "line": 299,
+      "line": 302,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "POST",
       "path": "/api/journey/sessions/:id/visits",
       "source": "server/services/journey-service.mjs",
-      "line": 330,
+      "line": 333,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "POST",
       "path": "/api/journey/sessions/:id/wishes",
       "source": "server/services/journey-service.mjs",
-      "line": 351,
+      "line": 354,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "GET",
       "path": "/api/journey/sessions/:id/places/:placeId/detail",
       "source": "server/services/journey-service.mjs",
-      "line": 375,
+      "line": 378,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "POST",
       "path": "/api/journey/sessions/:id/questions",
       "source": "server/services/journey-service.mjs",
-      "line": 392,
+      "line": 395,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "POST",
       "path": "/api/journey/sessions/:id/generate",
       "source": "server/services/journey-service.mjs",
-      "line": 434,
+      "line": 437,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "POST",
       "path": "/api/journey/trips/:id/presence",
       "source": "server/services/journey-service.mjs",
-      "line": 515,
+      "line": 519,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "POST",
       "path": "/api/journey/trips/:id/days/:day/route",
       "source": "server/services/journey-service.mjs",
-      "line": 553,
+      "line": 557,
+      "reference": "API_REFERENCE.md"
+    },
+    {
+      "method": "POST",
+      "path": "/api/journey/sessions/:id/places/:placeId/description",
+      "source": "server/services/place-descriptions.mjs",
+      "line": 52,
       "reference": "API_REFERENCE.md"
     },
     {
@@ -573,7 +580,7 @@
       "method": "GET",
       "path": "/api/discovery/mine",
       "source": "server/services/discovery.mjs",
-      "line": 36,
+      "line": 37,
       "reference": "API_REFERENCE.md"
     },
     {
@@ -629,112 +636,119 @@
       "method": "GET",
       "path": "/api/me/style",
       "source": "server/services/personal-center.mjs",
-      "line": 20,
+      "line": 22,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "PUT",
       "path": "/api/me/style",
       "source": "server/services/personal-center.mjs",
-      "line": 46,
+      "line": 48,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "GET",
       "path": "/api/me/overview",
       "source": "server/services/personal-center.mjs",
-      "line": 66,
+      "line": 68,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "GET",
       "path": "/api/me/library/:kind",
       "source": "server/services/personal-center.mjs",
-      "line": 78,
+      "line": 80,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "GET",
       "path": "/api/me/library/:kind/:id",
       "source": "server/services/personal-center.mjs",
-      "line": 90,
+      "line": 96,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "DELETE",
       "path": "/api/me/library/favorites/:id",
       "source": "server/services/personal-center.mjs",
-      "line": 103,
+      "line": 109,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "GET",
       "path": "/api/me/report",
       "source": "server/services/personal-center.mjs",
-      "line": 110,
+      "line": 116,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "GET",
       "path": "/api/social/feed",
       "source": "server/social/community.mjs",
-      "line": 17,
+      "line": 48,
+      "reference": "API_REFERENCE.md"
+    },
+    {
+      "method": "POST",
+      "path": "/api/social/feed",
+      "source": "server/social/community.mjs",
+      "line": 49,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "GET",
       "path": "/api/social/posts/:id",
       "source": "server/social/community.mjs",
-      "line": 45,
+      "line": 50,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "PUT",
       "path": "/api/social/authors/:id/follow",
       "source": "server/social/community.mjs",
-      "line": 56,
+      "line": 61,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "PUT",
       "path": "/api/social/posts/:id/feedback",
       "source": "server/social/community.mjs",
-      "line": 65,
+      "line": 70,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "POST",
       "path": "/api/social/posts/:id/adopt",
       "source": "server/social/community.mjs",
-      "line": 69,
+      "line": 74,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "POST",
       "path": "/api/social/posts/:id/impressions",
       "source": "server/social/community.mjs",
-      "line": 77,
+      "line": 82,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "PUT",
       "path": "/api/social/impressions/:id",
       "source": "server/social/community.mjs",
-      "line": 87,
+      "line": 93,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "GET",
       "path": "/api/social/notifications",
       "source": "server/social/community.mjs",
-      "line": 98,
+      "line": 105,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "PUT",
       "path": "/api/social/notifications/:id/read",
       "source": "server/social/community.mjs",
-      "line": 103,
+      "line": 110,
       "reference": "API_REFERENCE.md"
     },
     {
@@ -797,21 +811,21 @@
       "method": "GET",
       "path": "/api/social/route-covers/:kind/:id",
       "source": "server/social/route-covers.mjs",
-      "line": 42,
+      "line": 45,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "POST",
       "path": "/api/social/drafts/:id/generate",
       "source": "server/social/writing.mjs",
-      "line": 29,
+      "line": 33,
       "reference": "API_REFERENCE.md"
     },
     {
       "method": "GET",
       "path": "/api/social/writing/:id",
       "source": "server/social/writing.mjs",
-      "line": 56,
+      "line": 60,
       "reference": "API_REFERENCE.md"
     },
     {
