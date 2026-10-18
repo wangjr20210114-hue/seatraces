@@ -120,12 +120,12 @@ app.use("/api", (req, res, next) => {
     return res.status(403).json({ error: "请求来源校验失败" });
   next();
 });
-const mailer=createOutboxMailer({query,transaction,transport:createMailer()});
+const operationEvents=createEventRecorder({query});
+const mailer=createOutboxMailer({query,transaction,transport:createMailer(),events:operationEvents});
 const accounts = createAccounts({ query, transaction, production, mailer });
 const requestTracer=createRequestTracer({write:createDatabaseTraceSink((sql,values)=>pool.query(sql,values))});
 app.use('/api',requestTracer.middleware);
 app.use(['/api','/_AMapService'], accounts.attach);
-const operationEvents=createEventRecorder({query});
 app.use('/api',operationEvents.middleware);
 installAdminAccess(app,{query,transaction,production});
 app.use('/api', accounts.gate, accounts.router);

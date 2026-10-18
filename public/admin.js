@@ -10,11 +10,12 @@ import {mountModeration} from './admin-moderation.js';
 import {mountMaintenance} from './admin-maintenance.js';
 import {mountPlaceQuality} from './admin-place-quality.js';
 import {mountAdminJourneys} from './admin-journeys.js';
+import {mountAdminMail} from './admin-mail.js';
 const $=s=>document.querySelector(s);
 export const escapeText=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const esc=escapeText;
-const names={overview:'总览',analytics:'运营分析',journeys:'旅行与路线',quality:'地点质量',content:'内容治理',agent:'智能体执行链',users:'用户',events:'操作日志',tasks:'任务',messages:'站内信',classics:'经典 CityWalk',access:'权限与人员'};
-const sectionPermissions={overview:'overview.read',analytics:'analytics.read',journeys:'journeys.read',quality:'places.read',content:'content.manage',agent:'agent.read',users:'users.list',events:'events.read',tasks:'tasks.read',messages:'messages.manage',classics:'classics.manage',access:'roles.manage'};
+const names={overview:'总览',analytics:'运营分析',journeys:'旅行与路线',quality:'地点质量',content:'内容治理',agent:'智能体执行链',users:'用户',events:'操作日志',tasks:'任务',messages:'站内信',mail:'邮件投递',classics:'经典 CityWalk',access:'权限与人员'};
+const sectionPermissions={overview:'overview.read',analytics:'analytics.read',journeys:'journeys.read',quality:'places.read',content:'content.manage',agent:'agent.read',users:'users.list',events:'events.read',tasks:'tasks.read',messages:'messages.manage',mail:'system.read',classics:'classics.manage',access:'roles.manage'};
 let access=null;
 const can=permission=>!!access&&(access.permissions.includes('*')||access.permissions.includes(permission));
 let section='overview',offset=0,revision=0,userQuery='',userState='all',userRole='all',filters={};
@@ -82,6 +83,8 @@ async function render(){
       await mountAdminAnalytics({content,status,api,can,isCurrent:()=>revision===own});return;
     }else if(section==='access'){
       await mountAdminAccess({content,status,api,isCurrent:()=>revision===own});return;
+    }else if(section==='mail'){
+      await mountAdminMail({content,status,api,can,isCurrent:()=>revision===own});return;
     }else if(section==='messages'){
       await mountAdminMessages({content,status,api,isCurrent:()=>revision===own});
       return;

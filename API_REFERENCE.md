@@ -23,8 +23,10 @@
 | POST /api/admin/maintenance/tasks | 原合同新增 `kind:"place_refresh"` | 原任务ID、确认、去重、取消、重试与租约合同不变；近期开启需求的已登记地点优先。 |
 | GET /api/admin/traces | `{requestId?:UUID,offset?:0..10000}`，system.read | 路由模板、状态、时耗和队列健康；不含具体URL、正文、SQL参数、Cookie或密钥。 |
 | GET /api/admin/traces/:requestId | 请求UUID，system.read | DB/地图/模型段、父段编号、耗时、错误和进程内存采样；最多63子段，7天保留。 |
-| GET /api/admin/mail/status | system.read | 安全配置检查（只显示缺失项名）、队列各状态数量。 |
+| GET /api/admin/mail/status | system.read | 安全配置检查（只显示缺失项名）、队列各状态数量、最近配置核验时间与结果。 |
 | GET /api/admin/mail/jobs?offset=0 | system.read，offset 0..10000 | 最多30项安全元数据；不返回收件地址、令牌、密文或邮件内容。 |
+| GET /api/admin/mail/history | system.read | 最近30条邮件配置和投递事件，只有用途、状态、安全错误码和时间等元数据。 |
+| POST /api/admin/mail/verify | system.manage；空对象 `{}` | 只读核验发信域名与模板，不发送邮件；返回 `{provider,passed,code?,checkedAt,messageSent:false}`。每30秒最多1次，并发请求429。核验结果同步写入操作日志。 |
 
 问卷与生成答案兼容原字段，并增加 `companion:solo|couple|friends|parents|family`、`walkingLimitKm:0.5..30`、`endBy:08:00..22:59`、`travelFocus:balanced|famous|immersive`、`visitedNames:string[]`、`avoidPlaceNames:string[]`（各最多30项）。这些是当前行程条件，不自动写长期记忆。未知字段拒绝。缺失项由服务端询问，不能把账号默认值当作用户确认。
 
