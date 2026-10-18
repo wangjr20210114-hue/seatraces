@@ -806,11 +806,11 @@ function renderClusters(city) {
         .find((p) => p.id === v.dataset.wanted);
       v.disabled = true;
       try {
-        await api(`/api/journey/sessions/${state.session.id}/wishes`, {
+        const savedWish=await api(`/api/journey/sessions/${state.session.id}/wishes`, {
           placeId: p.id,
           wanted: !p.ownWanted,
         });
-        p.ownWanted = !p.ownWanted;
+        p.ownWanted = savedWish.wanted;
         for (const parent of group.members) {
           for (const child of parent.children || [])
             child.wanted = Boolean(child.ownWanted);
@@ -820,11 +820,6 @@ function renderClusters(city) {
         }
         if (p.ownWanted && !selected.includes(group.id)) {
           selected.push(group.id);
-          const hint = $(".cluster-hint");
-          hint.textContent = hint.textContent.replace(
-            /已选 \d+ 片|编号对应下方片区，圆点为代表景点/,
-            `已选 ${selected.length} 片`,
-          );
           document
             .querySelectorAll(`[data-cluster="${group.id}"]`)
             .forEach((b) => b.setAttribute("aria-pressed", "true"));
