@@ -1,4 +1,5 @@
 import { journeyPlaceDetail } from "./journey-details.mjs";
+import {officialFacts} from './official-facts-store.mjs';
 import { installPlaceDescriptionRoutes } from './place-descriptions.mjs';
 import {
   scenicSummary,
@@ -435,6 +436,11 @@ export function installJourneyRoutes(app, { auth, travelHabit, recordWish=async(
         pools[id] = pools[id].map((p) =>
           enrichCandidate(p, enriched.get(p.id) || {}, visits, signals),
         );
+      for(const cityId of Object.keys(pools)){
+        const group=pools[cityId],reviewed=[];
+        for(let i=0;i<group.length;i+=600)reviewed.push(...await officialFacts.overlayMany(group.slice(i,i+600),current.request?.start));
+        pools[cityId]=reviewed;
+      }
       const plan = await draftJourney(
           current.request,
           current.request.cities,
@@ -450,6 +456,7 @@ export function installJourneyRoutes(app, { auth, travelHabit, recordWish=async(
           ...b.answers,
           selections: b.selections,
         };
+      await officialFacts.demand(plan.days.flatMap(d=>d.stops.map(p=>p.id)));
       await transaction(async (c) => {
         await c.query(
           "INSERT INTO trips(id,user_id,title,request,plan) VALUES($1,$2,$3,$4,$5)",

@@ -22,6 +22,7 @@ const states = {
 };
 const kinds = {
   log_export: "日志导出",
+  place_refresh: "官方地点资料更新",
   health_check: "服务健康检查",
   event_archive: "事件归档",
   daily_rollup: "每日汇总",
@@ -29,6 +30,7 @@ const kinds = {
 };
 const steps = {
   exporting: "分批压缩日志",
+  refreshing_official_sources: "核对官方资料",
   starting: "准备执行",
   checking_health: "检查服务指标",
   completed: "完成",

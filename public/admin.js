@@ -73,7 +73,7 @@ async function render(){
     }else if(section==='content'){
       await mountModeration({content,status,api,isCurrent:()=>revision===own});return;
     }else if(section==='quality'){
-      await mountPlaceQuality({content,status,api,isCurrent:()=>revision===own});return;
+      await mountPlaceQuality({content,status,api,can,isCurrent:()=>revision===own});return;
     }else if(section==='journeys'){
       await mountAdminJourneys({content,status,api,id:userId,tab:userTab,isCurrent:()=>revision===own,navigate});return;
     }else if(section==='agent'){

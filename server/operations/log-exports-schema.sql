@@ -1,5 +1,5 @@
 ALTER TABLE maintenance_tasks DROP CONSTRAINT IF EXISTS maintenance_tasks_kind_check;
-ALTER TABLE maintenance_tasks ADD CONSTRAINT maintenance_tasks_kind_check CHECK(kind IN ('health_check','event_archive','daily_rollup','archive_restore','log_export'));
+ALTER TABLE maintenance_tasks ADD CONSTRAINT maintenance_tasks_kind_check CHECK(kind IN ('health_check','event_archive','daily_rollup','archive_restore','log_export','place_refresh'));
 CREATE TABLE IF NOT EXISTS admin_log_exports (
  id uuid PRIMARY KEY REFERENCES maintenance_tasks(id) ON DELETE CASCADE,
  owner_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,

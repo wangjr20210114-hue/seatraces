@@ -4,6 +4,7 @@ import {
   cachedCatalog,
 } from "../repositories/catalog-cache.mjs";
 import { findLocalPlace } from "../repositories/places.mjs";
+import {officialFacts} from './official-facts-store.mjs';
 const withoutLegacyCount = (value) => {
   if (!("hasMore" in value)) return value;
   const { hasMore, ...rest } = value;
@@ -16,6 +17,7 @@ export function createCatalogService({
   cached = cachedCatalog,
   findLocal = findLocalPlace,
   env = process.env,
+  overlay=async p=>p,
 } = {}) {
   async function catalogRequest(path, params = {}) {
     if (!env.OSM_SERVICE_URL)
@@ -64,13 +66,13 @@ export function createCatalogService({
       if (r.status === "not_configured")
         throw Object.assign(Error(r.message), { status: 503 });
       return r.item
-        ? { ...r.item, cacheStatus: r.status, cachedAt: r.cachedAt }
+        ? overlay({ ...r.item, cacheStatus: r.status, cachedAt: r.cachedAt })
         : null;
     }
-    return findLocal(id);
+    const p=await findLocal(id);return p?overlay(p):null;
   }
   return { catalogRequest, resolvePlace };
 }
-const service = createCatalogService();
+const service = createCatalogService({overlay:officialFacts.overlay});
 export const catalogRequest = service.catalogRequest;
 export const resolvePlace = service.resolvePlace;

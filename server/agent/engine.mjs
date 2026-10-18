@@ -423,7 +423,7 @@ export function createAgentEngine({
         "share_trip",
       ].includes(f.kind) &&
       ctx.context.tripId &&
-      /(当前|这份|这次|这个|附近|沿途)/.test(text)
+      /(当前|这份|这次|这个|附近|沿途|下午|上午|保留|少安排)/.test(text)
     )
       f.tripId = ctx.context.tripId;
     if (f.kind === "recommend_services")
@@ -1386,6 +1386,7 @@ export function createAgentEngine({
             "style",
             "title",
             "knowledgeTopic",
+            "localEditChoice",
           ].includes(q.key)
         )
           value = text;

@@ -100,7 +100,7 @@ export function installMaintenance(
       const b = z
         .object({
           id: z.uuid(),
-          kind: z.enum(["health_check"]),
+          kind: z.enum(Object.keys(executors).filter(k=>["health_check","place_refresh"].includes(k))),
           confirmation: z.literal("run-task"),
         })
         .strict()

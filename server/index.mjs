@@ -49,6 +49,8 @@ import { nearbyRecommendations } from './services/nearby-recommendations.mjs';
 import { installJourneyRoutes } from './services/journey-service.mjs';
 import { installCityWalkRoutes } from './services/citywalk-service.mjs';
 import { installTripServiceRoutes } from './services/trip-services.mjs';
+import {officialFacts} from './services/official-facts-store.mjs';
+import {installOfficialFactRoutes,seedOfficialSources} from './services/official-facts.mjs';
 import {installWeatherRoutes} from './services/weather.mjs';
 import {installIntelligentPlanning} from './services/intelligent-planning.mjs';
 import {operationSchema,tripMutationHandler} from './services/trip-mutations.mjs';
@@ -134,9 +136,10 @@ installAgentInsights(app,{query,events:operationEvents});
 installJourneyInsights(app,{query,events:operationEvents});
 installInboxRoutes(app,{auth,query,transaction,events:operationEvents});
 installMessageInsights(app,{query,events:operationEvents});
-installPlaceQuality(app,{query,events:operationEvents,catalogRequest});
+installPlaceQuality(app,{query,events:operationEvents,catalogRequest,overlay:officialFacts.overlay});
+installOfficialFactRoutes(app,{query,transaction,events:operationEvents});
 installModeration(app,{auth,query,transaction,events:operationEvents});
-const maintenance=installMaintenance(app,{query,transaction,events:operationEvents,extraExecutors:{...archiveExecutors({query,transaction,events:operationEvents}),log_export:logExports.execute}});
+const maintenance=installMaintenance(app,{query,transaction,events:operationEvents,extraExecutors:{place_refresh:officialFacts.refresh,...archiveExecutors({query,transaction,events:operationEvents}),log_export:logExports.execute}});
 installArchiveRoutes(app,{query,transaction,events:operationEvents});
 installCommunityInteractions(app,{auth,query,transaction,
  onReaction:async(c,{id,userId,kind,active})=>{if(!active||kind==='save')return;const p=(await c.query('SELECT user_id FROM posts WHERE id=$1',[id])).rows[0];if(p)await socialNotify(c,{owner:p.user_id,actor:userId,post:id,kind,key:id});},
@@ -408,7 +411,7 @@ app.get("/api/trips/:id/versions", auth, async (req, res) => {
     ).rows,
   );
 });
-const intelligentPlanning=installIntelligentPlanning(app,{auth,query,transaction});
+const intelligentPlanning=installIntelligentPlanning(app,{auth,query,transaction,opening:async(p,date)=>openingOnDate(await officialFacts.overlay(p,date),date)});
 app.patch('/api/trips/:id',auth,tripMutationHandler({transaction,ownTrip,recordPlaceChoice,applyPreview:intelligentPlanning.apply}));
 app.post("/api/trips/:id/assistant", auth, async (req, res) => {
   const { text: input, day } = z
@@ -769,13 +772,15 @@ if (
     "Production requires PostGIS; apply server/postgis.sql first",
   );
 await seed();
+await seedOfficialSources(query);
 await seedClassicWalks();
 await backfillItems(query);
 maintenance.start();
+officialFacts.start();
 mailer.start();
 const styleWorker=createStyleWorker({query,transaction,afterRebuild:buildProfile,onError:()=>console.error('Travel style refresh failed')});
 styleWorker.start();
-export const stopRecommendationWorker=()=>{styleWorker.stop();mailer.stop();};
+export const stopRecommendationWorker=()=>{styleWorker.stop();mailer.stop();officialFacts.stop();};
 const exportCleanup=setInterval(()=>void logExports.cleanup().catch(()=>{}),3600000);exportCleanup.unref();
 export const server = app.listen(
   Number(process.env.PORT || 8787),

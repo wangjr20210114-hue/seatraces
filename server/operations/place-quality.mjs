@@ -9,7 +9,7 @@ export function qualityPlace(p={}){
   const h=p.geometricHierarchy||{},s=p.siteHierarchy||{},hasHours=!!(p.hours&&Object.keys(p.hours).length||p.opening_hours||p.openingHours||p.facts?.openingHours?.value),scenic=['attraction','heritage','nature','leisure'].includes(p.category);
   const issues=[];if(!p.name?.trim())issues.push('missing_name');if(scenic&&!hasHours)issues.push('opening_unknown');if(!p.source&&!p.sourceUrl&&!p.source_url)issues.push('source_unknown');if(facts.some(f=>['needs_review','expired','stale'].includes(f.status)))issues.push('facts_need_review');if(h.status==='geometry_unavailable')issues.push('boundary_unavailable');
   return {id:str(p.id),name:str(p.name),aliases:arr(p.aliases).slice(0,50).map(x=>str(x)).filter(Boolean),category:str(p.category,40),city:str(p.city),country:str(p.country||p.country_code,20),source:str(p.source),sourceUrl:safeURL(p.sourceUrl||p.source_url),sourceTimestamp:p.sourceTimestamp||p.source_timestamp||p.verified_at||null,dataStatus:str(p.data_status||p.dataStatus,40),hasHours,coordinateRole:str(p.coordinateRole||p.coordinate_role,60),
-    parent:{id:str(p.parentId),depth:number(h.depth),children:number(h.childCount),method:str(h.method),status:str(h.status),buildId:str(h.buildId)},site:{parents:arr(s.parentIds).slice(0,30).map(x=>str(x)).filter(Boolean),children:number(s.childCount),method:str(s.method),status:str(s.status)},facts,issues};
+    parent:{id:str(p.parentId),depth:number(h.depth),children:number(h.childCount),method:str(h.method),status:str(h.status),buildId:str(h.buildId)},site:{parents:arr(s.parentIds).slice(0,30).map(x=>str(x)).filter(Boolean),children:number(s.childCount),method:str(s.method),status:str(s.status)},facts,factQuality:p.factQuality||{},issues};
 }
 export function coverageSummary(v){
   const b=v?.build||{},counts={};for(const [k,n]of Object.entries(b.summary||{}))if(typeof n==='number'&&Number.isFinite(n))counts[k]=n;
@@ -27,7 +27,7 @@ export async function localQuality(query){
     (SELECT count(*)::int FROM scenic_area_geometries) stored_boundaries`)).rows[0];
   return {scope:'business_database_only',rows,total:rows.reduce((s,r)=>s+r.total,0),overlays,asOf:new Date().toISOString(),definition:'业务库地点与本地补充缓存；不等于云端 OSM 全库。缺少营业时间仅对景点列为待补资料，不阻止餐饮住宿推荐；没有边界不等于没有父景点。'};
 }
-export function installPlaceQuality(app,{query,events,catalogRequest}){
+export function installPlaceQuality(app,{query,events,catalogRequest,overlay=async p=>p}){
   const audit=(req,action,id)=>events.append({userId:req.user.id,kind:'admin',action,resourceId:id,requestId:req.operationRequestId});
   app.get('/api/admin/places/quality',requireManagement,async(req,res)=>res.json(await localQuality(query)));
   let pending,last;
@@ -54,6 +54,7 @@ export function installPlaceQuality(app,{query,events,catalogRequest}){
       if(p){try{const h=await catalogRequest('/hierarchy',{id,limit:30});hierarchy={status:h.status,ancestors:arr(h.ancestors).slice(0,8).map(qualityPlace),children:arr(h.children).slice(0,30).map(qualityPlace),more:!!h.nextCursor};}catch{hierarchy={status:'unavailable'};}}
     }else p=(await query('SELECT * FROM places WHERE id=$1',[id])).rows[0];
     if(!p)throw Object.assign(Error(status==='not_configured'?'云端地点库尚未配置':'未找到该地点'),{status:status==='not_configured'?503:404});
+    p=await overlay(p);
     await audit(req,'place.quality_read',id);res.json({item:qualityPlace(p),status,hierarchy,asOf:new Date().toISOString()});
   });
 }

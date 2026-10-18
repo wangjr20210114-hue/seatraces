@@ -12,7 +12,7 @@ export function descriptionEvidence(place) {
     ['description',place.description,'existing_description'],
     ['osm-zh',place.traits?.['description:zh'],'osm_description'],
     ['osm',place.traits?.description,'osm_description'],
-    ...(description?.status === 'evidence_reviewed' ? [['reviewed',description.value,'reviewed_evidence']] : []),
+    ...(description?.status === 'evidence_reviewed' && (!description.evidence?.reviewAfter||Date.parse(description.evidence.reviewAfter)>Date.now()) ? [['reviewed',description.value,'reviewed_evidence']] : []),
   ];
   for (const [id,value,source] of texts) {
     const text = clean(value);
