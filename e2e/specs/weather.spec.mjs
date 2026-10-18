@@ -1,9 +1,9 @@
-import {test,expect,signIn} from '../fixtures.mjs';
+import {test,expect,signIn,home} from '../fixtures.mjs';
 test('WEATHER-UI-001 行程天气显示、文本转义和预警缺项',async({page,context,fixture})=>{
   await signIn(context,fixture);
   await page.route('**/api/journey/trips/*/weather?*',r=>r.fulfill({json:{status:'available',forecast:{day:'雷阵雨',lowC:20,highC:26},advice:'indoor_alternative'}}));
   await page.route('**/api/journey/trips/*/weather-alerts?*',r=>r.fulfill({json:{status:'available',items:[{title:'<img src=x onerror=alert(1)>官方测试预警',instruction:'留意出行安排'}],attributions:['预警测试数据']}}));
-  await page.goto('/#/home');await page.evaluate(id=>localStorage.setItem('seatraces-last-trip',id),fixture.trip);await page.reload();
+  await home(page);await page.evaluate(id=>localStorage.setItem('seatraces-last-trip',id),fixture.trip);await page.reload();
   await page.locator('[data-day="0"]').click();await page.getByRole('button',{name:'天气与预警 ☀'}).click();
   const weather=page.locator('.trip-weather');await expect(weather).toContainText('雷阵雨');await expect(weather).toContainText('20～26℃');
   await expect(weather).toContainText('室内备选');await expect(weather).toContainText('<img');await expect(weather.locator('img')).toHaveCount(0);
@@ -16,7 +16,7 @@ test('WEATHER-UI-002 断网后可重新查询，超预报日期不显示虚构�
     ?{status:'outside_forecast_range',forecast:null}
     :{status:'available',forecast:{day:'多云',lowC:18,highC:25}}}));
   await page.route('**/api/journey/trips/*/weather-alerts?*',r=>r.fulfill({json:{status:'not_configured',items:[]}}));
-  await page.goto('/#/home');await page.evaluate(id=>localStorage.setItem('seatraces-last-trip',id),fixture.trip);await page.reload();
+  await home(page);await page.evaluate(id=>localStorage.setItem('seatraces-last-trip',id),fixture.trip);await page.reload();
   await page.locator('[data-day="0"]').click();
   const open=page.getByRole('button',{name:'天气与预警 ☀'}),weather=page.locator('.trip-weather');
   await open.click();await expect(weather).toContainText('出行日期尚未进入预报范围');await expect(weather).not.toContainText('℃');
@@ -28,4 +28,16 @@ test('WEATHER-UI-002 断网后可重新查询，超预报日期不显示虚构�
   await page.unroute('**/api/journey/trips/*/weather?*');mode='available';
   await page.route('**/api/journey/trips/*/weather?*',r=>r.fulfill({json:{status:'available',forecast:{day:'多云',lowC:18,highC:25}}}));
   await open.click();await expect(weather).toContainText('多云');await expect(weather).toContainText('18～25℃');await expect(open).toBeEnabled();
+});
+
+test('WEATHER-UI-003 恢复行程断网保留入口，重新加载恢复；确认404才清除',async({page,context,fixture})=>{
+  await signIn(context,fixture);await home(page);
+  await page.evaluate(id=>localStorage.setItem('seatraces-last-trip',id),fixture.trip);
+  const url='**/api/trips/'+fixture.trip;
+  await page.route(url,r=>r.abort('connectionreset'));await page.reload();
+  await expect(page.locator('#connection-status')).toBeVisible();
+  expect(await page.evaluate(()=>localStorage.getItem('seatraces-last-trip'))).toBe(fixture.trip);
+  await page.unroute(url);await page.reload();await expect(page.locator('[data-day="0"]')).toBeVisible();
+  await page.route(url,r=>r.fulfill({status:404,json:{error:'行程不存在'}}));await page.reload();
+  await expect.poll(()=>page.evaluate(()=>localStorage.getItem('seatraces-last-trip'))).toBe(null);
 });

@@ -1329,8 +1329,11 @@ async function boot() {
           !$("#wizard").open
         )
           await showTrip(t);
-      } catch {
-        localStorage.removeItem("seatraces-last-trip");
+      } catch (error) {
+        // A refresh, offline request or temporary server failure does not mean
+        // the saved trip disappeared. Only an authoritative 404 clears it.
+        if (error.status === 404 && localStorage.getItem("seatraces-last-trip") === last)
+          localStorage.removeItem("seatraces-last-trip");
       }
     }
   } catch {
