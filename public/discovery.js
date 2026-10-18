@@ -1,4 +1,5 @@
 import {icon} from './ui-icons.js';
+import {createFeedPager} from './feed-pager.js';
 import {esc,socialCard,libraryCard,bindCardActions,trackVisible} from './social-ui.js';
 export const discoveryCard=socialCard;
 export async function publishRoute({button,kind,id,api,navigate,toast}){
@@ -7,20 +8,32 @@ export async function publishRoute({button,kind,id,api,navigate,toast}){
  catch(e){toast(e.message);}finally{button.disabled=false;button.textContent=label;}
 }
 export function mountDiscovery({content,api,navigate,toast}){
- let dead=false,revision=0,scope='recommended',cursor=null,busy=false,q='';
+ let scope='recommended',q='',canAuto=false,frame=0;
  content.innerHTML=`<div class="social-toolbar"><form role="search"><input name="search" maxlength="60" aria-label="搜索旅行灵感" placeholder="寻找旅行灵感"><button aria-label="搜索">${icon('search')}</button></form><button class="primary social-write">${icon('edit')}<span>发帖</span></button></div><div class="social-tabs"><button data-scope="recommended" aria-pressed="true">推荐</button><button data-scope="following" aria-pressed="false">关注</button></div><div class="social-feed"></div><p role="status"></p><button class="loadmore" hidden>更多灵感 ↓</button>`;
  const feed=content.querySelector('.social-feed'),status=content.querySelector('[role=status]'),more=content.querySelector('.loadmore');
- const unbind=bindCardActions(feed,{api,toast}),tracker=trackVisible(feed,{api});
- async function load(append=false){if(append&&busy)return;const rev=++revision;busy=true;more.disabled=true;status.textContent='正在找灵感…';
-  try{const params=new URLSearchParams({scope,q,limit:12,...(append&&cursor?{cursor}:{})});const r=await api('/api/social/feed?'+params);
-   if(dead||revision!==rev)return;if(!append)feed.replaceChildren();feed.insertAdjacentHTML('beforeend',r.items.map(p=>socialCard({...p,requestId:r.requestId})).join(''));tracker.observe();cursor=r.nextCursor;more.hidden=!cursor;status.textContent=feed.childElementCount?'':scope==='following'?'关注喜欢的作者，下一程有新灵感':'还没有帖子，分享第一程吧';
-  }catch(e){if(!dead&&revision===rev){status.textContent=e.message;more.hidden=false;more.textContent='重新加载';cursor=null;}}
-  finally{if(!dead&&revision===rev){busy=false;more.disabled=false;}}
- }
+ const unbind=bindCardActions(feed,{api,toast});let tracker=trackVisible(feed,{api});
+ const pager=createFeedPager({api,onChange(s,change){
+  if(change.reset){tracker.dispose();feed.replaceChildren();tracker=trackVisible(feed,{api});}
+  if(change.added?.length){feed.insertAdjacentHTML('beforeend',change.added.map(socialCard).join(''));tracker.observe();}
+  more.disabled=s.busy;more.hidden=s.exhausted&&!s.error;more.textContent=s.error?'重新加载':'更多灵感 ↓';
+  canAuto=!s.busy&&!s.error&&!s.exhausted;
+  feed.setAttribute('aria-busy',String(s.busy));
+  status.classList.toggle('feed-loading',s.busy);
+  status.textContent=s.busy?'正在找灵感…':s.error||(s.items.length?(s.exhausted?'暂时看到这里':''):s.scope==='following'?'关注喜欢的作者，下一程有新灵感':'还没有帖子，分享第一程吧');
+ }});
+ // React to actual downward scrolling (including an inner page scroller), not
+ // merely to a sentinel being visible on an initially short screen.
+ const positions=new WeakMap();
+ const onScroll=e=>{const target=e.target===document?document.scrollingElement:e.target;
+  if(!target||typeof target!=='object')return;const y=Number(target.scrollTop||0),previous=positions.get(target)||0;positions.set(target,y);
+  if(y<=previous||!canAuto||frame)return;
+  frame=requestAnimationFrame(()=>{frame=0;const box=more.getBoundingClientRect();if(canAuto&&content.isConnected&&!more.hidden&&box.top<innerHeight+100&&box.bottom>0)void pager.loadMore();});
+ };
+ document.addEventListener('scroll',onScroll,true);
  content.querySelector('.social-write').onclick=()=>navigate('/compose/new');
- content.querySelector('form').onsubmit=e=>{e.preventDefault();q=new FormData(e.currentTarget).get('search').trim();void load();};
- content.querySelectorAll('[data-scope]').forEach(b=>b.onclick=()=>{if(scope===b.dataset.scope)return;scope=b.dataset.scope;content.querySelectorAll('[data-scope]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));void load();});
- more.onclick=()=>load(!!cursor);void load();return()=>{dead=true;revision++;tracker.dispose();unbind();};
+ content.querySelector('form').onsubmit=e=>{e.preventDefault();q=new FormData(e.currentTarget).get('search').trim();void pager.reset({scope,q});};
+ content.querySelectorAll('[data-scope]').forEach(b=>b.onclick=()=>{if(scope===b.dataset.scope)return;scope=b.dataset.scope;content.querySelectorAll('[data-scope]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));void pager.reset({scope,q});});
+ more.onclick=()=>pager.loadMore();void pager.reset();return()=>{pager.dispose();document.removeEventListener('scroll',onScroll,true);cancelAnimationFrame(frame);tracker.dispose();unbind();};
 }
 export function mountPersonalPosts({content,api,navigate,toast}){
  let dead=false,tab='posts',draft=false,revision=0,cursor=null,offset=0;

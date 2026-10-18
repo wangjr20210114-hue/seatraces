@@ -35,6 +35,18 @@ test('strict recommendation HTTP and temporal data contracts',{skip:process.env.
   async function post(title='园林与博物馆',snapshot={}){const id=randomUUID();await f.query('INSERT INTO posts(id,user_id,title,body,tags,snapshot) VALUES($1,$2,$3,$4,$5,$6)',[id,author,title,'真实隔离验收内容',[],snapshot]);await refreshItem({query:f.query},id);return id;}
   const ids=[];for(let n=0;n<24;n++)ids.push(await post('园林与博物馆 '+n));
   const route='/api/social/posts/'+ids[0];
+  await t.test('REC-S22 fresh recommendation batches exclude rendered IDs and validate bounded payloads',async()=>{
+   const r=await f.request('/api/social/feed',{user:'user'});const exclude=r.data.items.map(p=>p.id);
+   const next=await f.request('/api/social/feed',{user:'user',body:{exclude,limit:12}});assert.equal(next.status,200);assert.ok(next.data.items.length);
+   assert.ok(next.data.items.every(p=>!exclude.includes(p.id)));
+   const trace=(await f.query('SELECT trace FROM recommendation_requests WHERE id=$1',[next.data.requestId])).rows[0].trace;
+   assert.equal(trace.excludedCount,exclude.length);assert.equal(trace.exploration,true);
+   assert.equal((await f.request('/api/social/feed',{user:null,body:{exclude:[]}})).status,401);
+   for(const body of [{exclude:['invalid']},{exclude:Array(601).fill(ids[0])},{scope:'mine',exclude:[]},{cursor:ids[0]+':1',exclude:[]},{exclude:[],userId:author}])assert.equal((await f.request('/api/social/feed',{user:'user',body})).status,400);
+   const replies=await Promise.all(Array.from({length:16},()=>f.request('/api/social/feed',{user:'user',body:{exclude}})));
+   assert.ok(replies.every(x=>x.status===200&&x.data.items.every(p=>!exclude.includes(p.id))));
+   assert.ok((await f.query('SELECT count(*)::int n FROM social_feed_sessions WHERE user_id=$1',[uid])).rows[0].n<=6);
+  });
   await t.test('REC-S02 anonymous/ordinary/application-only admin cookies cannot read management traces',async()=>{
    for(const user of [null,'user'])for(const p of ['/api/admin/recommendation/models','/api/admin/recommendation/users/'+uid+'/preview','/api/admin/recommendation/requests/'+randomUUID()])assert.ok([401,403].includes((await f.request(p,{user})).status));
    assert.equal((await f.request('/api/admin/recommendation/models',{headers:{Cookie:f.users.admin.appCookie}})).status,401);
