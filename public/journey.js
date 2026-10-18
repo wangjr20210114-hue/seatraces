@@ -14,6 +14,7 @@ import { mountAgentLauncher } from './agent-launcher.js';
 import { renderInbox } from './inbox.js';
 import { mountTripServices } from "./trip-services.js";
 import {mountTripWeather} from './trip-weather.js';
+import {recommendationContext} from './travel-context.js';
 import { mountServiceMapDock } from "./service-map-dock.js";
 import { plannerScene, serviceScene, savedServicePoints } from "./map-scene.js";
 import { toGcj, mainlandEligible } from "./coordinates.js";
@@ -390,7 +391,8 @@ const navigation = createPageNavigation({
     } else {
       $("#page-content").replaceChildren();
       document.title = pageNames[route.page] + " · SeaTraces";
-      if (route.page === "discover") pageCleanup = mountDiscovery({ content: $("#discovery-content"), api, navigate:path=>navigation.go(path),toast });
+      if (route.page === "discover") pageCleanup = mountDiscovery({ content: $("#discovery-content"), api, navigate:path=>navigation.go(path),toast,
+        context:()=>recommendationContext({pendingTrip:state.session?{cities:state.cities,start:state.start,end:state.end}:null,trip:state.trip,userId:me?.user?.id}) });
       if (route.page === "profile") {
         syncProfile();
         void refreshPersonalOverview({element:$('#personal-overview'),api,isCurrent:()=>revision===pageRevision});

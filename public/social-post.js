@@ -1,5 +1,5 @@
 import {icon} from './ui-icons.js';
-import {esc,routeCover,mapCover,trackVisible} from './social-ui.js';
+import {esc,routeCover,mapCover,trackVisible,signalInterestChanged} from './social-ui.js';
 import {routeMap} from './route-map.js';
 export async function mountSocialPost({route,content,setTitle,api,navigate,isCurrent,toast,onAdopt}){
  let dead=false,tracker,frame,scene;
@@ -21,8 +21,8 @@ export async function mountSocialPost({route,content,setTitle,api,navigate,isCur
   }
   if($('[data-edit]'))$('[data-edit]').onclick=async()=>{try{const d=await api('/api/social/drafts',{id:crypto.randomUUID(),postId:p.id});if(live())navigate('/compose/'+d.id);}catch(e){fail(e);}};
   if($('[data-follow]'))$('[data-follow]').onclick=async e=>{const b=e.currentTarget;b.disabled=true;try{const r=await api('/api/social/authors/'+p.user_id+'/follow',{active:!p.following},'PUT');p.following=r.following;b.innerHTML=icon(p.following?'check':'plus')+(p.following?'已关注':'关注');b.setAttribute('aria-pressed',String(p.following));}catch(e){fail(e);}finally{b.disabled=false;}};
-  content.querySelectorAll('[data-reaction]').forEach(b=>b.onclick=async()=>{b.disabled=true;const kind=b.dataset.reaction,active=b.getAttribute('aria-pressed')!=='true';try{await api('/api/posts/'+p.id+'/reactions',{kind,active});b.setAttribute('aria-pressed',String(active));b.setAttribute('aria-label',(active?'取消':'')+({like:'点赞',save:'收藏',recommend:'推荐'}[kind]));}catch(e){fail(e);}finally{b.disabled=false;}});
-  if($('[data-uninterested]'))$('[data-uninterested]').onclick=async e=>{const b=e.currentTarget;b.disabled=true;try{await api('/api/social/posts/'+p.id+'/feedback',{notInterested:!p.not_interested},'PUT');p.not_interested=!p.not_interested;b.textContent=p.not_interested?'恢复此类推荐':'不感兴趣';toast(p.not_interested?'已减少此类推荐':'已恢复推荐');}catch(e){fail(e);}finally{b.disabled=false;}};
+  content.querySelectorAll('[data-reaction]').forEach(b=>b.onclick=async()=>{b.disabled=true;const kind=b.dataset.reaction,active=b.getAttribute('aria-pressed')!=='true';try{await api('/api/posts/'+p.id+'/reactions',{kind,active});signalInterestChanged();b.setAttribute('aria-pressed',String(active));b.setAttribute('aria-label',(active?'取消':'')+({like:'点赞',save:'收藏',recommend:'推荐'}[kind]));}catch(e){fail(e);}finally{b.disabled=false;}});
+  if($('[data-uninterested]'))$('[data-uninterested]').onclick=async e=>{const b=e.currentTarget;b.disabled=true;try{await api('/api/social/posts/'+p.id+'/feedback',{notInterested:!p.not_interested},'PUT');signalInterestChanged();p.not_interested=!p.not_interested;b.textContent=p.not_interested?'恢复此类推荐':'不感兴趣';toast(p.not_interested?'已减少此类推荐':'已恢复推荐');}catch(e){fail(e);}finally{b.disabled=false;}};
   $('[data-share]').onclick=async()=>{const url=location.origin+'/#/post/'+p.id;try{if(navigator.share)await navigator.share({title:p.title,url});else{await navigator.clipboard.writeText(url);toast('链接已复制');}}catch(e){if(e.name!=='AbortError')fail(Error('复制未成功，可从地址栏分享链接'));}};
   const comments=async()=>{const rows=await api('/api/posts/'+p.id+'/comments');if(live())$('.comment-list').innerHTML=rows.map(c=>`<article><b>${esc(c.avatar)} ${esc(c.nickname)}</b><p>${esc(c.body)}</p></article>`).join('')||'<p>聊聊这条路线吧</p>';};
   $('.post-comments form').onsubmit=async e=>{e.preventDefault();const input=e.currentTarget.querySelector('input'),button=e.currentTarget.querySelector('button');button.disabled=true;try{await api('/api/posts/'+p.id+'/comments',{body:input.value});input.value='';await comments();}catch(e){fail(e);}finally{button.disabled=false;}};

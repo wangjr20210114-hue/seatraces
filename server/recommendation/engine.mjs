@@ -3,6 +3,10 @@ import {algorithm,profileVector,cosine,validVector,clamp} from './features.mjs';
 import {readProfile} from './profiles.mjs';
 import {encode,validateTower,towerScore,rankInputs,rankScore,sigmoid,artifactDigest} from './model.mjs';
 export const ruleFineScore=p=>sigmoid(p.affinity*3+p.author*.25+p.city*.7+p.quality*.45+p.fresh*.2-p.seen*.8+p.tower);
+export function primaryTopic(p){
+ const values=Object.entries(p.features?.values||{}).filter(([k,v])=>k.startsWith('interest.')&&v>0).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0]));
+ return values[0]?.[0]||null;
+}
 export function coarseFeatures(p,userVector,profile,context={},now=Date.now()){
  const affinity=validVector(p.vector)?cosine(userVector,p.vector):0;
  const fresh=1/(1+Math.max(0,(now-new Date(p.created_at))/86400000)/30);
@@ -18,11 +22,17 @@ export function rerank(rows,{limit=120,explorationEvery=5,explorationSeed=''}={}
  while(left.length&&out.length<limit){
   const diverse=left.filter(p=>!(out.length>=2&&out.at(-1).user_id===p.user_id&&out.at(-2).user_id===p.user_id)&&!(p.route_key&&seenRoutes.has(p.route_key)));
   // Near-identical routes are suppressed, rather than silently appended later.
-  const pool=diverse.length?diverse:left.filter(p=>!p.route_key||!seenRoutes.has(p.route_key));if(!pool.length)break;
+  let pool=diverse.length?diverse:left.filter(p=>!p.route_key||!seenRoutes.has(p.route_key));if(!pool.length)break;
   const explore=out.length%explorationEvery===explorationEvery-1;
+  const recent=out.slice(-9),counts=new Map();for(const p of recent){const t=primaryTopic(p);if(t)counts.set(t,(counts.get(t)||0)+1);}
+  const balanced=pool.filter(p=>!primaryTopic(p)||(counts.get(primaryTopic(p))||0)<6);
+  if(balanced.length)pool=balanced;
+  let topicExploration=false;
+  if(explore){const last=new Set(out.slice(-4).map(primaryTopic).filter(Boolean));const other=pool.filter(p=>primaryTopic(p)&&!last.has(primaryTopic(p))&&(p.parts.affinity??0)>=0);
+   if(other.length){pool=other;topicExploration=true;}}
   const score=p=>explore?p.parts.fresh*(explorationSeed ? .3 : .5)+p.parts.quality*.2+p.fine*.3+jitter.get(p.id)*.2:p.fine-.18*Math.max(0,...out.slice(-5).map(x=>validVector(x.vector)&&validVector(p.vector)?cosine(x.vector,p.vector):0));
   let best=pool[0];for(const p of pool.slice(1))if(score(p)>score(best))best=p;
-  out.push({...best,rerankReason:explore?(explorationSeed?'random_exploration':'fresh_exploration'):'relevance_and_diversity'});
+  out.push({...best,rerankReason:topicExploration?'topic_exploration':explore?(explorationSeed?'random_exploration':'fresh_exploration'):'relevance_and_diversity'});
   if(best.route_key)seenRoutes.add(best.route_key);left.splice(left.findIndex(p=>p.id===best.id),1);
  }
  return out;
@@ -77,7 +87,7 @@ export async function recommend(query,user,{q='',city='',persist=true,allowSynth
  const fine=coarse.map(p=>({...p,fine:models.ranker?rankScore(models.ranker.artifact,rankInputs(p.parts)):ruleFineScore(p.parts)}))
   .sort((a,b)=>b.fine-a.fine||a.id.localeCompare(b.id)).slice(0,120);
  const id=randomUUID(),rows=rerank(fine,{explorationSeed:explore?id:''}),trace={scope,excludedCount:exclude.length,exploration:explore,channels:Object.fromEntries(recalls.map(r=>[r.name,r.rows.length])),counts:{recall:merged.size,coarse:coarse.length,fine:fine.length,rerank:rows.length},
-  elapsedMs:Math.round(performance.now()-started),models:{tower:models.tower?.id||null,ranker:models.ranker?.id||null},
+  elapsedMs:Math.round(performance.now()-started),rerankVersion:'topic-diversity/1',models:{tower:models.tower?.id||null,ranker:models.ranker?.id||null},
   items:rows.map(p=>({id:p.id,revision:p.revision,channels:p.channels,coarse:p.parts.coarse,fine:p.fine,parts:p.parts,reason:p.rerankReason}))};
  if(persist){
   await query(`INSERT INTO recommendation_requests(id,user_id,profile_version,user_vector,context,candidate_ids,trace,algorithm,model_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)`,

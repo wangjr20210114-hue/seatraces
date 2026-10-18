@@ -31,15 +31,16 @@ export function libraryCard(p, kind) {
 }
 export function bindCardActions(container,{api,toast=()=>{}}){
  const click=async e=>{const b=e.target.closest('[data-like]');if(!b)return;const active=b.getAttribute('aria-pressed')!=='true',n=Number(b.querySelector('span')?.textContent||0);b.disabled=true;
-  try{await api('/api/posts/'+b.dataset.like+'/reactions',{kind:'like',active});b.setAttribute('aria-pressed',String(active));b.setAttribute('aria-label',active?'取消点赞':'点赞');b.innerHTML=`${icon('like')}<span>${Math.max(0,n+(active?1:-1))}</span>`;}catch(e){toast(e.message);}finally{b.disabled=false;}};
+  try{await api('/api/posts/'+b.dataset.like+'/reactions',{kind:'like',active});signalInterestChanged();b.setAttribute('aria-pressed',String(active));b.setAttribute('aria-label',active?'取消点赞':'点赞');b.innerHTML=`${icon('like')}<span>${Math.max(0,n+(active?1:-1))}</span>`;}catch(e){toast(e.message);}finally{b.disabled=false;}};
  container.addEventListener('click',click);return()=>container.removeEventListener('click',click);
 }
+export function signalInterestChanged(){if(typeof window!=='undefined')window.dispatchEvent(new Event('seatraces-interest-updated'));}
 export function trackVisible(container,{api,context='feed'}){
  const records=new Map();let stopped=false;
  function tick(){const now=performance.now();for(const r of records.values()){if(r.visible&&!document.hidden)r.ms=Math.min(120000,r.ms+now-r.last);r.last=now;}}
  async function flush(){tick();for(const r of records.values()){if(r.ms<1000||r.pending||r.ms<=r.sent)continue;r.pending=true;
   try{if(!r.issued){await api('/api/social/posts/'+r.post+'/impressions',{id:r.id,context,...(r.requestId?{requestId:r.requestId}:{})});r.issued=true;r.ms=0;r.last=performance.now();continue;}
-   const ms=Math.floor(r.ms);await api('/api/social/impressions/'+r.id,{visibleMs:ms},'PUT');r.sent=ms;
+   const ms=Math.floor(r.ms);await api('/api/social/impressions/'+r.id,{visibleMs:ms},'PUT');r.sent=ms;if(ms>=15000&&!r.announced){r.announced=true;signalInterestChanged();}
   }catch{}finally{r.pending=false;}}}
  const observer=new IntersectionObserver(entries=>{tick();for(const e of entries){const post=e.target.dataset.post;if(!records.has(post))records.set(post,{id:crypto.randomUUID(),post,requestId:e.target.dataset.recommendationRequest,visible:false,last:performance.now(),ms:0,sent:0});
   const visibleHeight=e.intersectionRect.height,required=Math.min(e.boundingClientRect.height,e.rootBounds?.height||innerHeight)*.6;

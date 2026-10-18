@@ -15,7 +15,7 @@ export const cardSelect=`p.id,p.user_id,p.title,left(p.body,100) excerpt,p.creat
  EXISTS(SELECT 1 FROM reactions WHERE post_id=p.id AND user_id=$1 AND kind='like') liked`;
 export function installSocialCommunity(app,{auth,query,transaction,rank=async rows=>({rows,version:'chronological/1'}),recommend,onImpression=async()=>{},onVisible=async()=>{}}){
  const feed=async(req,res)=>{
-  const b=z.object({scope:z.enum(['recommended','following','mine']).default('recommended'),q:z.string().trim().max(60).refine(s=>!s.includes('\0'),'搜索词包含无效字符').default(''),limit:z.coerce.number().int().min(1).max(30).default(12),cursor:z.string().max(80).optional(),...(req.method==='POST'?{exclude:z.array(z.uuid()).max(600).default([])}:{})}).strict().parse(req.method==='POST'?req.body:req.query);
+  const b=z.object({scope:z.enum(['recommended','following','mine']).default('recommended'),q:z.string().trim().max(60).refine(s=>!s.includes('\0'),'搜索词包含无效字符').default(''),city:z.string().trim().max(100).default(''),limit:z.coerce.number().int().min(1).max(30).default(12),cursor:z.string().max(80).optional(),...(req.method==='POST'?{exclude:z.array(z.uuid()).max(600).default([])}:{})}).strict().parse(req.method==='POST'?req.body:req.query);
   if(req.method==='POST'&&(b.scope!=='recommended'||b.cursor))throw failure('新一批推荐不能携带旧分页或其他范围');
   let session,start=0;
   if(b.cursor){
@@ -25,7 +25,7 @@ export function installSocialCommunity(app,{auth,query,transaction,rank=async ro
   }else{
    // A bounded, frozen list of IDs prevents duplicate or skipped cards when a
    // new post or a preference change arrives between page requests.
-   const recommendation=b.scope==='recommended'&&recommend?await recommend(req.user,{q:b.q,exclude:b.exclude||[],explore:req.method==='POST'}):null;
+   const recommendation=b.scope==='recommended'&&recommend?await recommend(req.user,{q:b.q,city:b.city,exclude:b.exclude||[],explore:req.method==='POST'}):null;
    let rows=recommendation?.rows||(await query(`SELECT p.id,p.user_id,p.tags,p.created_at,ps.kind source_kind FROM posts p JOIN users u ON u.id=p.user_id LEFT JOIN post_sources ps ON ps.post_id=p.id
      WHERE ${visiblePost()} AND u.disabled_at IS NULL
      AND ($2<>'mine' OR p.user_id=$1)

@@ -41,3 +41,23 @@ node scripts/ui-test.mjs run e2e/specs/feedback-dimensions.spec.mjs --project=de
 ```
 
 首次专项发现单一明确反馈的建议置信度阈值过高，调整为只产生可确认的弱建议；之后测试SQL误用不存在的 created_at 列，修正为自增结果ID顺序，最终通过。没有修改模型激活门槛。网页两个测试在同一轮通过后拆成按模块命名的文件，内容保持一致。
+
+## 推荐适应与探索
+
+| 用例 | 简单步骤 | 预期 | 结果 |
+|---|---|---|---|
+| INTEL-R01 | 收藏6篇园林后，立即读取下一批，不运行后台worker | 读取前刷新本人的待更新画像，新请求使用更高版本；其他用户不受影响 | 隔离HTTP通过 |
+| INTEL-R02 | 撤回收藏后立即请求 | 当前旅行偏好证据消退 | 通过 |
+| INTEL-R03 | 40篇高分园林、其余艺术和美食混合 | 候选足够时前10条园林最多6条；保留其他主题与作者 | 通过 |
+| INTEL-R04 | 库内只有同一主题 | 仍返回有用内容，不伪造其他主题 | 通过 |
+| INTEL-R05 | 点赞时列表仍在读；或请求进行中改变兴趣 | 当前卡片保留，下次用POST排除已显示内容，不恢复旧cursor | 前端状态机通过，网页待总验收 |
+| INTEL-R06 | 准备近期上海旅行；换账号或过了返程日期 | 目的地只进入本次推荐上下文，不写长期画像；不继承他人/过期行程 | 通过 |
+| INTEL-R07 | 12个并发新批次 | 全部成功，无重复重建写入冲突，受原有存储上限约束 | 隔离HTTP通过 |
+
+本次8项推荐/分页检查通过，另复跑120篇内容、240次HTTP的原功能对照。新推荐重排版本为 `topic-diversity/1`；只有候选足够时才能满足主题多样性，不承诺所有窗口都严格均衡。有效阅读累计15秒后或明确互动成功后，下一次追加放弃旧池；后台先处理本人的脏画像，再算推荐，不重排已经可见的卡片。未修改双塔或训练上线门槛。
+
+```powershell
+$env:TEST_RECOMMENDATION_ADAPT='1'
+node --max-old-space-size=320 --test test/recommendation-adaptation.test.mjs test/feed-pager.test.mjs
+node --max-old-space-size=320 scripts/verify-personalization-behavior.mjs --local
+```

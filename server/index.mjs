@@ -1,5 +1,6 @@
 import {installRouteCovers} from './social/route-covers.mjs';
 import {recommend} from './recommendation/engine.mjs';
+import {ensureCurrentProfile} from './recommendation/freshness.mjs';
 import {buildProfile,readProfile,refreshItem,backfillItems,recommendationPreferences} from './recommendation/profiles.mjs';
 import {recordExposure,updateExposure,recordInspiration,confirmAdoption} from './recommendation/events.mjs';
 import {installRecommendationRoutes} from './recommendation/routes.mjs';
@@ -136,7 +137,7 @@ installCommunityInteractions(app,{auth,query,transaction,
  onReaction:async(c,{id,userId,kind,active})=>{if(!active||kind==='save')return;const p=(await c.query('SELECT user_id FROM posts WHERE id=$1',[id])).rows[0];if(p)await socialNotify(c,{owner:p.user_id,actor:userId,post:id,kind,key:id});},
  onComment:async(c,{id,userId,commentId})=>{const p=(await c.query('SELECT user_id FROM posts WHERE id=$1',[id])).rows[0];if(p)await socialNotify(c,{owner:p.user_id,actor:userId,post:id,kind:'comment',key:commentId});}
 });
-installSocialCommunity(app,{auth,query,transaction,recommend:(user,opts)=>recommend(query,user,opts),onImpression:recordExposure,onVisible:updateExposure});
+installSocialCommunity(app,{auth,query,transaction,recommend:async(user,opts)=>{await ensureCurrentProfile(transaction,user.id);return recommend(query,user,opts);},onImpression:recordExposure,onVisible:updateExposure});
 installRecommendationRoutes(app,{auth,query,transaction,events:operationEvents,production});
 installPersonalCenter(app,{auth,query,transaction});
 installDraftRoutes(app,{auth,query,transaction,onPublish:async(c,id)=>{await refreshPostFeatures(c,id);await refreshItem(c,id);}});
@@ -293,6 +294,7 @@ app.get("/api/nearby", async (req, res) => {
   res.json({ place: candidates[0] || null });
 });
 async function travelHabit(user) {
+  await ensureCurrentProfile(transaction,user.id);
   const preferences = await recommendationPreferences(query,user);
   const completed = (await query("SELECT count(*)::int n FROM trips WHERE user_id=$1 AND status='completed'",[user.id])).rows[0].n;
   return {

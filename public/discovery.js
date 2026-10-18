@@ -7,12 +7,12 @@ export async function publishRoute({button,kind,id,api,navigate,toast}){
  try{const d=await api('/api/social/drafts',{id:crypto.randomUUID(),source:{kind,id}});navigate('/compose/'+d.id+'?write=1');}
  catch(e){toast(e.message);}finally{button.disabled=false;button.textContent=label;}
 }
-export function mountDiscovery({content,api,navigate,toast}){
+export function mountDiscovery({content,api,navigate,toast,context=()=>({})}){
  let scope='recommended',q='',canAuto=false,frame=0;
  content.innerHTML=`<div class="social-toolbar"><form role="search"><input name="search" maxlength="60" aria-label="搜索旅行灵感" placeholder="寻找旅行灵感"><button aria-label="搜索">${icon('search')}</button></form><button class="primary social-write">${icon('edit')}<span>发帖</span></button></div><div class="social-tabs"><button data-scope="recommended" aria-pressed="true">推荐</button><button data-scope="following" aria-pressed="false">关注</button></div><div class="social-feed"></div><p role="status"></p><button class="loadmore" hidden>更多灵感 ↓</button>`;
  const feed=content.querySelector('.social-feed'),status=content.querySelector('[role=status]'),more=content.querySelector('.loadmore');
  const unbind=bindCardActions(feed,{api,toast});let tracker=trackVisible(feed,{api});
- const pager=createFeedPager({api,onChange(s,change){
+ const pager=createFeedPager({api,context,onChange(s,change){
   if(change.reset){tracker.dispose();feed.replaceChildren();tracker=trackVisible(feed,{api});}
   if(change.added?.length){feed.insertAdjacentHTML('beforeend',change.added.map(socialCard).join(''));tracker.observe();}
   more.disabled=s.busy;more.hidden=s.exhausted&&!s.error;more.textContent=s.error?'重新加载':'更多灵感 ↓';
@@ -21,6 +21,7 @@ export function mountDiscovery({content,api,navigate,toast}){
   status.classList.toggle('feed-loading',s.busy);
   status.textContent=s.busy?'正在找灵感…':s.error||(s.items.length?(s.exhausted?'暂时看到这里':''):s.scope==='following'?'关注喜欢的作者，下一程有新灵感':'还没有帖子，分享第一程吧');
  }});
+ const onInterest=()=>pager.interestChanged();window.addEventListener('seatraces-interest-updated',onInterest);
  // React to actual downward scrolling (including an inner page scroller), not
  // merely to a sentinel being visible on an initially short screen.
  const positions=new WeakMap();
@@ -33,7 +34,7 @@ export function mountDiscovery({content,api,navigate,toast}){
  content.querySelector('.social-write').onclick=()=>navigate('/compose/new');
  content.querySelector('form').onsubmit=e=>{e.preventDefault();q=new FormData(e.currentTarget).get('search').trim();void pager.reset({scope,q});};
  content.querySelectorAll('[data-scope]').forEach(b=>b.onclick=()=>{if(scope===b.dataset.scope)return;scope=b.dataset.scope;content.querySelectorAll('[data-scope]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));void pager.reset({scope,q});});
- more.onclick=()=>pager.loadMore();void pager.reset();return()=>{pager.dispose();document.removeEventListener('scroll',onScroll,true);cancelAnimationFrame(frame);tracker.dispose();unbind();};
+ more.onclick=()=>pager.loadMore();void pager.reset();return()=>{pager.dispose();window.removeEventListener('seatraces-interest-updated',onInterest);document.removeEventListener('scroll',onScroll,true);cancelAnimationFrame(frame);tracker.dispose();unbind();};
 }
 export function mountPersonalPosts({content,api,navigate,toast}){
  let dead=false,tab='posts',draft=false,revision=0,cursor=null,offset=0;

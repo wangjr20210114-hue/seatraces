@@ -27,3 +27,15 @@ test('600-card session ceiling keeps exclusion payload bounded without dropping 
  const pager=createFeedPager({api:async()=>response(Array.from({length:12},()=>String(n++))),onChange:s=>{state=s;}});
  await pager.reset();for(let i=0;i<100;i++)await pager.loadMore();assert.equal(state.items.length,600);assert.equal(n,600);assert.ok(state.exhausted);pager.dispose();
 });
+test('new interest preserves visible cards but immediately bypasses the old pool on the next append',async()=>{
+ const calls=[];let state;const replies=[response(['a','b'],'old:2'),response(['c'],'new:1')];
+ const pager=createFeedPager({api:async(...args)=>{calls.push(args);return replies.shift();},context:()=>({city:'上海'}),onChange:s=>state=s});
+ await pager.reset();pager.interestChanged();assert.deepEqual(state.items.map(p=>p.id),['a','b']);
+ await pager.loadMore();assert.equal(calls[1][0],'/api/social/feed');assert.deepEqual(calls[1][1].exclude,['a','b']);assert.equal(calls[1][1].city,'上海');
+ assert.deepEqual(state.items.map(p=>p.id),['a','b','c']);pager.dispose();
+});
+test('interest changes during an in-flight request cannot restore a stale cursor',async()=>{
+ let finish,state;const pager=createFeedPager({api:()=>new Promise(r=>finish=r),onChange:s=>state=s});
+ const request=pager.reset();pager.interestChanged();finish(response(['a'],'old:1'));await request;
+ assert.equal(state.cursor,null);assert.deepEqual(state.items.map(p=>p.id),['a']);pager.dispose();
+});
