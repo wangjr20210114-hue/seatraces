@@ -2,14 +2,28 @@ import { questionBank } from "../planner.mjs";
 import { z } from "zod";
 import { llmJSON } from "../integrations/deepseek.mjs";
 
-export async function personalizedQuestions(preferences) {
+export function orderedInterestOptions(options, preferences = {}) {
+  const explicit = new Set(preferences.interests || []);
+  const weight = (tag) => {
+    const value = preferences.tagWeights?.[tag] ?? preferences.styleWeights?.[tag];
+    return Number.isFinite(value) ? Math.max(0, value) : 0;
+  };
+  // Keep every option and its stable tie order. An absent or negative signal
+  // must not become a recommendation merely because its key exists.
+  return options.map((tag, index) => ({ tag, index })).sort((a, b) =>
+    Number(explicit.has(b.tag)) - Number(explicit.has(a.tag)) ||
+    weight(b.tag) - weight(a.tag) || a.index - b.index).map(x => x.tag);
+}
+
+export async function personalizedQuestions(preferences, { model = llmJSON, enabled = Boolean(process.env.DEEPSEEK_API_KEY) } = {}) {
   let bank = structuredClone(questionBank),
     source = "本地问题库";
-  const preferred = Object.keys(preferences.tagWeights || {}).filter((x) =>
-    bank[0].options.includes(x),
-  );
-  bank[0].options = [...new Set([...preferred, ...bank[0].options])];
-  if (process.env.DEEPSEEK_API_KEY) {
+  bank[0].options = orderedInterestOptions(bank[0].options, preferences);
+  const strong = bank[0].options.filter(tag =>
+    (preferences.interests || []).includes(tag) ||
+    (preferences.tagWeights?.[tag] ?? preferences.styleWeights?.[tag] ?? 0) >= .3).slice(0, 2);
+  if (strong.length) bank[0].title = `这次也想逛${strong.join("、")}，还是换个主题？`;
+  if (enabled) {
     try {
       const r = z
         .object({
@@ -19,7 +33,7 @@ export async function personalizedQuestions(preferences) {
             .max(3),
         })
         .parse(
-          await llmJSON(
+          await model(
             '从 questionBank 选择并排序问题，返回 {"ids":["interests","pace","transport"]}。只允许提供的 id。',
             { preferences, questionBank: bank },
           ),

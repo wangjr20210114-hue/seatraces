@@ -9,6 +9,7 @@ const esc = (value) =>
 export const byScore = (points) =>
   [...points].sort(
     (a, b) =>
+      (b.score?.personalInterest ?? 0) - (a.score?.personalInterest ?? 0) ||
       (b.score?.total ?? 0) - (a.score?.total ?? 0) || a.id.localeCompare(b.id),
   );
 export function scenicMemberMarkup(place) {

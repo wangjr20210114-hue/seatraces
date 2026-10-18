@@ -111,6 +111,7 @@ export function scorePlace(
         ) * 10,
       ) / 10,
     parts,
+    personalInterest: Math.round((parts.preference + parts.inferredPreference) * 100) / 100,
     coverage: {
       fame: observed.fame ? "sourced" : "missing",
       crowd: observed.crowd ? "sourced" : "missing",
@@ -149,6 +150,9 @@ export function clusterScenicPlaces(input, preferences = {}, signalsById = {}) {
     p.score = {
       ...p.score,
       total: Math.round((p.score.total + childrenScore) * 10) / 10,
+      // A large number of children must not drown out the visitor's interest.
+      // A relevant child can help its containing site, but contributes once.
+      personalInterest: Math.round((p.score.personalInterest + .25 * Math.max(0, ...p.children.map(c => c.score.personalInterest))) * 100) / 100,
       childrenScore,
     };
   }
@@ -220,7 +224,7 @@ export function clusterScenicPlaces(input, preferences = {}, signalsById = {}) {
   const groups = [];
   for (const partition of partitions) {
     const group = partition.sort(
-      (a, b) => b.score.total - a.score.total || a.id.localeCompare(b.id),
+      (a, b) => b.score.personalInterest - a.score.personalInterest || b.score.total - a.score.total || a.id.localeCompare(b.id),
     );
     const id =
       "cluster-" +
