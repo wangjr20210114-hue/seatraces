@@ -61,3 +61,21 @@ $env:TEST_RECOMMENDATION_ADAPT='1'
 node --max-old-space-size=320 --test test/recommendation-adaptation.test.mjs test/feed-pager.test.mjs
 node --max-old-space-size=320 scripts/verify-personalization-behavior.mjs --local
 ```
+
+## 邮件服务
+
+| 用例 | 操作 | 预期 | 结果 |
+|---|---|---|---|
+| INTEL-M01 | 相同验证令牌12并发入队 | 一个持久队列项；邮件内容和地址不明文存储 | 通过 |
+| INTEL-M02 | 修改密文或认证标签 | 拒绝解密，不发送损坏邮件 | 通过 |
+| INTEL-M03 | 失效令牌/SMTP临时失败/明确拒绝 | 分别不发送、受限重试、终止 | 通过 |
+| INTEL-M04 | DATA结果不明或进程中断 | 标记unknown，不自动重放 | 通过 |
+| INTEL-M05 | 成功或到期 | 清除密文内容，保留安全状态 | 通过 |
+| INTEL-M06 | 普通用户查看队列，管理员查看 | 普通用户403；管理员不见地址、令牌或原始SMTP错误 | 通过 |
+| INTEL-M07 | 真实邮箱绑定及找回 | 实际收信、一次使用、旧链接失效、会话撤销 | 待配置SMTP，不能计为通过 |
+
+```powershell
+$env:TEST_MAIL_OUTBOX='1'
+node --max-old-space-size=320 --test test/mail-outbox.test.mjs
+node scripts/check-mail.mjs
+```

@@ -14,6 +14,7 @@ export function managementAccess(user) {
 }
 export const can=(access,permission)=>!!access && (access.permissions.includes('*')||access.permissions.includes(permission));
 const rules=[
+  ['GET',/^\/mail\/(status|jobs)$/, 'system.read'],
   ['GET',/^\/recommendation\/models$/, 'analytics.read'],
   ['GET',/^\/recommendation\/users\/[^/]+\/preview$/, 'users.read'],
   ['GET',/^\/recommendation\/requests\/[^/]+$/, 'users.read'],

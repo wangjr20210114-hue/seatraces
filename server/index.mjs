@@ -20,6 +20,7 @@ import cookieParser from "cookie-parser";
 import { randomUUID } from "node:crypto";
 import { createAccounts, requireUser as auth } from "./auth.mjs";
 import { createMailer } from "./mail.mjs";
+import {createOutboxMailer,installMailOutboxRoutes} from './services/mail-outbox.mjs';
 import { createEventRecorder } from './operations/events.mjs';
 import { installOperationsRoutes } from './operations/routes.mjs';
 import { installAdminAccess } from './operations/admin-access.mjs';
@@ -114,7 +115,8 @@ app.use("/api", (req, res, next) => {
     return res.status(403).json({ error: "请求来源校验失败" });
   next();
 });
-const accounts = createAccounts({ query, transaction, production, mailer: createMailer() });
+const mailer=createOutboxMailer({query,transaction,transport:createMailer()});
+const accounts = createAccounts({ query, transaction, production, mailer });
 app.use(['/api','/_AMapService'], accounts.attach);
 const operationEvents=createEventRecorder({query});
 app.use('/api',operationEvents.middleware);
@@ -123,6 +125,7 @@ app.use('/api', accounts.gate, accounts.router);
 app.use('/api',withRequestContext);
 const logExports=installOperationsRoutes(app,{auth,query,transaction,events:operationEvents});
 installAccessRoutes(app,{query,transaction,events:operationEvents});
+installMailOutboxRoutes(app,{query,mailer});
 installUserInsights(app,{query,events:operationEvents,readInferred:async id=>({...await explainStyle(query,id),recommendation:await readProfile(query,{id})})});
 installAnalytics(app,{query,transaction,events:operationEvents});
 installAgentInsights(app,{query,events:operationEvents});
@@ -832,9 +835,10 @@ await seed();
 await seedClassicWalks();
 await backfillItems(query);
 maintenance.start();
+mailer.start();
 const styleWorker=createStyleWorker({query,transaction,afterRebuild:buildProfile,onError:()=>console.error('Travel style refresh failed')});
 styleWorker.start();
-export const stopRecommendationWorker=()=>styleWorker.stop();
+export const stopRecommendationWorker=()=>{styleWorker.stop();mailer.stop();};
 const exportCleanup=setInterval(()=>void logExports.cleanup().catch(()=>{}),3600000);exportCleanup.unref();
 export const server = app.listen(
   Number(process.env.PORT || 8787),
