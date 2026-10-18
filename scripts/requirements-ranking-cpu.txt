@@ -1,0 +1,4 @@
+# Install into the existing isolated Python environment; no server dependency.
+lightgbm==4.6.0
+scipy==1.15.3
+numpy==2.2.6
