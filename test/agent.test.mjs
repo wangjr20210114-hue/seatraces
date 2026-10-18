@@ -242,6 +242,11 @@ test("agent publication uses the same discovery endpoint as the page after owned
 });
 
 test("intent abstains on questions, negation, hypothetical instructions and ungrounded model output", async () => {
+  for(const text of ['CityWalk 最长能走多少公里？','海迹最多可以选几个城市？','历史行程能保存多久？']) {
+    let modelCalls=0;
+    const result=await classify(text,{enabled:true,model:async()=>{modelCalls++;return {intent:'other',capability:null,confidence:.99,evidence:text};}});
+    assert.equal(result.intent,'software_question',text);assert.equal(modelCalls,0);
+  }
   assert.equal(ruleIntent("帮我打开历史行程").capability, "navigate");
   assert.equal(ruleIntent("如何清空浏览历史？").intent, "software_question");
   assert.equal(ruleIntent("不要清空浏览历史").intent, "clarify");
