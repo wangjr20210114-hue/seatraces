@@ -105,7 +105,9 @@ export function createKnowledge({
           ...d,
           lexical,
           semantic,
-          score: lexical + (q ? Math.max(0, semantic - 0.35) * 2 : 0),
+          // Specific FAQ titles carry more intent than a generic word buried
+          // in a long article. Semantic evidence must survive incidental bigrams.
+          score: lexical + lexicalScore(text, d.title) * .5 + (q ? Math.max(0, semantic - 0.35) * 4 : 0),
         };
       })
       .sort((a, b) => b.score - a.score);
