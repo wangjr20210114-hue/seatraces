@@ -1,3 +1,5 @@
+const sourceStates={unfetched:'待采集',changed:'原文已更新',unchanged:'原文未变',model_unavailable:'待提取',unavailable:'暂不可用'};
+const fields={openingHours:'开放时间',lastEntry:'最后入场',ticketPrice:'参考票价',reservation:'预约规则',phone:'咨询电话'};
 const time=v=>v?new Date(v).toLocaleString('zh-CN'):'—';
 export async function mountOfficialFacts({content,status,api,isCurrent,can=()=>false}){
  const [sources,reviews]=await Promise.all([api('/api/admin/places/fact-sources'),api('/api/admin/places/fact-reviews')]);if(!isCurrent())return;
@@ -5,7 +7,7 @@ export async function mountOfficialFacts({content,status,api,isCurrent,can=()=>f
  add(content,'h3','官方资料更新与复核');
  const update=add(content,'button','更新近期使用的地点');update.disabled=!can('tasks.manage');
  update.onclick=async()=>{update.disabled=true;try{const r=await api('/api/admin/maintenance/tasks',{id:crypto.randomUUID(),kind:'place_refresh',confirmation:'run-task'});status.textContent='更新任务已提交：'+r.id;}catch(e){status.textContent=e.message;}finally{update.disabled=!can('tasks.manage');}};
- for(const s of sources.items){const row=add(content,'article','');row.className='admin-card';add(row,'h4',s.place_name+' · '+s.publisher);add(row,'p',`最近检查 ${time(s.checked_at)} · 下次复核 ${time(s.refresh_after)} · ${s.last_status} · 待审核 ${s.pending}`);const a=add(row,'a','打开官方页面 ↗');a.href=s.url;a.target='_blank';a.rel='noopener noreferrer';}
+ for(const s of sources.items){const row=add(content,'article','');row.className='admin-card';add(row,'h4',s.place_name+' · '+s.publisher);add(row,'p',`最近检查 ${time(s.checked_at)} · 下次复核 ${time(s.refresh_after)} · ${sourceStates[s.last_status]||'未知'} · 待审核 ${s.pending}`);add(row,'p',s.fields.map(f=>fields[f]||f).join(' · '));const a=add(row,'a','打开官方页面 ↗');a.href=s.url;a.target='_blank';a.rel='noopener noreferrer';}
  add(content,'h3','待人工复核');if(!reviews.items.length)add(content,'p','暂无待复核资料');
  for(const r of reviews.items){const card=add(content,'article','');card.className='admin-card';add(card,'h4',r.place_name+' · '+r.field);add(card,'p',typeof r.fact.value==='string'?r.fact.value:JSON.stringify(r.fact.value));add(card,'blockquote',r.fact.evidence.quote);
   add(card,'p','采集 '+time(r.fact.evidence.retrievedAt)+' · 复核期限 '+time(r.fact.evidence.reviewAfter));const details=add(card,'details','');add(details,'summary','核对官网正文');add(details,'p',r.source_text);

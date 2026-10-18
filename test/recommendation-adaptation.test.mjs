@@ -35,6 +35,7 @@ test('fresh recommendation rebuilds changed evidence before serving, isolates us
       await f.query('INSERT INTO posts(id,user_id,title,body,tags,snapshot) VALUES($1,$2,$3,$3,$4,$5)',[id,f.users.other.id,tag+'内容'+i,[tag],{}]);await refreshItem({query:f.query},id);
     }
     const url='/api/social/feed',first=await f.request(url,{user:'user'});assert.equal(first.status,200);
+    assert.equal((await f.request(url,{user:'user',body:{city:'上海\0',exclude:[]}})).status,400);
     const initial=(await f.query('SELECT profile_version FROM recommendation_requests WHERE id=$1',[first.data.requestId])).rows[0].profile_version;
     const selected=ids.filter(p=>p.tag==='园林').slice(0,6);
     for(const p of selected)assert.equal((await f.request('/api/posts/'+p.id+'/reactions',{user:'user',body:{kind:'save',active:true}})).status,200);

@@ -29,7 +29,11 @@ test('real route timing can reject infeasible alternatives; missing routes never
  const r=await makeDayAlternatives(trip(),points,{day:0,focus:'culture',endBy:'16:00'}),v=r.variants[0];
  const missing=await verifyDayAlternative(v,{routeLeg:async()=>({status:'estimated',minutes:1,walkingMeters:10})});assert.equal(missing.verification,'unavailable');
  const slow=await verifyDayAlternative(v,{routeLeg:async()=>({status:'live',minutes:300,walkingMeters:10000})});assert.equal(slow.verification,'conflict');
+ const invalid=await verifyDayAlternative(v,{routeLeg:async()=>({status:'live',minutes:-10,walkingMeters:-1})});assert.equal(invalid.verification,'unavailable');
  const closed=await makeDayAlternatives(trip(),points,{day:0,keepIds:['palace']},{opening:async p=>p.id==='palace'?{status:'parsed',dayState:'closed'}:null});assert.equal(closed.variants.length,0);
+});
+test('corrupt legacy budget is rejected rather than producing a NaN schedule',async()=>{
+ const t=trip();t.plan.days[0].timeBudget.start='invalid';await assert.rejects(makeDayAlternatives(t,points,{day:0}),e=>e.status===409);
 });
 test('nearby replacement keeps every other position and rejects a locked target',async()=>{
  const t=trip(),extra=point('near','附近博物馆',31.2015,{tourism:'museum'}),far=point('far','遥远博物馆',31.5,{tourism:'museum'});

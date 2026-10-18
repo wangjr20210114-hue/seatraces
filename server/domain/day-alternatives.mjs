@@ -9,7 +9,7 @@ export const alternativeInput=z.object({day:z.number().int().min(0).max(29),
  removeCount:z.number().int().min(0).max(10).default(0),afternoonOnly:z.boolean().default(false),
  replaceId:z.string().min(1).max(80).optional(),
 }).strict();
-const minute=s=>typeof s==='string'&&/^\d{2}:\d{2}$/.test(s)?Number(s.slice(0,2))*60+Number(s.slice(3,5)):NaN;
+const minute=s=>typeof s==='string'&&/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(s)?Number(s.slice(0,2))*60+Number(s.slice(3,5)):NaN;
 export const variantNames={walk:'少走路',culture:'人文深入',classics:'经典覆盖'};
 function preferencesFor(focus,base,input){return {...base,...(input.endBy?{endBy:input.endBy}:{}),
  ...(focus==='walk'?{transport:'fewWalking'}:focus==='culture'?{travelFocus:'immersive'}:{travelFocus:'famous'})};}
@@ -22,6 +22,7 @@ function ranking(place,previous,focus,prefs){
 export async function makeDayAlternatives(trip,candidates,input,{opening=async()=>null}={}){
  const b=alternativeInput.parse(input),original=structuredClone(trip.plan.days?.[b.day]);
  if(!original)throw Object.assign(Error('旅行日期不存在'),{status:404});
+ if(!Array.isArray(original.stops))throw Object.assign(Error('原行程地点结构不可用，请重新生成'),{status:409});
  if((original.stops||[]).length>24||candidates.length>120)throw Object.assign(Error('候选范围过大，请缩小修改范围'),{status:413});
  for(const p of original.stops){if(!Number.isFinite(p.duration_min)||p.duration_min<=0)p.duration_min=visitDuration(p,trip.request).minutes;
   if(!Number.isFinite(minute(p.leave))&&Number.isFinite(minute(p.arrive)))p.leave=clockTime(minute(p.arrive)+p.duration_min);}
@@ -39,6 +40,7 @@ export async function makeDayAlternatives(trip,candidates,input,{opening=async()
  const variants=[],seen=new Set();
  for(const focus of b.focus?[b.focus]:Object.keys(variantNames)){
   const prefs=preferencesFor(focus,trip.request,b),budget={...constrainedBudget(prefs,Boolean(original.transferAllowance)),...original.timeBudget};
+  if(![budget.start,budget.end,budget.transitionMinutes,budget.mealMinutes].every(x=>Number.isFinite(x)&&x>=0&&x<=1440)||budget.start>=budget.end)throw Object.assign(Error('原行程时间范围不可用，请重新生成'),{status:409});
   if(prefs.endBy)budget.end=Math.min(budget.end,minute(prefs.endBy));budget.availableMinutes=Math.max(0,budget.end-budget.start);
   const stops=structuredClone(prefix),used=new Set(stops.map(p=>p.id)),excluded=[],reasons=[];
   let clock=stops.length?minute(stops.at(-1).leave):budget.start,previous=stops.at(-1)||null,walkKm=0,routeKm=0;
@@ -80,7 +82,7 @@ export async function verifyDayAlternative(variant,{routeLeg,opening=async()=>nu
  const value=structuredClone(variant),day=value.day,budget=day.timeBudget,prefix=value.constraints.frozenPrefixCount||0,stops=structuredClone(day.stops.slice(0,prefix)),warnings=[];let clock=prefix?minute(stops.at(-1).leave):budget.start,walking=0,travel=0;
  for(let i=prefix;i<day.stops.length;i++){
   const p=day.stops[i],leg=i?await routeLeg(day.stops[i-1],p,day.date,clockTime(clock),value.constraints.prefs.transport):null;
-  if(i&&(leg?.status!=='live'||!Number.isFinite(leg.minutes)||!Number.isFinite(leg.walkingMeters)))return {...value,verification:'unavailable',warnings:['部分实际路线尚不可用，请稍后核验']};
+  if(i&&(leg?.status!=='live'||!Number.isFinite(leg.minutes)||leg.minutes<0||leg.minutes>1440||!Number.isFinite(leg.walkingMeters)||leg.walkingMeters<0||leg.walkingMeters>2000000))return {...value,verification:'unavailable',warnings:['部分实际路线尚不可用，请稍后核验']};
   if(i){clock+=Math.ceil(leg.minutes);walking+=leg.walkingMeters;travel+=leg.minutes;}
   const pause=breakBeforeStop(stops,clock,budget);clock+=pause.minutes;
   const hours=await opening(p,day.date);if(hours?.status==='parsed'&&hours.dayState==='closed')warnings.push(p.name+'当日不开放');

@@ -35,8 +35,8 @@ test('owned verified previews use normal versioned mutation and support undo wit
    {city:'上海',date:'2027-06-21',stops:[{...stops[0],id:'other-day'}]}]};
   await f.query("INSERT INTO trips(id,user_id,title,request,plan) VALUES($1,$2,'局部修改',$3,$4)",[id,f.users.user.id,{pace:'balanced',transport:'balanced',revisit:'either'},plan]);
   await f.query("INSERT INTO trip_versions(trip_id,version,plan,reason) VALUES($1,1,$2,'初始')",[id,plan]);
-  const service=installIntelligentPlanning(f.app,{auth:f.auth,query:f.query,transaction:f.transaction,loadCandidates:async()=>stops,
-   opening:async()=>null,routeLeg:async()=>({status:'live',minutes:6,walkingMeters:100})});
+  let routeCalls=0;const service=installIntelligentPlanning(f.app,{auth:f.auth,query:f.query,transaction:f.transaction,loadCandidates:async()=>stops,
+   opening:async()=>null,routeLeg:async()=>{routeCalls++;await new Promise(r=>setTimeout(r,15));return {status:'live',minutes:6,walkingMeters:100};}});
   const ownTrip=async(id,user,c,lock)=>(await c.query('SELECT * FROM trips WHERE id=$1 AND user_id=$2'+(lock?' FOR UPDATE':''),[id,user])).rows[0]||(()=>{throw Object.assign(Error('missing'),{status:404});})();
   f.app.patch('/api/trips/:id',f.auth,tripMutationHandler({transaction:f.transaction,ownTrip,applyPreview:service.apply}));
   await f.start();const path='/api/journey/trips/'+id,body={version:1,day:0,afternoonOnly:true,removeCount:1,focus:'walk'};
@@ -47,7 +47,8 @@ test('owned verified previews use normal versioned mutation and support undo wit
   const pid=r.data.items[0].id,operation={type:'apply_preview',day:0,previewId:pid},patch={version:1,operation};
   assert.equal((await f.request('/api/trips/'+id,{user:'user',method:'PATCH',body:patch})).status,409);
   assert.equal((await f.request(path+'/alternatives/'+pid+'/verify',{user:'other',body:{version:1}})).status,404);
-  const v=await f.request(path+'/alternatives/'+pid+'/verify',{user:'user',body:{version:1}});assert.equal(v.data.verification,'verified');
+  const checks=await Promise.all(Array.from({length:10},()=>f.request(path+'/alternatives/'+pid+'/verify',{user:'user',body:{version:1}})));
+  assert.ok(checks.every(v=>v.status===200&&v.data.verification==='verified'));assert.equal(routeCalls,1);
   const saved=await Promise.all(Array.from({length:12},()=>f.request('/api/trips/'+id,{user:'user',method:'PATCH',body:patch})));
   assert.equal(saved.filter(x=>x.status===200).length,1);assert.equal(saved.filter(x=>x.status===409).length,11);
   const t=saved.find(x=>x.status===200).data;assert.equal(t.version,2);assert.equal(t.plan.days[0].stops.length,3);

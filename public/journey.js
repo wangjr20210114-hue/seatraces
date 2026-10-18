@@ -1256,9 +1256,10 @@ function paintTrip(updateMap = true) {
   $("#itinerary").append(services);
   if(!overview)mountPlanningAlternatives({element:services,trip:t,day:state.day,api,onSaved:updated=>{state.trip=updated;state.fitRevision++;paintTrip();}});
   if(!overview)mountTripWeather({element:services,trip:t,day:state.day,api});
+  const nearby=document.createElement('section');services.append(nearby);
   if (!overview)
     mountTripServices({
-      element: services,
+      element: nearby,
       trip: t,
       day: state.day,
       api,

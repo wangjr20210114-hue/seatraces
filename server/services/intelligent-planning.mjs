@@ -43,6 +43,7 @@ export function parseLocalEdit(text,day){
  return {input};
 }
 export function createIntelligentPlanning({query,transaction,loadCandidates=scopedPlanningCandidates,opening=openingOnDate,routeLeg}={}){
+ const verifying=new Map();
  async function own(id,userId,c={query}){const t=(await c.query('SELECT * FROM trips WHERE id=$1 AND user_id=$2',[z.uuid().parse(id),userId])).rows[0];if(!t)throw fail('行程不存在',404);if(t.plan.schemaVersion!=='journey/2')throw fail('请在新版行程中比较方案',409);return t;}
  async function compare(id,userId,input,version){
   const trip=await own(id,userId);if(trip.version!==version)throw fail('行程已更新，请刷新后比较',409);
@@ -57,8 +58,9 @@ export function createIntelligentPlanning({query,transaction,loadCandidates=scop
   });return {items,unmet:result.unmet,version:trip.version,candidateCount:result.candidateCount};
  }
  async function preview(id,userId,tripId){const row=(await query('SELECT * FROM trip_plan_previews WHERE id=$1 AND user_id=$2 AND trip_id=$3 AND expires_at>now()',[z.uuid().parse(id),userId,tripId])).rows[0];if(!row)throw fail('预览已过期或不存在，请重新比较',410);return row;}
- async function verify(tripId,userId,pid,version){
+ async function verifyActual(tripId,userId,pid,version){
   const t=await own(tripId,userId),row=await preview(pid,userId,t.id);if(t.version!==version||row.base_version!==version)throw fail('行程已更新，请重新比较',409);
+  if(row.payload.verification==='verified')return publicVariant(row.id,row.payload,t.version);
   const matchCache=new Map();
   const resolve=async p=>{if(!matchCache.has(p.id))matchCache.set(p.id,(async()=>{const r=await matchPlace(p);return r.items?.find(x=>x.nameScore>=.75&&x.distanceMeters<=1000&&x.routing)?.routing;})());return matchCache.get(p.id);};
   const leg=routeLeg||(async(a,b,date,time,strategy)=>{
@@ -70,6 +72,11 @@ export function createIntelligentPlanning({query,transaction,loadCandidates=scop
   const v=await verifyDayAlternative(row.payload,{opening,routeLeg:leg});
   const saved=await query('UPDATE trip_plan_previews SET payload=$2,version=version+1 WHERE id=$1 AND version=$3 AND expires_at>now() RETURNING id',[row.id,v,row.version]);if(!saved.rowCount)throw fail('预览已变化，请重新核验',409);
   return publicVariant(row.id,v,t.version);
+ }
+ function verify(tripId,userId,pid,version){
+  const key=[userId,tripId,pid,version].join(':');if(verifying.has(key))return verifying.get(key);
+  if(verifying.size>=2)throw fail('路线核验繁忙，请稍后重试',429);
+  const work=verifyActual(tripId,userId,pid,version).finally(()=>verifying.delete(key));verifying.set(key,work);return work;
  }
  async function apply(c,trip,operation,userId){
   const row=(await c.query('SELECT * FROM trip_plan_previews WHERE id=$1 AND user_id=$2 AND trip_id=$3 AND expires_at>now() FOR UPDATE',[operation.previewId,userId,trip.id])).rows[0];
