@@ -81,11 +81,80 @@ node --max-old-space-size=320 scripts/audit-recommendation-corpus.mjs --local
 
 ## 预训练模型兼容性核查
 
-2026-10-18 核对了公开权重说明及实现，尚未下载或启用新模型。
+2026-10-18 首次核对了公开权重说明及实现，当时尚未下载新模型；此后经用户授权完成了下节的 UniSRec 本机离线适配。没有启用线上模型。
 
 - [UniSRec 官方仓库](https://github.com/RUCAIBox/UniSRec)提供预训练 checkpoint。其[输入生成代码](https://github.com/RUCAIBox/UniSRec/blob/master/dataset/preprocessing/process_amazon.py)默认使用 `bert-base-uncased` 的 CLS 表示；[配置](https://github.com/RUCAIBox/UniSRec/blob/master/props/UniSRec.yaml)为 768 维输入、300 维隐藏表示、2 层序列编码器。我们已有中文 BGE 输出 512 维，补零到 768 维不能解决语义空间不一致。借鉴架构和复用实际预训练权重必须分别报告。
 - 其[微调代码](https://github.com/RUCAIBox/UniSRec/blob/master/finetune.py)可以冻结位置与序列编码器，仅适配其余参数。后续若实验，需要记录哪些参数真正从 checkpoint 加载、哪些重新初始化，保留冷启动与有行为历史两组评估。官方数据默认 leave-one-out 划分不替代本项目的时间隔离和成熟反馈窗口。
 - [OpenOneRec](https://github.com/Kuaishou-OneRec/OpenOneRec)公开 1.7B/8B 推荐基础模型，采用内容语义 ID 和生成式推荐。它可以作为独立离线对照，但不能把它接入后声称原双塔已达标。它的模型体量不适合直接放进现有 640 MiB 后端容器；尚未做本机资源实测。
-- 当前本机 Python 可发现 PyTorch，但未发现 Transformers、RecBole、Safetensors；这里只检查包是否存在，尚未证明它们的版本兼容或推理可用。没有安装新依赖、扩容服务器或修改激活门槛。
+- 首次环境检查发现全局 PyTorch 1.13；本轮另在 `.runtime/unisrec-python/` 安装隔离的 PyTorch 2.6.0 CPU 环境，不修改全局 Python、服务器或激活门槛。没有安装 Transformers、RecBole 或执行权重中记录的原始 Python 类。
 
 下一轮需要分别解决输入适配、语料质量和独立评估数据，不通过更改模拟偏好生成公式使某个模型获得有利标签。正式上线仍以成熟反馈与预先确定的质量门槛为准。
+
+## UniSRec 官方预训练权重离线适配结果
+
+用户已明确授权下载官方约 35 MB 权重到独立实验目录，复用本机中文 BGE 缓存进行 CPU 对照，不能因此修改线上排序或启用模型。
+
+**本轮已完成，未通过现有质量门槛。** 预训练适配组略高于同结构随机初始化组，但仍低于规则基线。它不是可以直接替换现有排序的通用成品，也不能据本轮模拟数据断言 UniSRec 对真实旅行推荐无效。
+
+### 实际加载了什么
+
+- 使用 [官方 README](https://github.com/RUCAIBox/UniSRec)链接的 [FHCKM 预训练文件夹](https://drive.google.com/drive/folders/1Uik0fMk4oquV_bS9lXTZuExAYbIDkEMW)中的 `UniSRec-FHCKM-300.pth`，文件 34,981,699 字节。
+- 固定 SHA-256 为 `42da736452bed105bb04d2ac4f9d74c54b89d1a9c5115269f16d0d5a8cd92d9c`；这是本次从官方链接下载后计算的固定摘要，不是作者发布的签名或校验值。
+- 严格加载 53 个参数张量，共 **2,910,344 个预训练参数**。权重键名、形状、数值有限性、架构配置全部核对，不忽略不匹配项。
+- 架构是 8 个 MoE 适配专家、2 层 2 头序列编码器，隐藏维度 300、前馈维度 256、最多 50 个序列位置。实际归档通过 `adaptor_layers=[768,300]` 指定输入维度，没有 `plm_size` 配置键；按真实元数据校验。
+- 加载时使用 PyTorch `weights_only=True`，旧 Config/枚举/类引用映射到无行为的本地数据占位类，不导入或执行模型归档指向的原代码。没有降级使用普通 pickle 加载。
+- 本机已有中文 BGE 是 512 维，与原始英文 BERT 商品特征空间不同。本轮把 96 维结构化特征与 512 维语义特征分别归一化后等权拼接，新增可训练 `608→768` 线性映射与 LayerNorm。这部分随机初始化，不能称作预训练权重。
+- 共 **3,379,593 个参数**；冻结组固定位置和序列编码器，其余 **2,331,481 个参数**参与训练。实现保留 UniSRec/RecBole 的 MIT 声明，见 `scripts/lib/UNISREC_LICENSE.txt`。
+
+### 固定的实验方法
+
+- 继续使用同一批 4,500 条成熟模拟曝光、440 篇帖子和 10 种显式偏好；训练 2,498、验证 666、历史测试 900，另有 436 条处于时间隔离区。原始数据摘要仍为 `bbaf06015f61c6348408208f7db9412686f3d90f3a55f80e1100617ed032c6dc`。
+- 只读本机模拟数据库，冻结导出文件 6,314,272 字节。没有新造用户行为、改标签、导入真实账号数据或生成新的 BGE 向量。
+- 每条曝光只使用同用户过去 30 天内、已结束完整 7 天反馈窗口的正反馈，最多 20 条；本批实际最多 10 条。当前或未来结果不能进入当前历史。显式偏好作为最后一个序列 token，支持没有成熟历史时输入。
+- 原始 UniSRec 的 next-item 目标在本次适配中改为曝光的加权二分类交叉熵，用户序列向量与候选向量归一化点积计分。这是明确的任务适配，不是原模型零样本成绩。
+- 预先固定三组配置，各 12 轮，batch 32，AdamW 学习率 0.0003，随机种子 20261018；每 3 轮评估验证集。只按验证集选模型和轮次，然后冻结权重，再评价历史测试集。没有根据历史测试结果继续调参。
+- 原有 JS 规则基线与 Python 重算的验证指标完全一致后才启动训练；另用冻结权重重放，核对结果一致。
+
+### 成绩与资源
+
+| 配置 | 验证选中轮次 | 验证 NDCG@10 | 训练时间 |
+|---|---:|---:|---:|
+| 原规则基线 | — | **0.7962** | — |
+| 官方预训练，冻结序列编码器 | 9 | **0.7561** | 151.83 秒 |
+| 随机初始化，同样冻结编码器 | 9 | 0.7516 | 118.62 秒 |
+| 随机初始化，全部参数可训练 | 9 | 0.7468 | 137.72 秒 |
+
+验证选中预训练适配组。历史测试 **NDCG@10 为 0.7784，基线为 0.8074**，差值 **-0.02896**；按用户配对自助抽样的诊断性 95% 区间为 **[-0.06327, +0.00766]**。原门槛要求验证和测试均高于基线至少 0.005，本轮未通过。
+
+该历史测试的 Top-10 召回率为 **0.8295，对比基线 0.8101**，但靠前排序的 NDCG 更低。这里只在历史曝光候选中按用户汇总评估，不是生产全库召回或按请求评估；不能挑选召回一项宣布整体优于基线。
+
+无成熟历史子集只有验证 15 条、测试 31 条，分别只有 2、3 个带正反馈的有效用户组。其候选少、NDCG 容易达到 1，**不足以证明冷启动有效**。有成熟历史的测试子集有 869 条，模型 NDCG 为 0.7767，基线为 0.8123。完整分层、样本数和置信区间保留在 `analysis.json`。
+
+整轮 CPU 训练与评估 **419.70 秒，约 7 分钟**，2 个计算线程，进程峰值 RSS **434.94 MiB**。选定模型对 900 条历史曝光分批评分耗时 **1,656 毫秒**；这是离线批量评分，不是线上单请求延迟。训练不需要显卡，但此内存量不能直接加到现有 640 MiB 业务容器里而不做容量评估。
+
+模型文件约 35 MB 不等于全部环境体积：隔离 Python/CPU 依赖安装约 **1,261 MiB**；训练产物另计。本轮不把依赖、模型、私有输入或报告提交 Git，也不上传服务器。
+
+### 复现与验收
+
+Windows 示例，命令在项目根目录执行；`python` 应指向本机可用的 Python 3.10。先准备已有本机 PostgreSQL 和经过批准的 BGE 向量缓存。
+
+```powershell
+python -m venv .runtime/unisrec-python
+.runtime/unisrec-python/Scripts/python.exe -m pip install -r scripts/requirements-unisrec-cpu.txt
+.runtime/unisrec-python/Scripts/python.exe scripts/prepare_unisrec_checkpoint.py --local
+node scripts/export-unisrec-experiment.mjs --local
+node --test test/unisrec-data.test.mjs
+.runtime/unisrec-python/Scripts/python.exe test/test_unisrec_model.py
+.runtime/unisrec-python/Scripts/python.exe scripts/experiment_unisrec.py --local
+.runtime/unisrec-python/Scripts/python.exe scripts/analyze_unisrec.py --local
+```
+
+导出与下载可复用完全一致的文件；训练/分析遇到已有报告会停止，防止覆盖证据。再次实验应先保留整个旧目录，并明确新实验条件，不能悄悄改同一个结果。报告记录输入、权重和代码 SHA-256，分析还核对训练代码没有在实验中途改变。
+
+实际 **9 项测试通过（Node 3、Python 6），0 失败、0 跳过**。覆盖未来/同窗口/跨用户反馈隔离、历史长度和顺序、特征漂移、冻结参数、官方权重完整加载、因果遮罩、多个可接受候选与并列排序、空分层、非法模型文件、production/activation 参数拒绝。依赖检查 `pip check` 通过。最初验证发现 checkpoint 没有 `plm_size` 元数据，按其实际 `adaptor_layers` 修正校验后重新通过；没有放松权重形状或安全加载校验。
+
+本机 pip 下载曾遇到 TLS EOF。本次通过官方 wheel URL 下载、核对 PyPI/官方索引提供的 SHA-256，再离线安装；没有关闭 TLS 验证。复现机器可正常联网时使用上面的标准命令即可。
+
+### 本轮决策
+
+保留实验实现和证据，**线上继续现有排序，不激活本模型**。这轮说明能复用官方预训练参数，但在当前输入适配和模拟反馈下收益不足。后续优先补充独立偏好证据、成熟真实互动以及更丰富的内容属性；仅继续扩大模型不足以解决模拟标签偏向规则的问题。人工盲评中的“两篇都合适”仍保留为两个可接受项，不改成一个正例一个负例。
