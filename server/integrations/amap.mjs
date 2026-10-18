@@ -10,6 +10,7 @@ const allowedPaths = new Set([
   "v5/place/around",
   "v5/place/detail",
   "v3/geocode/regeo",
+  "v3/weather/weatherInfo",
   "v5/direction/walking",
   "v5/direction/transit/integrated",
   "v5/direction/driving",

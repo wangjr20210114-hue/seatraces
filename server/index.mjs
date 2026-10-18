@@ -47,6 +47,7 @@ import { nearbyRecommendations } from './services/nearby-recommendations.mjs';
 import { installJourneyRoutes } from './services/journey-service.mjs';
 import { installCityWalkRoutes } from './services/citywalk-service.mjs';
 import { installTripServiceRoutes } from './services/trip-services.mjs';
+import {installWeatherRoutes} from './services/weather.mjs';
 import { installAgentRoutes } from './agent/routes.mjs';
 import { memoryPreferences } from './agent/memory.mjs';
 import { openingOnDate, validateOpeningDate } from './opening-hours.mjs';
@@ -301,6 +302,7 @@ async function travelHabit(user) {
   };
 }
 installJourneyRoutes(app,{auth,travelHabit,recordWish:recordPlaceChoice,onSource:recordInspiration,onGenerated:confirmAdoption});
+installWeatherRoutes(app,{auth,query});
 installTripServiceRoutes(app,{auth});
 installCityWalkRoutes(app,{auth,travelHabit});
 installClassicWalkRoutes(app,{auth,events:operationEvents});

@@ -13,6 +13,7 @@ import { mountAgent } from "./agent-page.js";
 import { mountAgentLauncher } from './agent-launcher.js';
 import { renderInbox } from './inbox.js';
 import { mountTripServices } from "./trip-services.js";
+import {mountTripWeather} from './trip-weather.js';
 import { mountServiceMapDock } from "./service-map-dock.js";
 import { plannerScene, serviceScene, savedServicePoints } from "./map-scene.js";
 import { toGcj, mainlandEligible } from "./coordinates.js";
@@ -1250,6 +1251,7 @@ function paintTrip(updateMap = true) {
   if (updateMap) paintMap();
   const services = document.createElement("section");
   $("#itinerary").append(services);
+  if(!overview)mountTripWeather({element:services,trip:t,day:state.day,api});
   if (!overview)
     mountTripServices({
       element: services,

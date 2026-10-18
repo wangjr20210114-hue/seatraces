@@ -9,6 +9,8 @@ export function providerStatus() {
     llm: process.env.DEEPSEEK_API_KEY
       ? "configured_unverified"
       : "not_configured",
+    weather:process.env.AMAP_KEY?'configured_unverified':'not_configured',
+    weatherAlerts:process.env.QWEATHER_API_HOST&&process.env.QWEATHER_API_KEY?'configured_unverified':'not_configured',
     train: process.env.JUHE_TRAIN_KEY
       ? "configured_unverified"
       : "not_configured",
