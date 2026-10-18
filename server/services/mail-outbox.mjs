@@ -1,12 +1,13 @@
 import {createCipheriv,createDecipheriv,createHash,randomBytes,randomUUID} from 'node:crypto';
 import {z} from 'zod';
 import {requireManagement} from '../operations/permissions.mjs';
+import {mailTransportConfiguration} from '../mail-config.mjs';
 const message=z.object({to:z.email().max(254),purpose:z.enum(['verify_email','reset_password','password_changed']),token:z.string().regex(/^[a-f0-9]{64}$/).optional()}).strict().refine(v=>v.purpose==='password_changed'||v.token);
 const fail=s=>Object.assign(Error(s),{status:503});
 export function mailConfiguration(env=process.env){
-  const required=['SMTP_HOST','SMTP_USER','SMTP_PASSWORD','SMTP_FROM','APP_ORIGIN','MAIL_OUTBOX_KEY'];
-  const missing=required.filter(k=>!env[k]),key=env.MAIL_OUTBOX_KEY?Buffer.from(env.MAIL_OUTBOX_KEY,'base64'):null;
-  return {enabled:missing.length===0&&key?.length===32,missing,keyValid:!env.MAIL_OUTBOX_KEY||key?.length===32};
+  const config=mailTransportConfiguration(env),missing=[...config.missing,...(env.MAIL_OUTBOX_KEY?[]:['MAIL_OUTBOX_KEY'])];
+  const key=env.MAIL_OUTBOX_KEY?Buffer.from(env.MAIL_OUTBOX_KEY,'base64'):null;
+  return {...config,enabled:config.enabled&&key?.length===32,missing,keyValid:!env.MAIL_OUTBOX_KEY||key?.length===32};
 }
 export function encryptMail(value,key){
  const nonce=randomBytes(12),cipher=createCipheriv('aes-256-gcm',key,nonce);
@@ -17,6 +18,7 @@ export function decryptMail(row,key){
  return message.parse(JSON.parse(Buffer.concat([c.update(row.payload),c.final()]).toString('utf8')));
 }
 export function deliveryFailure(error){
+ if(error?.mailDelivery&&['failed','retry','unknown'].includes(error.mailDelivery.state)&&/^SES_[A-Z_]+$/.test(error.mailDelivery.code))return error.mailDelivery;
  if(error?.command==='DATA')return {state:'unknown',code:'SMTP_ACCEPTANCE_UNKNOWN'};
  if(error?.code==='EAUTH'||Number(error?.responseCode)>=500)return {state:'failed',code:'SMTP_REJECTED'};
  return {state:'retry',code:'SMTP_TEMPORARY'};
@@ -61,7 +63,7 @@ export function createOutboxMailer({query,transaction,transport,env=process.env,
     accepted=true;
     await query("UPDATE mail_outbox SET state='sent',payload=NULL,nonce=NULL,tag=NULL,last_error=NULL,lease_until=NULL,updated_at=now() WHERE id=$1",[job.id]);
    }catch(error){
-    const result=accepted?{state:'unknown',code:'SMTP_ACCEPTED_DATABASE_UNCERTAIN'}:deliveryFailure(error),state=result.state==='retry'&&job.attempts>=4?'failed':result.state,delay=[30,120,600,600][job.attempts-1];
+    const result=accepted?{state:'unknown',code:config.provider==='tencent_ses'?'SES_ACCEPTED_DATABASE_UNCERTAIN':'SMTP_ACCEPTED_DATABASE_UNCERTAIN'}:deliveryFailure(error),state=result.state==='retry'&&job.attempts>=4?'failed':result.state,delay=[30,120,600,600][job.attempts-1];
     await query("UPDATE mail_outbox SET state=$2,last_error=$3,next_at=now()+($4::int*interval '1 second'),lease_until=NULL,updated_at=now() WHERE id=$1",[job.id,state,result.code,delay]);
    }
   }finally{running=false;}

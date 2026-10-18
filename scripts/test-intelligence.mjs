@@ -1,8 +1,8 @@
 import {spawn} from 'node:child_process';
 import {mkdir,writeFile} from 'node:fs/promises';
-const files=['adaptive-questions','agent-compound','agent','feedback-dimensions','weather','weather-http','feed-pager','recommendation-adaptation','place-descriptions','day-alternatives','intelligent-planning-http','official-facts','tracing','mail-outbox'].map(x=>'test/'+x+'.test.mjs');
+const files=['adaptive-questions','agent-compound','agent','feedback-dimensions','weather','weather-http','feed-pager','recommendation-adaptation','place-descriptions','day-alternatives','intelligent-planning-http','official-facts','tracing','mail-outbox','tencent-ses'].map(x=>'test/'+x+'.test.mjs');
 const env={...process.env,DOTENV_CONFIG_PATH:'.runtime/no-provider-env',OFFICIAL_FACT_AUTO_REFRESH:'false'};
-for(const k of Object.keys(env))if(/^(AMAP|DEEPSEEK|GOOGLE|OSM|SMTP|MAIL|QWEATHER|DATABASE_URL)/.test(k))delete env[k];
+for(const k of Object.keys(env))if(/^(AMAP|DEEPSEEK|GOOGLE|OSM|SMTP|SES_|MAIL|QWEATHER|DATABASE_URL)/.test(k))delete env[k];
 for(const k of ['ADAPTIVE','AGENT','FEEDBACK_DIMENSIONS','WEATHER_HTTP','RECOMMENDATION_ADAPT','PERSONAL','INTELLIGENT_PLANNING','OFFICIAL_FACTS','TRACING','MAIL_OUTBOX'])env['TEST_'+k]='1';
 delete env.TEST_URL;const begin=Date.now();let output='';
 const child=spawn(process.execPath,['--max-old-space-size=320','--test','--test-concurrency=1',...files],{env,windowsHide:true,stdio:['ignore','pipe','pipe']});

@@ -1,10 +1,10 @@
 # 邮件投递与配置
 
-用户当前没有 SMTP 发信账号。本轮先完成投递机制和配置指南，未发送任何真实邮件，不能称为已完成真实收信验收。
+支持 SMTP 与腾讯云 SES API 两种发送方式。腾讯云服务已由用户开通，发信域名、地址、模板和专用 API 凭据待配置；未发送真实邮件，真实收信尚未验收。腾讯云配置见 [TENCENT_SES_SETUP.md](TENCENT_SES_SETUP.md)。
 
 ## 发送链路
 
-现有邮箱绑定与找回密码接口保留。创建一次性令牌后，邮件先进入 PostgreSQL `mail_outbox`，后台每5秒处理一项。请求成功表示已受理发送；SMTP接受不等于最终进入收件箱。
+现有邮箱绑定与找回密码接口保留。创建一次性令牌后，邮件先进入 PostgreSQL `mail_outbox`，后台每5秒处理一项。请求成功表示已受理发送；供应商接受不等于最终进入收件箱。
 
 - 收件地址、令牌使用 AES-256-GCM 加密后存库；数据库里不保存明文恢复链接。令牌原有摘要、30分钟有效、一次使用规则保留。
 - 每次投递前重新检查令牌是否有效、账号是否停用；过期、已使用或被新申请替代的链接不再发送。
@@ -38,7 +38,15 @@ node -e "process.stdout.write(require('node:crypto').randomBytes(32).toString('b
 4. `node scripts/check-mail.mjs` 只显示缺失项，不显示秘密；配置后执行 `node scripts/check-mail.mjs --verify`，检查SMTP连接及认证，不发送邮件。465使用TLS直连，其他端口强制STARTTLS；不关闭证书验证。
 5. 备份并迁移 `server/mail-outbox-schema.sql`，重启后端。使用自己的账号发起邮箱绑定并完成收信/点击验证，再验证找回密码、旧链接失效和会话撤销。
 
-加密密钥必须持久化并与备份分开保管。直接更换密钥会使未投递邮件无法解密；先排空队列再轮换。未配置SMTP或加密密钥时服务明确禁用，不降级为明文队列。
+加密密钥必须持久化并与备份分开保管。直接更换密钥会使未投递邮件无法解密；先排空队列再轮换。未配置发送渠道或加密密钥时服务明确禁用，不降级为明文队列。
+
+## 腾讯云 SES 适配
+
+`MAIL_PROVIDER=tencent_ses` 通过 HTTPS API 使用已审核模板发送。保持 `/api/auth/*`、`/api/admin/mail/status` 与 `/api/admin/mail/jobs` 接口不变，不增加数据库表。配置状态增加渠道及无效字段名，不返回凭据值。模板只允许 `{{link}}` 变量；密码已修改模板没有变量。
+
+`node scripts/check-mail.mjs --verify` 对 SES 只读核验域名及三份模板，不发送邮件。`sent` 仍表示供应商已受理。SES 请求在发出后断线、超时、内部错误或缺少受理凭证时进入 `unknown`，不自动重放；明确的限流允许队列重试。供应商错误原文不会进入队列记录或状态输出。没有邮件自动切换渠道的机制，避免重复投递。
+
+2026-10-19 本机验证：`TEST_MAIL_OUTBOX=1 TEST_ACCOUNTS=1 node --max-old-space-size=320 --test --test-concurrency=1 test/tencent-ses.test.mjs test/mail-outbox.test.mjs test/accounts.test.mjs`，24 项通过、0 失败、0 跳过。使用隔离 PostgreSQL schema 和发送替身，无生产数据或真实收信覆盖。
 
 ## 排障接口
 
