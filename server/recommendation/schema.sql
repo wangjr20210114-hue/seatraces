@@ -67,7 +67,7 @@ $$;
 -- Current-state profiles and temporal training labels have different jobs.
 -- The trigger records reversals, never treats an unchanged replay as a new vote.
 CREATE OR REPLACE FUNCTION recommendation_signal() RETURNS trigger LANGUAGE plpgsql SET search_path FROM CURRENT AS $$
-DECLARE r jsonb; uid uuid; pid uuid; aid uuid; k text; enabled boolean;
+DECLARE r jsonb; uid uuid; pid uuid; aid uuid; k text; enabled boolean; experience_score integer;
 BEGIN
  IF TG_OP='UPDATE' AND to_jsonb(NEW)=to_jsonb(OLD) THEN RETURN NULL; END IF;
  r:=CASE WHEN TG_OP='DELETE' THEN to_jsonb(OLD) ELSE to_jsonb(NEW) END;
@@ -82,9 +82,13 @@ BEGIN
  IF TG_TABLE_NAME='recommendation_trip_feedback' THEN
   SELECT post_id INTO pid FROM recommendation_trip_sources WHERE trip_id=(r->>'trip_id')::uuid AND user_id=uid;
   IF pid IS NOT NULL THEN
+   -- Explicit place satisfaction is independent of pace, transport and service
+   -- experience. A mixed/aspect-only review has no inferred place label.
+   experience_score:=CASE WHEN (r->'aspects'->>'places') ~ '^[1-5]$' THEN (r->'aspects'->>'places')::int
+     WHEN (r->'aspects') ?| ARRAY['pace','walking','transport','dining','stay'] THEN NULL ELSE (r->>'rating')::int END;
    INSERT INTO recommendation_outcomes(user_id,post_id,kind,active) VALUES
-    (uid,pid,'satisfied',enabled AND r->>'experience'='trip' AND (r->>'rating')::int>=4),
-    (uid,pid,'dissatisfied',enabled AND r->>'experience'='trip' AND (r->>'rating')::int<=2);
+    (uid,pid,'satisfied',enabled AND r->>'experience'='trip' AND coalesce(experience_score>=4,false)),
+    (uid,pid,'dissatisfied',enabled AND r->>'experience'='trip' AND coalesce(experience_score<=2,false));
   END IF;
  END IF;
  k:=CASE TG_TABLE_NAME WHEN 'reactions' THEN r->>'kind' WHEN 'comments' THEN 'comment' WHEN 'user_follows' THEN 'follow'

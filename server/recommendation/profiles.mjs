@@ -2,6 +2,7 @@ import {algorithm,contentFeatures,vectorize,profileVector,weights,clamp} from '.
 import {answerFeatures,interestMap} from '../social/features.mjs';
 import {styleForPlanning} from '../social/style-store.mjs';
 import {encode,validateTower,artifactDigest} from './model.mjs';
+import {feedbackEvidence} from './feedback.mjs';
 export async function refreshItem(c,id){
  const p=(await c.query(`SELECT id,title,body,tags,revision,snapshot->'cities' cities,
   jsonb_array_length(CASE WHEN jsonb_typeof(snapshot->'days')='array' THEN snapshot->'days' ELSE '[]' END) day_count,
@@ -72,9 +73,8 @@ export async function buildProfile(c,userId){
  for(const w of walkFacts)add('travel','walk:'+w.source_id,w.features.values,1.5,w.updated_at,'chosen_citywalk');
  const feedback=(await c.query(`SELECT f.*,t.request->'interests' interests FROM recommendation_trip_feedback f JOIN trips t ON t.id=f.trip_id WHERE f.user_id=$1 ORDER BY f.updated_at DESC LIMIT 100`,[userId])).rows;
  for(const f of feedback){
-  if(f.aspects.places)add('travel','satisfaction:'+f.trip_id,answerFeatures({interests:f.interests||[]}),f.experience==='trip'?weights.satisfaction:1,f.updated_at,'place_satisfaction',(f.aspects.places-3)/2);
-  if(f.aspects.pace==='too_busy')add('travel','pace:'+f.trip_id,{'pace.relaxed':1},f.experience==='trip'?3:1,f.updated_at,'pace_satisfaction');
-  if(f.aspects.pace==='too_slow')add('travel','pace:'+f.trip_id,{'pace.full':1},f.experience==='trip'?3:1,f.updated_at,'pace_satisfaction');
+  for(const row of feedbackEvidence({rating:f.rating,experience:f.experience,aspects:f.aspects,interests:f.interests}))
+   add('travel',row.origin+':'+f.trip_id,row.values,row.weight,f.updated_at,row.reason,row.sign??1);
  }
  const authors=Object.fromEntries((await c.query(`SELECT f.author_id FROM user_follows f JOIN users u ON u.id=f.author_id WHERE f.user_id=$1 AND u.disabled_at IS NULL ORDER BY f.created_at DESC LIMIT 200`,[userId])).rows.map(r=>[r.author_id,{value:1,weight:weights.follow}]));
  const profile={...aggregateSignals(evidence),authors};
@@ -95,5 +95,12 @@ export async function recommendationPreferences(query,user,current={}){
  for(const [tag,keys] of Object.entries(interestMap)){
   const vals=keys.map(k=>p.travel[k]).filter(Boolean);if(vals.length)inferred[tag]=vals.reduce((sum,v)=>sum+(v.long?.value||0)*(v.long?.confidence||0)*.65+(v.short?.value||0)*(v.short?.confidence||0)*.35,0)/vals.length;
  }
- return {...legacy,styleWeights:p.version?inferred:legacy.styleWeights,styleVersion:algorithm};
+ const strength=key=>{const v=p.travel[key];return (v?.long?.value||0)*(v?.long?.confidence||0)*.65+(v?.short?.value||0)*(v?.short?.confidence||0)*.35;};
+ const suggestions={};
+ for(const [field,options] of [['pace',['relaxed','balanced','full']],['transport',['fewWalking','fewTransfers']]]){
+  const key=value=>field==='pace'?'pace.'+value:value==='fewWalking'?'mobility.few_walking':'mobility.few_transfers';
+  const ranked=options.map(value=>({value,score:strength(key(value))})).sort((a,b)=>b.score-a.score);
+  if(ranked[0].score>=.2)suggestions[field]={value:ranked[0].value,confidence:ranked[0].score,source:'behavioral_evidence'};
+ }
+ return {...legacy,styleWeights:p.version?inferred:legacy.styleWeights,suggestions,styleVersion:algorithm};
 }

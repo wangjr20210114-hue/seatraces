@@ -1,10 +1,10 @@
 import {z} from 'zod';
 import {requireManagement} from '../operations/permissions.mjs';
 import {recommend} from './engine.mjs';
+import {tripFeedbackSchema} from './feedback.mjs';
 const fail=(message,status=400)=>Object.assign(Error(message),{status});
 export function installRecommendationRoutes(app,{auth,query,transaction,events,production=false}){
- const feedback=z.object({rating:z.number().int().min(1).max(5),experience:z.enum(['plan','trip']).default('plan'),
-  aspects:z.object({places:z.number().int().min(1).max(5).optional(),pace:z.enum(['too_busy','good','too_slow']).optional()}).strict().default({})}).strict();
+ const feedback=tripFeedbackSchema;
  async function ownTrip(c,req){const t=(await c.query('SELECT id,status FROM trips WHERE id=$1 AND user_id=$2 FOR UPDATE',[z.uuid().parse(req.params.id),req.user.id])).rows[0];if(!t)throw fail('行程不存在',404);return t;}
  app.get('/api/journey/trips/:id/feedback',auth,async(req,res)=>{
   const row=await transaction(async c=>{await ownTrip(c,req);return (await c.query('SELECT rating,aspects,experience,updated_at FROM recommendation_trip_feedback WHERE trip_id=$1 AND user_id=$2',[req.params.id,req.user.id])).rows[0]||null;});res.json({feedback:row});

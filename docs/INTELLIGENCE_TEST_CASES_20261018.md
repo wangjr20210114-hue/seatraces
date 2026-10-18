@@ -21,3 +21,23 @@ $env:TEST_ADAPTIVE='1'
 node --max-old-space-size=320 --test test/adaptive-questions.test.mjs test/agent-compound.test.mjs test/interest-personalization.test.mjs
 node scripts/ui-test.mjs run e2e/specs/adaptive.spec.mjs --project=desktop
 ```
+
+## 分维度反馈
+
+| 用例 | 模块 | 简单步骤 | 预期 | 结果 |
+|---|---|---|---|---|
+| INTEL-F01 | 反馈/分开记录 | 整体2分、地点5分、节奏太赶 | 原样保存三种评价，园林兴趣正向，慢节奏成为待确认建议 | 真实HTTP→数据库→画像通过 |
+| INTEL-F02 | 反馈/范围 | 只评价餐饮1分，无地点评价 | 不把美食类别或游玩地点记成讨厌；不生成地点满意/不满意训练标签 | 通过 |
+| INTEL-F03 | 反馈/临时条件 | 本次带父母 | 行程保留本次事实，反馈不写成永久同行人或类别偏好 | 通过 |
+| INTEL-F04 | 反馈/撤销和权限 | 他人尝试改；本人改成餐饮单项评价、再撤销 | 他人404；旧节奏证据消退；撤销后读取为空 | 通过 |
+| INTEL-F05 | 网页/独立评分 | 在历史行程选整体2分；地点先为空，改成5分，节奏太赶；保存刷新 | 不自动把2分复制到地点；刷新后各维度一致 | Edge通过 |
+
+反馈专项2项（含隔离HTTP链路）通过。生产需要重新执行 `server/recommendation/schema.sql` 更新既有反馈触发器：明确地点评分独立于节奏/餐饮；有方面评价而缺少地点评分时，不从整体分推断地点标签。没有新表，没有删除旧评价，迁移仍应备份。
+
+```powershell
+$env:TEST_FEEDBACK_DIMENSIONS='1'
+node --max-old-space-size=320 --test test/feedback-dimensions.test.mjs
+node scripts/ui-test.mjs run e2e/specs/feedback-dimensions.spec.mjs --project=desktop
+```
+
+首次专项发现单一明确反馈的建议置信度阈值过高，调整为只产生可确认的弱建议；之后测试SQL误用不存在的 created_at 列，修正为自增结果ID顺序，最终通过。没有修改模型激活门槛。网页两个测试在同一轮通过后拆成按模块命名的文件，内容保持一致。
