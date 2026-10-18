@@ -77,8 +77,9 @@ MAIL_OUTBOX_KEY=由配置脚本生成或保留
 ```sh
 cd /home/ubuntu/seatraces-app
 sudo docker compose --env-file .env.deploy -f compose.yaml up -d --force-recreate backend
-sudo docker exec seatraces-business-backend-1 node scripts/check-mail.mjs --verify
 ```
+
+生产镜像仅包含 `server`、`public` 和基础资料，容器中没有本机 `scripts/check-mail.mjs`。安装器 `deploy/activate-tencent-mail.py` 直接调用镜像内 `server/mail.mjs` 和 `server/services/mail-outbox.mjs` 完成只读核验，也可登录后台“邮件投递”点击核验。安装器不携带凭据，SecretId/SecretKey 由管理员在服务器隐藏输入；先备份原配置、保留已有队列密钥，核验失败恢复原配置。
 
 容器中运行的是新代码且只读核验通过后，再对真实收信验收。此适配不需要新建数据库表，继续使用已有 `mail_outbox`。后台“邮件投递”显示配置核验、队列状态及安全事件日志；生产启用需要记录 `mail.configuration.activated` 操作日志，不记录凭据。
 

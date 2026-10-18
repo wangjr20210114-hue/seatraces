@@ -36,9 +36,17 @@ def report(phase,**kwargs):
 
 def compose():return ['docker','compose','--env-file',str(ROOT/'.env.deploy'),'-f',str(ROOT/'compose.yaml')]
 
+VERIFY_SCRIPT="""import {mailConfiguration} from './server/services/mail-outbox.mjs';
+import {createMailer} from './server/mail.mjs';
+const configuration=mailConfiguration(),result={configuration,verification:'not_configured',messageSent:false};
+if(!configuration.enabled)process.exitCode=1;
+else try{result.checks=await createMailer().verify();result.verification='ses_domain_and_templates_passed';}
+catch(e){result.verification='ses_configuration_verification_failed';if(/^SES_[A-Z_]+$/.test(e?.mailDelivery?.code))result.errorCode=e.mailDelivery.code;process.exitCode=1;}
+console.log(JSON.stringify(result));"""
+
 def check_mail(preflight=False):
-    args=(compose()+['run','--rm','--no-deps','-T','--entrypoint','node','backend','scripts/check-mail.mjs','--verify']
-          if preflight else ['docker','exec','seatraces-business-backend-1','node','scripts/check-mail.mjs','--verify'])
+    args=(compose()+['run','--rm','--no-deps','-T','--entrypoint','node','backend','--input-type=module','-e',VERIFY_SCRIPT]
+          if preflight else ['docker','exec','seatraces-business-backend-1','node','--input-type=module','-e',VERIFY_SCRIPT])
     r=subprocess.run(args,capture_output=True,timeout=90)
     try:v=json.loads(r.stdout)
     except Exception:raise RuntimeError('MAIL_VERIFICATION_FAILED') from None
