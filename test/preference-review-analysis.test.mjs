@@ -27,3 +27,14 @@ test('aggregate rejects unknown studies and incomplete data without producing a 
   const a=answers(['unsure','second','both']);assert.throws(()=>aggregateReviews(study,{...protocol,protocolId:'other'},[a]),/Protocol mismatch/);
   a.responses.pop();assert.throws(()=>aggregateReviews(study,protocol,[a]));
 });
+
+test('report marks post-hoc interpretations without replacing frozen exact-repeat results',()=>{
+  const r=aggregateReviews(study,protocol,[answers(['both','neither','first'])]);
+  assert.equal(r.reviewers[0].repeatAgreements,0);
+  assert.equal(r.reviewers[0].supplementalInterpretation.repeats.compatible,1);
+  assert.equal(r.totals['rule vs tower'].both,1);
+  const rendered=renderAnalysis(r);
+  assert.match(rendered,/0\/1 道重复题选项完全一致（原定指标）/);
+  assert.match(rendered,/事后诊断/);assert.match(rendered,/不将另一篇自动视为负样本/);
+  assert.match(rendered,/含义可兼容 1 题/);assert.match(rendered,/不导出训练标签、不写用户画像/);
+});
