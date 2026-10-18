@@ -1166,3 +1166,5 @@ dialog::backdrop {
 .personal-list-item>a {display:flex;flex:1;gap:8px;flex-direction:column;min-width:0;overflow-wrap:anywhere;color:#183c40;text-decoration:none;}
 .personal-list-item>a span {color:#536b67;}.personal-list-item button {flex-shrink:0;}.settings-menu a {text-decoration:none;color:inherit;}
 @media(max-width:420px){.personal-letter{padding:18px}.personal-stats span{font-size:12px}.personal-list-item{padding:14px;gap:8px}.personal-list-item button{padding:6px;font-size:13px}}
+
+.alternative-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:12px}.alternative-card{padding:16px;border:2px solid var(--ink,#194b50);border-radius:20px;background:#fffdf0}.alternative-card h3{margin:0 0 10px}.alternative-card .inline-action{margin:10px 8px 0 0}.alternative-route{line-height:1.7}.alternative-card details p{font-size:14px;line-height:1.6}

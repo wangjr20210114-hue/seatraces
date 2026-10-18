@@ -14,6 +14,7 @@ import { mountAgentLauncher } from './agent-launcher.js';
 import { renderInbox } from './inbox.js';
 import { mountTripServices } from "./trip-services.js";
 import {mountTripWeather} from './trip-weather.js';
+import {mountPlanningAlternatives} from './planning-alternatives.js';
 import {recommendationContext} from './travel-context.js';
 import { mountServiceMapDock } from "./service-map-dock.js";
 import { plannerScene, serviceScene, savedServicePoints } from "./map-scene.js";
@@ -1253,6 +1254,7 @@ function paintTrip(updateMap = true) {
   if (updateMap) paintMap();
   const services = document.createElement("section");
   $("#itinerary").append(services);
+  if(!overview)mountPlanningAlternatives({element:services,trip:t,day:state.day,api,onSaved:updated=>{state.trip=updated;state.fitRevision++;paintTrip();}});
   if(!overview)mountTripWeather({element:services,trip:t,day:state.day,api});
   if (!overview)
     mountTripServices({

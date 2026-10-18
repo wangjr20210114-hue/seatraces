@@ -761,6 +761,8 @@ export function createAgentEngine({
         day: f.day,
         text: f.edit,
       });
+      if(r.status==='retry')return ask(s,'retryEdit',r.message,[{label:'重新核验',data:true}]);
+      if(r.status==='clarify'&&r.choices?.length)return ask(s,'localEditChoice',r.message,r.choices.filter(p=>typeof p.text==='string'&&p.text.length<=500).map(p=>({label:p.label,data:p.text})),{input:'text'});
       if (!r.operation)
         return textQuestion(
           s,
@@ -790,6 +792,7 @@ export function createAgentEngine({
         add: "添加",
         move: "调整顺序",
         lock: "锁定",
+        apply_preview: "采用已核验的局部方案",
       };
       return prepare(
         ctx,
@@ -799,6 +802,7 @@ export function createAgentEngine({
         [
           t.title,
           `Day ${f.day + 1}：${names[op.type] || op.type} ${old?.name || ""}${next ? " → " + next.name : ""}${op.type === "move" ? " → 第 " + (op.to + 1) + " 位" : ""}`,
+          ...(op.type==='apply_preview'?[r.summary?.stops?.map(p=>p.name).join(' → '),`预计 ${r.summary?.metrics?.finishAt||'—'} 结束；点间步行 ${Math.round(r.summary?.metrics?.walkingMeters||0)} 米`].filter(Boolean):[]),
         ],
       );
     }
@@ -1261,7 +1265,8 @@ export function createAgentEngine({
           start: f.start,
           now: now(),
         }).end;
-    } else f[key] = value;
+    } else if(key==='localEditChoice')f.edit=value;
+    else if(key!=='retryEdit')f[key] = value;
   }
   async function message(ctx, input) {
     ctx = guardWorkflow(ctx);

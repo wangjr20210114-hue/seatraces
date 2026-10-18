@@ -96,6 +96,7 @@ export function ruleIntent(text) {
   if (/(标记|改为|设为).{0,15}(已完成|完成|计划中)/.test(text))
     return op("trip_status");
   if (/恢复.{0,20}(版本|行程)/.test(text)) return op("trip_restore");
+  if(/(?:下午|上午).{0,15}(?:太累|太赶|少安排)|保留.{1,40}(?:其余|重新安排)|(?:这个博物馆|这家博物馆).{0,15}(?:不想去|换个)/.test(text))return op('edit_trip');
   if (
     /(删除|去掉|移除|添加|增加|替换|调换|调整|修改|改成|改为|移动).{0,40}(景点|行程|路线)|(?:行程|路线).{0,20}(修改|轻松|少一点)/.test(
       text,
