@@ -91,7 +91,10 @@ async function checkConnection(retry = false) {
   }
 }
 $("#reconnect").onclick = () => checkConnection(true);
-window.addEventListener("online", () => checkConnection());
+// A network loss can interrupt the map SDK before its "complete" event. A
+// healthy API alone cannot repair that iframe. Reconnect through the same path
+// as the visible button; the map-ready message repaints the current day.
+window.addEventListener("online", () => checkConnection(true));
 const state = {
   step: 0,
   origin: { label: "" },

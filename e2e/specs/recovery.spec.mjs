@@ -66,3 +66,15 @@ test('RECOVERY-005 问AI断网保留输入，恢复后按正常接口导航',asy
  await page.getByRole('button',{name:'发送 ↑',exact:true}).click();await expect(page.locator('.agent-error')).toBeVisible();await expect(input).toHaveValue('打开我的收藏');
  await context.setOffline(false);await page.getByRole('button',{name:'发送 ↑',exact:true}).click();await expect(page).toHaveURL(/#\/favorites/);
 });
+
+test('RECOVERY-006 网络恢复重新初始化地图，保留当前行程和日期',async({page,context,fixture})=>{
+ await page.goto('/#/home');await expect(page.locator('body')).not.toHaveClass(/auth-pending/);
+ await page.evaluate(id=>localStorage.setItem('seatraces-last-trip',id),fixture.trip);await page.reload();await page.locator('[data-day="1"]').click();
+ let frameLoads=0;page.on('framenavigated',frame=>{if(frame.url().includes('/amap-view.html'))frameLoads++;});
+ const before=await page.locator('.trip-head h2').innerText();
+ await context.setOffline(true);await page.evaluate(()=>window.dispatchEvent(new Event('offline')));
+ await context.setOffline(false);await page.evaluate(()=>window.dispatchEvent(new Event('online')));
+ await expect.poll(()=>frameLoads).toBeGreaterThan(0);
+ await expect(page.locator('.trip-head h2')).toHaveText(before);await expect(page.locator('[data-day="1"]')).toHaveAttribute('aria-pressed','true');
+ await expect(page.locator('#connection-status')).toBeHidden();
+});
