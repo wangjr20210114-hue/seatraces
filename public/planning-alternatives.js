@@ -12,11 +12,26 @@ export function mountPlanningAlternatives({element,trip,day,api,onSaved}){
   measure(item);const details=document.createElement('details');text(details,'summary','为什么这样安排？');
   for(const e of item.explanations||[])text(details,'p',e.name+' · '+(reasonNames[e.reason]||'按本次约束'));
   for(const e of (item.excluded||[]).slice(0,12))text(details,'p',e.name+' · '+(reasonNames[e.reason]||'暂不安排'));card.append(details);
-  const save=button('确认采用',async()=>{const t=await api('/api/trips/'+trip.id,{version:trip.version,operation:{type:'apply_preview',day,previewId:item.id}},'PATCH');onSaved(t);});save.disabled=true;
+  const save=button('确认采用',async()=>{
+   let saved;
+   try{saved=await api('/api/trips/'+trip.id,{version:trip.version,operation:{type:'apply_preview',day,previewId:item.id}},'PATCH');}
+   catch(error){
+    // The write may have committed before its response was lost. Read the normal
+    // owned-trip endpoint and recognize only this exact preview, never a merely
+    // newer version or somebody else's edit. Do not issue a second write.
+    if(!error.status||[409,502,503,504].includes(error.status)){
+     try{const latest=await api('/api/trips/'+trip.id);
+      if(latest.version>trip.version&&latest.plan?.days?.[day]?.planningExplanation?.previewId===item.id)saved=latest;
+     }catch{/* Keep the original failure; retry remains available. */}
+    }
+    if(!saved)throw error;
+   }
+   onSaved(saved);
+  });save.disabled=true;
   const verify=button('核验实际路线',async()=>{status.textContent='正在核验路线…';const v=await api(`/api/journey/trips/${trip.id}/alternatives/${item.id}/verify`,{version:trip.version});measure(v);save.disabled=v.verification!=='verified';status.textContent=v.verification==='verified'?'路线可用，请确认是否采用':(v.warnings||[]).join('；')||'暂不可核验';});
   card.append(verify,save);result.append(card);
  }
- open.onclick=async()=>{open.disabled=true;status.textContent='正在比较方案…';result.replaceChildren();try{const r=await api(`/api/journey/trips/${trip.id}/alternatives`,{version:trip.version,day});if(!area.isConnected)return;r.items.forEach(paint);status.textContent=r.items.length?'':r.unmet.join('；');}catch(e){status.textContent=e.message;}finally{open.disabled=false;}};
+ open.onclick=async()=>{open.disabled=true;status.textContent='正在比较方案…';try{const r=await api(`/api/journey/trips/${trip.id}/alternatives`,{version:trip.version,day});if(!area.isConnected)return;result.replaceChildren();r.items.forEach(paint);status.textContent=r.items.length?'':r.unmet.join('；');}catch(e){status.textContent=e.message;}finally{open.disabled=false;}};
  if(trip.version>1)area.append(button('撤销上次修改 ↶',async()=>{
   const versions=await api(`/api/trips/${trip.id}/versions`),previous=versions.find(v=>v.version<trip.version);
   if(!previous)throw Error('没有可恢复的版本');const t=await api('/api/trips/'+trip.id,{version:trip.version,restoreVersion:previous.version},'PATCH');onSaved(t);

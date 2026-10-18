@@ -52,6 +52,8 @@ test('owned verified previews use normal versioned mutation and support undo wit
   const saved=await Promise.all(Array.from({length:12},()=>f.request('/api/trips/'+id,{user:'user',method:'PATCH',body:patch})));
   assert.equal(saved.filter(x=>x.status===200).length,1);assert.equal(saved.filter(x=>x.status===409).length,11);
   const t=saved.find(x=>x.status===200).data;assert.equal(t.version,2);assert.equal(t.plan.days[0].stops.length,3);
+  assert.equal(t.plan.days[0].planningExplanation.previewId,pid);
+  assert.equal((await f.query('SELECT count(*)::int n FROM trip_versions WHERE trip_id=$1',[id])).rows[0].n,2);
   assert.deepEqual(t.plan.days[0].stops.slice(0,2),plan.days[0].stops.slice(0,2));assert.deepEqual(t.plan.days[1],plan.days[1]);
   const undo=await f.request('/api/trips/'+id,{user:'user',method:'PATCH',body:{version:2,restoreVersion:1}});
   assert.equal(undo.data.version,3);assert.deepEqual(undo.data.plan,plan);

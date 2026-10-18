@@ -85,7 +85,7 @@ export function createIntelligentPlanning({query,transaction,loadCandidates=scop
   const value=row.payload;if(value.verification!=='verified')throw fail('请先核验实际路线并处理时间冲突',409);
   const before=trip.plan.days[operation.day],after=value.day;
   if(before.stops.some((p,i)=>p.locked&&after.stops[i]?.id!==p.id))throw fail('锁定地点不能被修改',409);
-  const plan=structuredClone(trip.plan);plan.days[operation.day]={...after,planningExplanation:{name:value.name,metrics:value.metrics,included:value.explanations,excluded:value.excluded,checkedAt:new Date().toISOString()}};
+  const plan=structuredClone(trip.plan);plan.days[operation.day]={...after,planningExplanation:{previewId:row.id,name:value.name,metrics:value.metrics,included:value.explanations,excluded:value.excluded,checkedAt:new Date().toISOString()}};
   plan.routeStatus='pending';await c.query('UPDATE trip_plan_previews SET applied_version=$2 WHERE id=$1',[row.id,trip.version+1]);return plan;
  }
  return {own,compare,verify,apply};

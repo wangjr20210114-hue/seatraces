@@ -29,6 +29,11 @@ test("frontend survives backend loss; API failure is explicit and static files s
   const api = await fetch(base + "/api/health");
   assert.equal(api.status, 503);
   assert.equal((await api.json()).code, "backend_unavailable");
+  // Restore the same listening address. The independent frontend must recover
+  // its API proxy without its own restart or a changed user-facing URL.
+  await new Promise(resolve=>backend.listen(Number(new URL(origin).port),'127.0.0.1',resolve));
+  assert.equal((await fetch(base+'/api/health')).status,200);
+  assert.equal((await (await fetch(base+'/api/health')).json()).ok,true);
   for (const file of [".env", "server/schema.sql", "archive/legacy-ui/app.js"]) assert.equal((await fetch(base + "/" + file)).status, 404);
   const old = await fetch(base + "/legacy.html", { redirect: "manual" });
   assert.equal(old.status, 302);
