@@ -1,3 +1,4 @@
+import { libraryCard, bindCardActions } from './social-ui.js';
 const esc = (s) =>
   String(s ?? "").replace(
     /[&<>"']/g,
@@ -73,6 +74,10 @@ export async function renderPersonalPage({
       const list = $(".history-list"),
         more = $(".loadmore"),
         status = $("[role=status]");
+      if (!walks) {
+        list.classList.add('social-feed');
+        bindCardActions(list, { api, toast: message => fail({ message }) });
+      }
       const load = async () => {
         more.disabled = true;
         try {
@@ -88,7 +93,8 @@ export async function renderPersonalPage({
             items
               .map(
                 (p) =>
-                  `<article class="personal-list-item" data-item="${esc(p.id)}"><a href="#/${walks ? "citywalk" : route.page}/${encodeURIComponent(p.id)}"><b>${esc(p.title)}</b><span>${esc(walks ? p.city.name : date(p.saved_at))} ${walks ? "· " + p.stops.length + " 站" : "→"}</span></a>${route.page === "favorites" ? `<button class="walk-create" data-unsave="${esc(p.id)}">取消收藏</button>` : ""}</article>`,
+                  !walks ? libraryCard(p, route.page).replace('</article>', `${route.page === "favorites" ? `<button class="social-subtle library-unsave" data-unsave="${esc(p.id)}">取消收藏</button>` : ''}</article>`) :
+                  `<article class="personal-list-item" data-item="${esc(p.id)}"><a href="#/citywalk/${encodeURIComponent(p.id)}"><b>${esc(p.title)}</b><span>${esc(p.city.name)} · ${p.stops.length} 站</span></a></article>`,
               )
               .join(""),
           );

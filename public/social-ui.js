@@ -21,6 +21,14 @@ export function socialCard(p){
  const city=Array.isArray(p.cities)?p.cities.slice(0,2).filter(s=>typeof s==='string').join(' · '):'';
  return `<article class="social-card" data-post="${esc(p.id)}" data-recommendation-request="${esc(p.requestId||'')}"><a href="#/post/${esc(p.id)}"><div class="social-card-media">${cover}${city?`<span class="social-location">${icon('pin')}${esc(city)}</span>`:''}</div><div class="social-card-copy"><h2>${esc(p.title)}</h2>${p.is_synthetic?'<span class="synthetic-label">模拟内容</span>':''}${p.excerpt?`<p class="social-excerpt">${esc(p.excerpt)}</p>`:''}</div></a><footer><span class="social-author"><i>${esc(p.avatar||'🌊')}</i><span>${esc(p.nickname||'旅行者')}</span></span><button class="social-like" data-like="${esc(p.id)}" aria-label="${p.liked?'取消点赞':'点赞'}" aria-pressed="${!!p.liked}">${icon('like')}<span>${p.likes||0}</span></button></footer></article>`;
 }
+export function libraryCard(p, kind) {
+ const time = value => {
+  const d = new Date(value);
+  return value && Number.isFinite(d.getTime()) ? `<time datetime="${esc(d.toISOString())}">${esc(d.toLocaleString('zh-CN', {year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}))}</time>` : '时间未记录';
+ };
+ const metadata = `<div class="library-metadata"><span>${kind==='browsing'?'最近浏览':'收藏于'} ${time(p.saved_at)}</span><span>发布于 ${time(p.created_at)}</span>${p.day_count?`<span>${Number(p.day_count)} 天路线${p.kind==='citywalk'?' · CityWalk':''}</span>`:''}${kind==='browsing'&&p.record_days>1?`<span>在 ${Number(p.record_days)} 天浏览过</span>`:''}</div>`;
+ return socialCard(p).replace('</article>',metadata+'</article>');
+}
 export function bindCardActions(container,{api,toast=()=>{}}){
  const click=async e=>{const b=e.target.closest('[data-like]');if(!b)return;const active=b.getAttribute('aria-pressed')!=='true',n=Number(b.querySelector('span')?.textContent||0);b.disabled=true;
   try{await api('/api/posts/'+b.dataset.like+'/reactions',{kind:'like',active});b.setAttribute('aria-pressed',String(active));b.setAttribute('aria-label',active?'取消点赞':'点赞');b.innerHTML=`${icon('like')}<span>${Math.max(0,n+(active?1:-1))}</span>`;}catch(e){toast(e.message);}finally{b.disabled=false;}};

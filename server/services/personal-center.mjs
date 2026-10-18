@@ -7,14 +7,16 @@ import {
   valueLabels,
 } from "../agent/memory.mjs";
 import { interests } from "../planner.mjs";
+import { cardSelect } from "../social/community.mjs";
+import { visiblePost } from "./community-interactions.mjs";
 const page = z.object({
   limit: z.coerce.number().int().min(1).max(50).default(20),
   offset: z.coerce.number().int().min(0).max(100000).default(0),
 });
 const kind = z.enum(["favorites", "browsing"]);
 const from = {
-  favorites: `FROM reactions r JOIN posts p ON p.id=r.post_id WHERE r.user_id=$1 AND r.kind='save' AND p.hidden_at IS NULL`,
-  browsing: `FROM browse_events r JOIN posts p ON p.id=r.post_id WHERE r.user_id=$1 AND p.hidden_at IS NULL`,
+  favorites: `FROM reactions r JOIN posts p ON p.id=r.post_id JOIN users u ON u.id=p.user_id WHERE r.user_id=$1 AND r.kind='save' AND ${visiblePost()} AND u.disabled_at IS NULL`,
+  browsing: `FROM browse_events r JOIN posts p ON p.id=r.post_id JOIN users u ON u.id=p.user_id WHERE r.user_id=$1 AND ${visiblePost()} AND u.disabled_at IS NULL`,
 };
 export function installPersonalCenter(app, { auth, query, transaction }) {
   app.get("/api/me/style", auth, async (req, res) => {
@@ -80,8 +82,12 @@ export function installPersonalCenter(app, { auth, query, transaction }) {
       { limit, offset } = page.parse(req.query);
     const rows = (
       await query(
-        `SELECT p.id,p.title,p.tags,max(r.created_at) saved_at ${from[type]}
-   GROUP BY p.id,p.title,p.tags ORDER BY saved_at DESC,p.id LIMIT $2 OFFSET $3`,
+        `SELECT ${cardSelect},p.tags,activity.saved_at,activity.record_days,activity.dwell_seconds
+         FROM (SELECT p.id,max(r.created_at) saved_at,count(*)::int record_days,
+           ${type === 'browsing' ? 'sum(r.dwell_seconds)::int' : 'NULL::int'} dwell_seconds ${from[type]}
+           GROUP BY p.id ORDER BY saved_at DESC,p.id LIMIT $2 OFFSET $3) activity
+         JOIN posts p ON p.id=activity.id JOIN users u ON u.id=p.user_id
+         ORDER BY activity.saved_at DESC,p.id`,
         [req.user.id, limit + 1, offset],
       )
     ).rows;

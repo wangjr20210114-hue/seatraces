@@ -15,6 +15,7 @@ test(
         "operations/inbox-schema.sql",
         "operations/moderation-schema.sql",
         "agent/schema.sql",
+        "social/schema.sql",
       ],
     });
     try {
@@ -94,6 +95,15 @@ test(
             rows.data.items.map((p) => p.id),
             [p],
           );
+          assert.equal(rows.data.items[0].user_id, u);
+          assert.equal(typeof rows.data.items[0].nickname, 'string');
+          assert.ok(rows.data.items[0].created_at && rows.data.items[0].saved_at);
+          assert.equal(rows.data.items[0].day_count, 1);
+          assert.equal(rows.data.items[0].excerpt, '正文');
+          assert.ok(!('snapshot' in rows.data.items[0]), 'library must not copy full itineraries');
+          const browsing = await f.request('/api/me/library/browsing', { user:'user' });
+          assert.equal(browsing.data.items[0].dwell_seconds, 10);
+          assert.equal(browsing.data.items[0].record_days, 1);
           assert.equal(
             (
               await f.request("/api/me/library/favorites/" + third, {

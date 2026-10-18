@@ -1,5 +1,5 @@
 import {icon} from './ui-icons.js';
-import {esc,socialCard,bindCardActions,trackVisible} from './social-ui.js';
+import {esc,socialCard,libraryCard,bindCardActions,trackVisible} from './social-ui.js';
 export const discoveryCard=socialCard;
 export async function publishRoute({button,kind,id,api,navigate,toast}){
  if(button.disabled)return;button.disabled=true;const label=button.textContent;button.textContent='正在准备…';
@@ -29,6 +29,7 @@ export function mountPersonalPosts({content,api,navigate,toast}){
  async function load(append=false){const rev=++revision;more.disabled=true;if(!append){cursor=null;offset=0;feed.replaceChildren();}status.textContent='正在整理…';
   try{const url=tab==='posts'?draft?'/api/social/drafts?limit=12&offset='+offset:'/api/social/feed?scope=mine&limit=12'+(cursor?'&cursor='+encodeURIComponent(cursor):''):`/api/me/library/${tab}?limit=12&offset=${offset}`;const r=await api(url);if(dead||revision!==rev)return;
    if(tab==='posts'&&!draft)feed.insertAdjacentHTML('beforeend',r.items.map(socialCard).join(''));
+   else if(tab!=='posts')feed.insertAdjacentHTML('beforeend',r.items.map(p=>libraryCard(p,tab)).join(''));
    else feed.insertAdjacentHTML('beforeend',r.items.map(p=>`<article class="social-card simple-card"><a href="#/${draft&&tab==='posts'?'compose':'post'}/${esc(p.id)}"><span>${draft&&tab==='posts'?'✎':'✦'}</span><h2>${esc(p.title||'未命名草稿')}</h2></a>${draft&&tab==='posts'?`<button class="social-subtle" data-delete-draft="${esc(p.id)}" data-version="${p.version}">删除草稿</button>`:''}</article>`).join(''));
    offset+=r.items.length;cursor=r.nextCursor;more.hidden=!(cursor||r.hasMore);status.textContent=feed.childElementCount?'':'这里还空着，去发现逛逛吧';
   }catch(e){if(!dead&&revision===rev){status.textContent=e.message;more.hidden=false;}}
