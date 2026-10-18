@@ -420,10 +420,12 @@ test("journey follows existing create → catalog → questions → generate end
       "/api/journey/sessions",
       `/api/journey/sessions/${session}/cities/bj?async=1`,
       `/api/journey/sessions/${session}/questions`,
+      `/api/journey/sessions/${session}/questions`,
       `/api/journey/sessions/${session}/generate`,
     ],
   );
   assert.equal(calls.at(-1).body.answers.pace, "relaxed");
+  assert.deepEqual(calls.filter(c=>c.path.endsWith('/questions')).at(-1).body,{answers:{pace:'relaxed'}});
 });
 
 test("eating and lodging: actual candidates → preview → confirmation → same versioned save, refresh targets selected slot", async () => {

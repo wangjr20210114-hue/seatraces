@@ -99,6 +99,8 @@ const state = {
   catalog: {},
   selections: {},
   questions: [],
+  answerKeys: [],
+  adaptiveQuestions: false,
   answers: {
     interests: [],
     pace: "balanced",
@@ -454,6 +456,8 @@ function invalidateSession() {
   state.catalog = {};
   state.selections = {};
   state.questions = [];
+  state.answerKeys = [];
+  state.adaptiveQuestions = false;
 }
 async function turn(step) {
   if (state.busy) return;
@@ -611,7 +615,9 @@ async function render() {
     $("#question").onclick = (e) => {
       const el = e.target.closest("[data-answer]");
       if (!el) return;
-      const value = el.dataset.answer;
+      const raw = el.dataset.answer;
+      const original=q.options.find(o=>String(typeof o==='string'?o:o.value)===raw);
+      const value=typeof original==='string'?original:original?.value;
       if (q.type === "multi") {
         const a = state.answers[q.id] || [];
         state.answers[q.id] = a.includes(value)
@@ -891,14 +897,30 @@ $("#next").onclick = async () => {
           return;
         }
         state.questions = q.questions;
-        state.answers = { ...state.answers, ...q.defaults };
+        state.adaptiveQuestions=q.schemaVersion==='adaptive-questions/1';
+        state.answers = { ...q.defaults };
         setBusy(false);
       }
     }
-    if (
-      state.questions.length &&
-      s === 2 + state.cities.length + state.questions.length
-    ) {
+    let generate=false;
+    if(state.adaptiveQuestions&&state.questions.length&&s>=3+state.cities.length){
+      const index=s-3-state.cities.length,q=state.questions[index];
+      if(state.answers[q.id]===undefined)throw Error('选一个适合这次旅行的选项吧');
+      const prefix=state.questions.slice(0,index+1);
+      const allowed=new Set(prefix.map(q=>q.id));
+      state.answerKeys=[...new Set([...state.answerKeys.filter(k=>allowed.has(k)),q.id])];
+      setBusy(true,'看看还有什么需要确认…');
+      const next=await api(`/api/journey/sessions/${state.session.id}/questions`,{
+        answers:Object.fromEntries(state.answerKeys.map(k=>[k,state.answers[k]])),
+      });
+      if(revision!==pageRevision||!$('#wizard').open){setBusy(false);return;}
+      state.questions=[...prefix,...next.questions];
+      state.answers={...next.defaults,...Object.fromEntries(state.answerKeys.map(k=>[k,state.answers[k]]))};
+      generate=next.ready;
+      setBusy(false);
+    }
+    if(!state.adaptiveQuestions&&state.questions.length&&s===2+state.cities.length+state.questions.length)generate=true;
+    if (generate) {
       setBusy(true, "把喜欢的地方排成一路…");
       const trip = await api(
         `/api/journey/sessions/${state.session.id}/generate`,
@@ -916,6 +938,7 @@ $("#next").onclick = async () => {
       state.step = 0;
       state.catalog = {};
       state.questions = [];
+      state.answerKeys = [];
       state.selections = {};
       state.inspiration = null;
       return;

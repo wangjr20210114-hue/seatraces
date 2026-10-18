@@ -15,6 +15,12 @@ export const styleLabels = {
   crowd: "拥挤偏好",
   revisit: "重游偏好",
   interests: "兴趣",
+  companion: '同行人',
+  walkingLimitKm: '每日步行上限（公里）',
+  endBy: '每日结束时间',
+  travelFocus: '游览重点',
+  visitedNames: '去过的地点',
+  avoidPlaceNames: '这次不去',
 };
 export const valueLabels = {
   relaxed: "慢慢逛",
@@ -26,6 +32,8 @@ export const valueLabels = {
   lively: "接受热闹",
   new: "探索新地方",
   either: "可以重游",
+  solo:'一个人',couple:'两个人',friends:'朋友',parents:'带父母',family:'带孩子或家人',
+  immersive:'深入游览',famous:'经典覆盖',
 };
 export const labelValue = (v) =>
   Array.isArray(v) ? v.join("、") || "暂不限定" : valueLabels[v] || v;

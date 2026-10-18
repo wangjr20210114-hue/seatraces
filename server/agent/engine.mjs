@@ -894,7 +894,7 @@ export function createAgentEngine({
       const r = await ctx.api(
         "POST",
         `/api/journey/sessions/${f.sessionId}/questions`,
-        {},
+        {answers:Object.fromEntries([...new Set([...(f.explicitAnswerKeys||[]),...(f.answered||[])])].filter(k=>Object.hasOwn(f.answers||{},k)).map(k=>[k,f.answers[k]]))},
       );
       f.questions = r.questions;
       f.answers = { ...r.defaults, ...f.answers };
@@ -1221,6 +1221,7 @@ export function createAgentEngine({
     } else if (key === "preference") {
       f.answers[f.answering] = value;
       f.answered.push(f.answering);
+      delete f.questions;
     } else if (key === "retryCity") {
     } else if (key === "servicePlace") {
       if (value === "refresh") {

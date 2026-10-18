@@ -166,7 +166,10 @@ export function workflowAllows({ state, action }, method, path, body) {
         return true;
       return (
         f.cities?.every((c) => f.selections?.[c.id]?.length) &&
-        call("POST", `/api/journey/sessions/${f.sessionId}/questions`, {})
+        (call("POST", `/api/journey/sessions/${f.sessionId}/questions`, {})||
+        call("POST", `/api/journey/sessions/${f.sessionId}/questions`, {
+          answers:Object.fromEntries([...new Set([...(f.explicitAnswerKeys||[]),...(f.answered||[])])].filter(k=>Object.hasOwn(f.answers||{},k)).map(k=>[k,f.answers[k]])),
+        }))
       );
     case "edit_trip":
       return (

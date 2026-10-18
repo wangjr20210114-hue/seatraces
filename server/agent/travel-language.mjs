@@ -188,6 +188,19 @@ export function tripPreferences(text) {
   // Two objectives in the same sentence need a priority, not last-match wins.
   if (/少走路/.test(text) && /少换乘/.test(text))
     choices.transport = ["fewWalking", "fewTransfers"];
+  if(!/如果|假如|例如|比如/.test(text)){
+    if(/(?:带|陪|和|跟)(?:着)?(?:父母|爸妈|爸爸妈妈)/.test(text)&&!/不(?:要)?(?:带|陪|和|跟)(?:着)?(?:父母|爸妈|爸爸妈妈)/.test(text))result.companion='parents';
+    else if(/(?:带|和|跟)(?:着)?(?:孩子|小孩|宝宝)/.test(text)&&!/不(?:要)?(?:带|和|跟)(?:着)?(?:孩子|小孩|宝宝)/.test(text))result.companion='family';
+    else if(/(?:我)?(?:自己|独自|一个人)(?:去|出发|旅行|玩)/.test(text))result.companion='solo';
+    const maxWalk=text.match(/(?:每天|每日)?(?:步行|走路)(?:不超过|最多|控制在|上限)?\s*(\d+(?:\.\d+)?)\s*(?:公里|千米|km)/i);
+    if(maxWalk){const n=Number(maxWalk[1]);if(n>=.5&&n<=30)result.walkingLimitKm=n;}
+    const end=text.match(/(?:下午|晚上)?([一二三四五六七八九十\d]{1,2})(?:点|时)(?:前|之前)(?:结束|回|完成|收工)/);
+    if(end){let h=number(end[1]);if(h<8)h+=12;if(h>=8&&h<=22)result.endBy=String(h).padStart(2,'0')+':00';}
+    const visited=[...text.matchAll(/(?:以前|之前|曾经)?(?:已经|曾)?去过(?:了)?\s*([^，。；,;！!?？\s]{2,20})/g)].filter(m=>!/(?:没|未|不曾|没有)$/.test(text.slice(0,m.index))).map(m=>m[1]);
+    if(visited.length)result.visitedNames=[...new Set(visited)].slice(0,30);
+    const avoid=[...text.matchAll(/(?:不想去|不去|不要安排|别安排)\s*([^，。；,;！!?？\s]{2,20})/g)].map(m=>m[1]);
+    if(avoid.length)result.avoidPlaceNames=[...new Set(avoid)].slice(0,30);
+  }
   for (const k of Object.keys(choices)) delete result[k];
   return { values: result, conflicts: choices };
 }

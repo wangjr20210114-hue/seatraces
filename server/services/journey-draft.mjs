@@ -7,6 +7,7 @@ import {
   deduplicateVisitPlaces,
 } from "../domain/scenic-clusters.mjs";
 import { openingOnDate } from "../opening-hours.mjs";
+import {allowedByCurrentTrip,constrainedBudget,visitDuration,walkingEstimate} from '../domain/travel-constraints.mjs';
 import {
   dayBudget,
   visitAllowance,
@@ -23,6 +24,12 @@ export const journeyAnswers = z
       .default("balanced"),
     crowd: z.enum(["avoid", "balanced", "lively"]).default("balanced"),
     revisit: z.enum(["new", "either"]).default("new"),
+    companion: z.enum(["solo", "couple", "friends", "parents", "family"]).optional(),
+    walkingLimitKm: z.coerce.number().min(0.5).max(30).optional(),
+    endBy: z.string().regex(/^(?:0[8-9]|1[0-9]|2[0-2]):[0-5]\d$/).optional(),
+    travelFocus: z.enum(["balanced", "famous", "immersive"]).optional(),
+    visitedNames: z.array(z.string().trim().min(1).max(100)).max(30).optional(),
+    avoidPlaceNames: z.array(z.string().trim().min(1).max(100)).max(30).optional(),
   })
   .strict();
 export function allocateDates(request, cities) {
@@ -102,6 +109,7 @@ export function createJourneyDraft({
     for (const allocation of allocations) {
       const { city, dates } = allocation;
       const eligible = deduplicateVisitPlaces(pools[city.id] || [])
+        .filter(p=>allowedByCurrentTrip(p,preferences))
         .filter(
           (p) =>
             p.wanted ||
@@ -163,8 +171,8 @@ export function createJourneyDraft({
               dates: batchDates,
               dayBudgets: batchDates.map((date) => ({
                 date,
-                ...dayBudget(
-                  preferences.pace,
+                ...constrainedBudget(
+                  preferences,
                   allocation.transfer && date === dates[0],
                 ),
               })),
@@ -202,8 +210,8 @@ export function createJourneyDraft({
                     ]),
                 ),
                 openingHours: p.opening_hours || null,
-                stayMinutes: visitAllowance(p).minutes,
-                staySource: visitAllowance(p).source,
+                stayMinutes: visitDuration(p,preferences).minutes,
+                staySource: visitDuration(p,preferences).source,
               })),
             },
             { maxTokens: 1800 },
@@ -218,9 +226,10 @@ export function createJourneyDraft({
         }
         for (const day of chosen) {
           const transfer = allocation.transfer && day.date === dates[0];
-          const budget = dayBudget(preferences.pace, transfer);
+          const budget = constrainedBudget(preferences, transfer);
           let clock = budget.start,
             previous = null,
+            walkingKm=0,
             stops = [];
           // A low-ranked wish must survive even when the model omits it. Fit wishes
           // first, then fill with model choices; opening hours still take precedence.
@@ -252,10 +261,14 @@ export function createJourneyDraft({
               stops.filter((s) => s.wanted).length >= prioritySlots
             )
               continue;
-            const allowance = visitAllowance(p),
+            const allowance = visitDuration(p,preferences),
               visitMinutes = allowance.minutes;
             const travel = travelAllowance(previous, p, preferences.transport);
             const pause = breakBeforeStop(stops, clock, budget);
+            const walk=walkingEstimate(previous,p,preferences);
+            if(preferences.walkingLimitKm&&walkingKm+walk>preferences.walkingLimitKm){
+              exclusions.set(p.id,[...(exclusions.get(p.id)||[]),{date:day.date,reason:'walking_allowance'}]);continue;
+            }
             let window = null;
             try {
               window = await opening(p, day.date);
@@ -298,6 +311,7 @@ export function createJourneyDraft({
             });
             clock = arrive + visitMinutes;
             previous = p;
+            walkingKm+=walk;
             used.add(p.id);
           }
           days.push({
@@ -307,6 +321,7 @@ export function createJourneyDraft({
             timezone: city.timezone,
             stops,
             timeBudget: budget,
+            walking:{estimatedKm:Math.round(walkingKm*100)/100,limitKm:preferences.walkingLimitKm??null,status:'planning_allowance_excludes_internal_walks'},
             transferAllowance: transfer
               ? {
                   minutes: 300,

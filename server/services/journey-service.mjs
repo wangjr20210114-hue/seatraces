@@ -17,7 +17,7 @@ import {
 import { createReadJobs } from "./read-jobs.mjs";
 const cityReadJob = createReadJobs();
 import { catalogRequest } from "./catalog.mjs";
-import { personalizedQuestions } from "./questions.mjs";
+import {installAdaptiveQuestions} from './adaptive-questions.mjs';
 import {
   allocateDates,
   draftJourney,
@@ -221,6 +221,7 @@ async function singleFlight(key, fn) {
   return work;
 }
 export function installJourneyRoutes(app, { auth, travelHabit, recordWish=async()=>{},onSource=async()=>{},onGenerated=async()=>{} }) {
+  installAdaptiveQuestions(app,{auth,query,ownSession,travelHabit});
   installPlaceDescriptionRoutes(app,{auth,query,resolvePlace});
   // Preview boundaries before the date/session step, using the same shared cache.
   app.get("/api/journey/cities/:cityId/boundary", auth, async (req, res) => {
@@ -392,48 +393,6 @@ export function installJourneyRoutes(app, { auth, travelHabit, recordWish=async(
       );
     },
   );
-  app.post("/api/journey/sessions/:id/questions", auth, async (req, res) => {
-    const s = await ownSession(req.params.id, req.user.id);
-    const result = await singleFlight("questions:" + s.id, async () => {
-      if (s.questions) return s.questions;
-      const habit = await travelHabit(req.user),
-        r = await personalizedQuestions(habit);
-      r.questions.push(
-        {
-          id: "crowd",
-          title: "热闹一点，还是清静一点？",
-          type: "single",
-          options: [
-            { value: "avoid", label: "想躲开人群" },
-            { value: "balanced", label: "都可以" },
-            { value: "lively", label: "热闹也不错" },
-          ],
-        },
-        {
-          id: "revisit",
-          title: "去过的地方，还想再逛吗？",
-          type: "single",
-          options: [
-            { value: "new", label: "这次探索新地方" },
-            { value: "either", label: "喜欢的地方值得重游" },
-          ],
-        },
-      );
-      r.defaults = journeyAnswers.parse({
-        interests: habit.interests || [],
-        pace: habit.pace || "balanced",
-        transport: habit.transport || "balanced",
-        crowd: habit.crowd || "balanced",
-        revisit: habit.revisit || "new",
-      });
-      await query(
-        "UPDATE journey_sessions SET questions=$2,updated_at=now() WHERE id=$1",
-        [s.id, JSON.stringify(r)],
-      );
-      return r;
-    });
-    res.json(result);
-  });
   app.post("/api/journey/sessions/:id/generate", auth, async (req, res) => {
     const s = await ownSession(req.params.id, req.user.id),
       b = z
