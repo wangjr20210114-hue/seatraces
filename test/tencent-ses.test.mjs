@@ -17,7 +17,8 @@ const apiError=code=>reply({Error:{Code:code,Message:'secret vendor text recipie
 const validRead=(headers,body)=>{
   const p=JSON.parse(body);
   if(headers['X-TC-Action']==='GetEmailIdentity')return reply({VerifiedForSendingStatus:true});
-  return reply({TemplateStatus:0,TemplateContent:{Text:Buffer.from(p.TemplateID===103?'密码已修改':'点击 {{link}}').toString('base64')}});
+  const purpose=p.TemplateID===101?'verify_email':'reset_password';
+  return reply({TemplateStatus:0,TemplateContent:{Text:Buffer.from(p.TemplateID===103?'密码已修改':`点击 ${env.APP_ORIGIN}/login.html#action=${purpose}&token={{token}}`).toString('base64')}});
 };
 
 test('SES configuration is explicit, fail-closed and never exposes secret values',()=>{
@@ -55,7 +56,7 @@ for(const [purpose,id] of [['verify_email',101],['reset_password',102],['passwor
     assert.equal(p.Template.TemplateID,id);assert.equal(p.FromEmailAddress,env.SES_FROM);
     assert.equal(p.TriggerType,1);assert.equal(p.SmtpMessageId,'<fixed-id@trip.example.test>');
     const data=JSON.parse(p.Template.TemplateData);
-    if(token){const url=new URL(data.link);assert.equal(url.search,'');assert.equal(url.pathname,'/login.html');assert.equal(new URLSearchParams(url.hash.slice(1)).get('token'),token);assert.equal(new URLSearchParams(url.hash.slice(1)).get('action'),purpose);}
+    if(token){assert.deepEqual(data,{token});assert.ok(!JSON.stringify(data).includes('https://'));}
     else assert.deepEqual(data,{});
     assert.ok(!JSON.stringify(p).includes(env.SES_SECRET_KEY));
   });
@@ -75,6 +76,31 @@ test('SES verification fails for unverified domains, unapproved or incompatible 
     const m=createMailer(env,{postRequest:async(h,b)=>h['X-TC-Action']==='GetEmailIdentity'?validRead(h,b):reply(value)});
     await assert.rejects(m.verify(),e=>/^SES_TEMPLATE_/.test(e.mailDelivery.code));
   }
+});
+
+for(const [name,content,code] of [
+  ['whole variable URL','{{link}}','SES_TEMPLATE_VARIABLES_INVALID'],
+  ['wrong domain','https://other.example.test/login.html#action=verify_email&token={{token}}','SES_TEMPLATE_LINK_INVALID'],
+  ['wrong action',`${env.APP_ORIGIN}/login.html#action=reset_password&token={{token}}`,'SES_TEMPLATE_LINK_INVALID'],
+  ['token in query',`${env.APP_ORIGIN}/login.html?action=verify_email&token={{token}}`,'SES_TEMPLATE_LINK_INVALID'],
+  ['token alone','{{token}}','SES_TEMPLATE_LINK_INVALID'],
+  ['extra token link',`${env.APP_ORIGIN}/login.html#action=verify_email&token={{token}} https://other.example.test/{{token}}`,'SES_TEMPLATE_LINK_INVALID'],
+])test(`SES reviewed links reject ${name}`,async()=>{
+  const m=createMailer(env,{postRequest:async(h,b)=>h['X-TC-Action']==='GetEmailIdentity'?validRead(h,b):reply({TemplateStatus:0,TemplateContent:{Text:Buffer.from(content).toString('base64')}})});
+  await assert.rejects(m.verify(),e=>e.mailDelivery.code===code);
+});
+
+test('SES accepts fixed links in HTML with escaped ampersands',async()=>{
+  const m=createMailer(env,{postRequest:async(h,b)=>{
+    const response=validRead(h,b);
+    if(h['X-TC-Action']==='GetEmailTemplate'){
+      const data=JSON.parse(response.text).Response;
+      const text=Buffer.from(data.TemplateContent.Text,'base64').toString('utf8').replaceAll('&','&amp;');
+      return reply({...data,TemplateContent:{Html:Buffer.from(`<p>${text}</p>`).toString('base64')}});
+    }
+    return response;
+  }});
+  assert.equal((await m.verify()).templatesApproved,true);
 });
 
 for(const [name,result,expected] of [
@@ -118,11 +144,18 @@ test('SMTP remains compatible and keeps TLS, timeouts and single-recipient valid
   await starttls.verify();
 });
 
-test('published template files satisfy configured variables',async()=>{
+test('published templates render fixed production URLs consumed by the existing login page',async()=>{
   for(const [purpose,file] of [['verify_email','verify-email'],['reset_password','reset-password'],['password_changed','password-changed']]){
     const text=await readFile(new URL('../config/mail-templates/'+file+'.txt',import.meta.url),'utf8');
-    assert.equal(text.includes('{{link}}'),purpose!=='password_changed');
+    assert.equal(text.includes('{{token}}'),purpose!=='password_changed');
+    assert.equal(text.includes('{{link}}'),false);
     assert.ok(!text.includes('SecretKey'));
+    if(purpose!=='password_changed'){
+      const rendered=text.replace('{{token}}',message.token),match=rendered.match(/https:\/\/[^\s]+/);
+      assert.ok(match);const url=new URL(match[0]),fragment=new URLSearchParams(url.hash.slice(1));
+      assert.equal(url.origin,'https://trip.seatraces.com');assert.equal(url.pathname,'/login.html');assert.equal(url.search,'');
+      assert.equal(fragment.get('token'),message.token);assert.equal(fragment.get('action'),purpose);
+    }
   }
 });
 

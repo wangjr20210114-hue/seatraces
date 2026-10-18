@@ -2,6 +2,6 @@ SeaTraces 海迹 · 验证邮箱
 
 你正在为 SeaTraces 账号绑定此邮箱。请打开以下链接完成验证：
 
-{{link}}
+https://trip.seatraces.com/login.html#action=verify_email&token={{token}}
 
 链接 30 分钟内有效，使用后失效。如果不是你本人操作，请忽略此邮件。

@@ -67,16 +67,23 @@ export function createSesMailer(env,{postRequest=post,now=()=>Math.floor(Date.no
         if(result.TemplateStatus!==0)throw safeError('failed','SES_TEMPLATE_NOT_APPROVED');
         const text=Buffer.from(result.TemplateContent?.Text||'','base64').toString('utf8');
         const html=Buffer.from(result.TemplateContent?.Html||'','base64').toString('utf8');
-        const fields=[...(text+'\n'+html).matchAll(/\{\{\s*([^{}]+?)\s*\}\}/g)].map(v=>v[1]);
-        if(purpose==='password_changed'?fields.length>0:!fields.includes('link')||fields.some(v=>v!=='link'))
+        const content=(text+'\n'+html).replaceAll('&amp;','&');
+        const fields=[...content.matchAll(/\{\{\s*([^{}]+?)\s*\}\}/g)].map(v=>v[1]);
+        if(purpose==='password_changed'?fields.length>0:!fields.includes('token')||fields.some(v=>v!=='token'))
           throw safeError('failed','SES_TEMPLATE_VARIABLES_INVALID');
+        if(purpose!=='password_changed'){
+          // The reviewed domain/path/action are static; only the hex token varies.
+          const fixedLink=`${origin.origin}/login.html#action=${purpose}&token={{token}}`;
+          if(!content.includes(fixedLink)||content.split(fixedLink).join('').includes('{{token}}'))
+            throw safeError('failed','SES_TEMPLATE_LINK_INVALID');
+        }
       }
       return {domainVerified:true,templatesApproved:true};
     },
     async send(input){
       const m=mailContent(input,origin);
       await call('SendEmail',{FromEmailAddress:env.SES_FROM,Destination:[m.to],Subject:m.subject,
-        Template:{TemplateID:Number(env[sesTemplates[m.purpose]]),TemplateData:JSON.stringify(m.purpose==='password_changed'?{}:{link:m.link})},
+        Template:{TemplateID:Number(env[sesTemplates[m.purpose]]),TemplateData:JSON.stringify(m.purpose==='password_changed'?{}:{token:m.token})},
         TriggerType:1,Unsubscribe:'0',...(m.messageId?{SmtpMessageId:m.messageId}:{})});
       return {accepted:true};
     },

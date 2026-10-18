@@ -20,7 +20,7 @@
 
 ## 3. 三份邮件模板
 
-邮件配置 → 发信模板 → 新建，选择纯文本，分别上传下列文件，提交审核。务必保留原有 `{{link}}` 占位符；不要把完整邮件正文作为变量。
+邮件配置 → 发信模板 → 新建，选择纯文本，分别上传下列文件，提交审核。链接固定为正式站点 `trip.seatraces.com`，务必保留 `{{token}}` 占位符，不要把完整网址或邮件正文作为变量。已有被驳回的模板应编辑原模板、重新上传并提交审核；保留模板 ID。
 
 | 模板名称建议 | 上传文件（项目内） | 审核通过后对应配置 |
 | --- | --- | --- |
@@ -28,7 +28,7 @@
 | SeaTraces 密码重置 | `config/mail-templates/reset-password.txt` | `SES_TEMPLATE_RESET_PASSWORD` |
 | SeaTraces 密码变更通知 | `config/mail-templates/password-changed.txt` | `SES_TEMPLATE_PASSWORD_CHANGED` |
 
-变量只使用 `link`，由后端生成本站的链接，令牌保存在 URL fragment 中。模板 ID 是审核页面显示的正整数，不是模板名称。三份模板均需要审核通过。参见 [模板接口](https://cloud.tencent.com/document/product/1288/51042)。
+前两份模板只使用 `token` 变量，固定地址分别为 `https://trip.seatraces.com/login.html#action=verify_email&token={{token}}` 和 `https://trip.seatraces.com/login.html#action=reset_password&token={{token}}`。后端只传 64 位十六进制一次性令牌，不传网址，令牌保存在 URL fragment 中。密码修改通知没有变量。只读核验还会检查固定域名、页面路径、用途与配置一致。模板 ID 是审核页面显示的正整数，不是模板名称。三份模板均需要审核通过。参见 [模板接口](https://cloud.tencent.com/document/product/1288/51042)。
 
 ## 4. 专用 API 凭据（由账号持有人完成）
 
@@ -64,7 +64,7 @@ SES_SECRET_KEY=专用用户的SecretKey
 MAIL_OUTBOX_KEY=由配置脚本生成或保留
 ```
 
-广州 `ap-guangzhou`，香港 `ap-hongkong`。本机单独验收可将 `APP_ORIGIN` 设为 `http://127.0.0.1:8788`；生产必须为正式 HTTPS 站点根地址。
+广州 `ap-guangzhou`，香港 `ap-hongkong`。这些 SES 模板的域名固定为正式站点，因此本机使用它们时 `APP_ORIGIN` 也应设为 `https://trip.seatraces.com`。独立本机测试使用发送替身；SMTP 本机测试仍可用回环 HTTP 地址。更换正式域名需同步修改模板并重新审核。
 
 运行 `node scripts/check-mail.mjs` 检查缺失/无效字段；再运行 `node scripts/check-mail.mjs --verify` 只读核对域名验证与模板审核/变量，不发邮件。成功输出 `ses_domain_and_templates_passed`；不意味着已实际收信，也不能代替发送权限验证。
 
@@ -89,6 +89,7 @@ sudo docker exec seatraces-business-backend-1 node scripts/check-mail.mjs --veri
 | 域名未验证 | 只读校验 | `SES_DOMAIN_NOT_VERIFIED`，无邮件 |
 | 模板待审核/拒绝 | 只读校验 | `SES_TEMPLATE_NOT_APPROVED`，无邮件 |
 | 变量不匹配 | 模板误用其他变量再校验 | `SES_TEMPLATE_VARIABLES_INVALID` |
+| 固定链接不匹配 | 模板域名、用途或路径与配置不同 | `SES_TEMPLATE_LINK_INVALID` |
 | 邮箱绑定 | 自己的账号申请绑定自己能接收的邮箱 | 收到验证邮件；点击验证；已验证状态更新 |
 | 链接重复使用 | 再次打开已使用链接 | 拒绝，不重复绑定 |
 | 找回密码 | 使用已验证邮箱申请 | 收到邮件；可重设密码；旧会话撤销 |

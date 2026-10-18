@@ -42,11 +42,11 @@ node -e "process.stdout.write(require('node:crypto').randomBytes(32).toString('b
 
 ## 腾讯云 SES 适配
 
-`MAIL_PROVIDER=tencent_ses` 通过 HTTPS API 使用已审核模板发送。保持 `/api/auth/*`、`/api/admin/mail/status` 与 `/api/admin/mail/jobs` 接口不变，不增加数据库表。配置状态增加渠道及无效字段名，不返回凭据值。模板只允许 `{{link}}` 变量；密码已修改模板没有变量。
+`MAIL_PROVIDER=tencent_ses` 通过 HTTPS API 使用已审核模板发送。保持 `/api/auth/*`、`/api/admin/mail/status` 与 `/api/admin/mail/jobs` 接口不变，不增加数据库表。配置状态增加渠道及无效字段名，不返回凭据值。根据腾讯审核意见，模板固定正式域名及页面地址，只允许 `{{token}}` 变量；密码已修改模板没有变量。发送参数只含一次性令牌，不含整条网址。校验脚本检查变量、固定链接与用途，避免用错模板或域名。
 
 `node scripts/check-mail.mjs --verify` 对 SES 只读核验域名及三份模板，不发送邮件。`sent` 仍表示供应商已受理。SES 请求在发出后断线、超时、内部错误或缺少受理凭证时进入 `unknown`，不自动重放；明确的限流允许队列重试。供应商错误原文不会进入队列记录或状态输出。没有邮件自动切换渠道的机制，避免重复投递。
 
-2026-10-19 本机验证：`TEST_MAIL_OUTBOX=1 TEST_ACCOUNTS=1 node --max-old-space-size=320 --test --test-concurrency=1 test/tencent-ses.test.mjs test/mail-outbox.test.mjs test/accounts.test.mjs`，24 项通过、0 失败、0 跳过。使用隔离 PostgreSQL schema 和发送替身，无生产数据或真实收信覆盖。
+2026-10-19 本机验证：`TEST_MAIL_OUTBOX=1 TEST_ACCOUNTS=1 node --max-old-space-size=320 --test --test-concurrency=1 test/tencent-ses.test.mjs test/mail-outbox.test.mjs test/accounts.test.mjs`，31 项通过、0 失败、0 跳过，增加固定链接、域名与用途匹配、令牌渲染及错误模板拦截验证。使用隔离 PostgreSQL schema 和发送替身，无生产数据或真实收信覆盖。
 
 ## 排障接口
 
