@@ -1,4 +1,5 @@
 import { journeyPlaceDetail } from "./journey-details.mjs";
+import { installPlaceDescriptionRoutes } from './place-descriptions.mjs';
 import {
   scenicSummary,
   scenicSummaryVersion,
@@ -220,6 +221,7 @@ async function singleFlight(key, fn) {
   return work;
 }
 export function installJourneyRoutes(app, { auth, travelHabit, recordWish=async()=>{},onSource=async()=>{},onGenerated=async()=>{} }) {
+  installPlaceDescriptionRoutes(app,{auth,query,resolvePlace});
   // Preview boundaries before the date/session step, using the same shared cache.
   app.get("/api/journey/cities/:cityId/boundary", auth, async (req, res) => {
     const id = z.string().min(1).max(80).parse(req.params.cityId);

@@ -26,6 +26,7 @@ import {
   amapLegUrl,
 } from "./trip-view.js";
 import { scenicMemberMarkup, byScore } from "./scenic-view.js";
+import { observePlaceDescriptions } from './place-descriptions.js';
 const $ = (s) => document.querySelector(s),
   esc = (s) =>
     String(s ?? "").replace(
@@ -171,6 +172,7 @@ function workspace(mode) {
   if (mode) $("#home").scrollTop = 0;
 }
 function closeWizard() {
+  stopDescriptions();
   $("#wizard").close();
   ++boundaryRequest;
   clearTimeout(districtRefresh);
@@ -479,6 +481,7 @@ async function turn(step) {
   await render();
 }
 async function render() {
+  stopDescriptions();
   if (!$("#wizard").open) return;
   syncPlannerStep();
   const s = state.step;
@@ -715,7 +718,10 @@ async function locate(silent) {
     button.disabled = false;
   }
 }
+const descriptionObservers=new Set();
+function stopDescriptions(){for(const stop of descriptionObservers)stop();descriptionObservers.clear();}
 function renderClusters(city) {
+  stopDescriptions();
   const data = state.catalog[city.id],
     selected = (state.selections[city.id] ||= data.clusters
       .filter((g) => g.members.some((p) => p.wanted))
@@ -746,6 +752,11 @@ function renderClusters(city) {
       (c.members.length > limit
         ? '<button class="loadmore" data-more-members>更多景点 ↓</button>'
         : "");
+    details.stopDescriptions?.();
+    if(state.session?.id){
+      const stop=observePlaceDescriptions(details.querySelector('.member-list'),{sessionId:state.session.id,api});
+      details.stopDescriptions=stop;descriptionObservers.add(stop);
+    }
   }
   for (const details of document.querySelectorAll("[data-members]"))
     details.ontoggle = () => {

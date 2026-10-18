@@ -81,6 +81,7 @@ export async function migrate() {
   await transaction(async c => c.query(await readFile(new URL('./social/schema.sql', import.meta.url), 'utf8')));
   await transaction(async c => c.query(await readFile(new URL('./social/style-schema.sql', import.meta.url), 'utf8')));
   await transaction(async c => c.query(await readFile(new URL('./recommendation/schema.sql', import.meta.url), 'utf8')));
+  await transaction(async c => c.query(await readFile(new URL('./place-descriptions-schema.sql', import.meta.url), 'utf8')));
 }
 export async function savePlace(p, c = pool) {
   const search = [p.name, ...(p.aliases || []), p.city, p.province].join(" ");

@@ -921,6 +921,10 @@ dialog::backdrop {
   padding: 8px 0;
   font-size: 13px;
 }
+.scenic-description{grid-column:1/-1;position:relative;display:block;color:#506e63;font-size:13px;line-height:1.6;outline-offset:3px}
+.scenic-brief{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.scenic-full{display:none;position:absolute;left:0;right:0;top:100%;z-index:12;border:1px solid #b8cfc1;border-radius:12px;background:#fffef6;padding:12px;color:#244c50;box-shadow:0 3px 10px #244c5015;max-height:180px;overflow:auto;white-space:pre-line}
+.scenic-description:hover .scenic-full,.scenic-description:focus .scenic-full,.scenic-description:focus-within .scenic-full{display:block}
 .scenic-nested {
   margin-left: 10px;
   padding-left: 10px;
