@@ -26,4 +26,4 @@ QWEATHER_DAILY_REQUEST_LIMIT=50
 
 核对来源（2026-10-18）：[高德天气](https://lbs.amap.com/api/webservice/guide/api/weatherinfo)、[和风预警](https://dev.qweather.com/en/docs/api/warning/weather-alert/)、[和风认证](https://dev.qweather.com/en/docs/configuration/authentication/)。
 
-测试：4项解析/供应商边界 + 1项真实HTTP/隔离数据库/20并发通过；供应商使用替身，不收费。网页集成用例已准备，待本轮最终网页验收；真实高德天气与和风预警凭据/覆盖验收另列。
+测试：4项解析/供应商边界 + 1项真实HTTP/隔离数据库/20并发通过；供应商使用替身，不收费。网页集成已通过（含不可信预警文字纯文本呈现）；真实高德天气与和风预警凭据/覆盖验收另列。

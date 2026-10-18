@@ -6,6 +6,36 @@
 
 ## 约定
 
+### 2026-10-18 智能旅行增量（以本机新代码为准，生产部署另行确认）
+
+| 接口 | 输入 | 输出与校验 |
+|---|---|---|
+| POST /api/journey/sessions/:id/questions | 兼容旧 `{}`；新增 `{answers:部分已确认答案}` | `schemaVersion:"adaptive-questions/1",questions,known,defaults,ready,constraints`；只返回缺失问题，历史建议须确认；只访问本人问卷。 |
+| POST /api/journey/trips/:id/alternatives | `{version,day,focus?,keepIds?,avoidIds?,endBy?,removeCount?,afternoonOnly?,replaceId?}` | `{items,unmet,version,candidateCount}`。focus 为 walk/culture/classics，最多3种不重复方案；明确保留、锁定位置、其他日期、下午之前的已安排点保持约束。每项含5分钟有效的预览id、估算指标、已选/未选原因和核验状态。 |
+| POST /api/journey/trips/:id/alternatives/:previewId/verify | `{version}` | 核验实际地图路段与开放窗口；`verification` 为 verified/conflict/unavailable，返回 warnings。版本变化409、过期410；无真实路段不假定核验成功。 |
+| PATCH /api/trips/:id | 兼容旧操作；新增 `{version,operation:{type:"apply_preview",day,previewId}}` | 与普通页面/问AI共用版本保存；要求本人、同一行程与日期、同一基础版本、未过期及 verified。生成新 trip_versions。旧 `{version,restoreVersion}` 可撤销。 |
+| POST /api/trips/:id/assistant | 兼容 `{text,day}`，文本最多500字 | 局部重排返回正常 `operation:apply_preview` 与 summary；不确定目标返回 clarify/choices（含后续 text），路线未核验返回 retry；均不自动保存。旧单点操作仍兼容。 |
+| GET /api/journey/trips/:id/weather?day=0 | 本人行程与有效日序 | 高德预报及过期/超预报范围状态、室内备选点；建议不等于官方预警。 |
+| GET /api/journey/trips/:id/weather-alerts?day=0 | 本人行程与有效日序 | 有效官方预警/来源归属，或 not_configured/unavailable；不把未配置说成无预警。 |
+| GET /api/admin/places/fact-sources | 独立后台认证，places.read | 登记官网、字段、最近检查、待复核数及匿名需求计数；无任意URL抓取接口。 |
+| GET /api/admin/places/fact-reviews?state=pending | state=pending/accepted/rejected/superseded，places.read | 最多30条提取事实、逐字证据及有界官网正文；待审信息不直接进入规划。 |
+| POST /api/admin/places/fact-reviews/:id | `{version,decision:"accept|reject",confirmation:"review-official-fact"}`，places.manage | 校验来源哈希、期限及并发版本，保存复核/审计；证据已变或过期409。 |
+| POST /api/admin/maintenance/tasks | 原合同新增 `kind:"place_refresh"` | 原任务ID、确认、去重、取消、重试与租约合同不变；近期开启需求的已登记地点优先。 |
+| GET /api/admin/traces | `{requestId?:UUID,offset?:0..10000}`，system.read | 路由模板、状态、时耗和队列健康；不含具体URL、正文、SQL参数、Cookie或密钥。 |
+| GET /api/admin/traces/:requestId | 请求UUID，system.read | DB/地图/模型段、父段编号、耗时、错误和进程内存采样；最多63子段，7天保留。 |
+| GET /api/admin/mail/status | system.read | 安全配置检查（只显示缺失项名）、队列各状态数量。 |
+| GET /api/admin/mail/jobs?offset=0 | system.read，offset 0..10000 | 最多30项安全元数据；不返回收件地址、令牌、密文或邮件内容。 |
+
+问卷与生成答案兼容原字段，并增加 `companion:solo|couple|friends|parents|family`、`walkingLimitKm:0.5..30`、`endBy:08:00..22:59`、`travelFocus:balanced|famous|immersive`、`visitedNames:string[]`、`avoidPlaceNames:string[]`（各最多30项）。这些是当前行程条件，不自动写长期记忆。未知字段拒绝。缺失项由服务端询问，不能把账号默认值当作用户确认。
+
+方案指标为点间步行、交通和游玩时长；内部步行未知。下午局部编辑只核验剩余路段，`walkingScope` 明示该范围。路线距离仍有 `routeDistanceStatus:estimated`，交通时耗为供应商预计。启发式方案不证明全局最短或到场准时。不可满足的条件会反馈，不能隐式丢弃锁定/保留要求。
+
+旅行反馈 `aspects` 增加独立 `places:1..5`、`pace:too_busy|good|too_slow`、`walking:too_much|good|too_little`、`transport:too_many_transfers|good|too_long`、`dining:1..5`、`stay:1..5`。过赶只产生节奏建议，不扣地点类别兴趣；单店不满意不泛化为整类负偏好。旧总体评分保留兼容。
+
+推荐新批次同步处理本人的待更新画像。`POST /api/social/feed` 的兼容可选 `city`（最多100字）只作为当前旅行上下文；已显示卡片不重排。新重排版本为 `topic-diversity/1`，候选丰富时兼顾主题、作者和路线多样。双塔启用门槛未改，模拟数据功能测试不等于真实用户满意率。
+
+地点单点读取新增 `factQuality`，字段有 sourceUrl/checkedAt/reviewAfter/validFrom/validThrough/status/usable。官方业务扩展覆盖原始基础资料，过期或未审核的事实不当作当前有效值。详情见 [资料更新](docs/OFFICIAL_FACTS.md)、[天气](docs/WEATHER_SERVICE.md)、[邮件配置](docs/MAIL_DELIVERY.md)、[链路诊断](docs/REQUEST_TRACING.md)；测试记录见 [本轮用例](docs/INTELLIGENCE_TEST_CASES_20261018.md)。
+
 ### 2026-10-18 个性化闭环补充
 
 | 接口 | 输入 | 返回与边界 |
