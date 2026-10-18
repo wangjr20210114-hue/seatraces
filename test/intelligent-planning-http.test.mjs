@@ -4,10 +4,26 @@ import {randomUUID} from 'node:crypto';
 import {iterationFixture} from './helpers/iteration-db.mjs';
 import {installIntelligentPlanning,parseLocalEdit} from '../server/services/intelligent-planning.mjs';
 import {tripMutationHandler} from '../server/services/trip-mutations.mjs';
+import {createAgentEngine} from '../server/agent/engine.mjs';
 test('complex edit ambiguity produces bounded choices instead of guessing',()=>{
  const stops=[{id:'a',name:'上海博物馆'},{id:'b',name:'历史博物馆'}];
  assert.equal(parseLocalEdit('这个博物馆不想去了，换个附近的',{stops}).choices.length,2);
  assert.deepEqual(parseLocalEdit('保留上海博物馆，其余重新安排，五点前结束',{stops}).input.keepIds,['a']);
+});
+test('agent preserves edit constraints through a choice, verifies via normal assistant, and still requires confirmation',async()=>{
+ const tripId=randomUUID(),previewId=randomUUID(),calls=[],state={},t={id:tripId,title:'上海两日',version:2,plan:{days:[{city:'上海',stops:[{id:'a',name:'上海博物馆'},{id:'b',name:'历史博物馆'}]}]}};
+ let attempt=0;const engine=createAgentEngine({query:async()=>({rows:[]}),transaction:async()=>{},modelEnabled:()=>false,knowledge:{search:async()=>[],answer:async()=>({text:'帮助'})},store:{offer:async(c,u,capability,payload,preview)=>({id:randomUUID(),capability,payload,...preview})}});
+ const ctx={state,user:{id:randomUUID()},c:{id:randomUUID()},context:{tripId,day:0},api:async(method,path,body)=>{
+  calls.push({method,path,body});if(method==='GET'&&path==='/api/trips/'+tripId)return t;
+  if(path.endsWith('/assistant'))return attempt++?{operation:{type:'apply_preview',day:0,previewId},summary:{stops:[{name:'附近艺术馆'}],metrics:{finishAt:'16:30',walkingMeters:500}}}:
+   {status:'clarify',message:'换哪个？',choices:[{label:'上海博物馆',text:'替换上海博物馆，换个附近的'},{label:'历史博物馆',text:'替换历史博物馆，换个附近的'}]};
+  if(method==='PATCH')return t;throw Error('unexpected '+path);
+ }};
+ const first=await engine.message(ctx,{text:'这个博物馆不想去了，换个附近的'});assert.equal(first.question.key,'localEditChoice');assert.ok(!first.action);
+ const q=state.question,reply=await engine.message(ctx,{text:'',questionId:q.id,optionIds:[q.options[1].id]});
+ assert.equal(reply.action.payload.operation.previewId,previewId);assert.ok(reply.action.lines.some(s=>s.includes('16:30')));assert.equal(calls.filter(x=>x.method==='PATCH').length,0);
+ assert.equal(calls.filter(x=>x.path.endsWith('/assistant'))[1].body.text,'替换历史博物馆，换个附近的');
+ await engine.execute(ctx,reply.action,'confirm');assert.equal(calls.filter(x=>x.method==='PATCH').length,1);
 });
 test('owned verified previews use normal versioned mutation and support undo without changing other days',
  {skip:process.env.TEST_INTELLIGENT_PLANNING!=='1',timeout:60000},async()=>{

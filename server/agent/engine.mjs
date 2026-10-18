@@ -432,6 +432,7 @@ export function createAgentEngine({
         : /(餐饮|餐厅|饭店|吃饭)/.test(text)
           ? "dining"
           : undefined;
+    if(f.kind==='edit_trip'&&text.length<=500&&/(?:太累|太赶|少安排|保留|换个附近|换一个附近|不想去|去掉|移除|删掉|加上|轻松一点)/.test(text))f.edit=text;
     const day = text.match(/(?:第\s*|Day\s*)(\d{1,2})(?:\s*天)?/i);
     if (day && Number(day[1]) > 0) f.day = Number(day[1]) - 1;
     if (f.kind === "profile_update")
