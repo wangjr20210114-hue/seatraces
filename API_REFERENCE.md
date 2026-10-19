@@ -160,11 +160,12 @@ OSM类别共11类：`attraction,heritage,nature,leisure,accommodation,food,rest,
 | 方法与路径（前缀 /api） | 输入 | 输出与职责 |
 |---|---|---|
 | GET /journey/cities/:cityId/boundary | 城市ID（1…80字符），须登录，无请求体 | `{city,boundary}`；问卷选城时预览市界，复用现有高德边界缓存。city为自建库城市简要对象，boundary沿用ClusterCatalog的GCJ02结构。未找到城市404；境外或边界不可用按boundary.status返回，不创建问卷、不写数据库 |
-| POST /journey/sessions | `origin:{label(1…150),lat?,lng?},cityIds:string[1…5],start,end`，城市不可重复，每个ID≤80 | 201 `{id,cities}`，保存本人问卷会话。天数不少于城市数，结束日不得早于起始日，最多30天 |
-| POST /journey/sessions/:id/cities/:cityId | body `{}`；query `async=1` 推荐 | 202 `{status:"loading",retryAfterMs,...}` 或200 ClusterCatalog。相同用户/会话/城市合并进行中的请求；将候选存入会话；按retryAfterMs再查询，禁止紧循环 |
+| POST /journey/sessions | `origin:{label(1…150),lat?,lng?},cityIds:string[1…5],start,end,clientSessionId?:UUID`，城市不可重复，每个ID≤80 | 201 `{id,cities}`；同一账号、同一clientSessionId和相同输入重试返回200及原问卷；相同标识用于其他输入/账号409。未传新字段保持原行为。天数不少于城市数，最多30天 |
+| GET /journey/sessions/:id | 本人问卷UUID，无body | `{id,request,questions,tripId}`，只读恢复元数据，不返回地点全库；匿名401、非本人/不存在404。tripId非空时读取已生成行程，禁止重复生成 |
+| POST /journey/sessions/:id/cities/:cityId | body `{}`；query `async=1` 推荐，可加 `resume=1` | 202 `{status:"loading",retryAfterMs,...}` 或200 ClusterCatalog。resume=1优先返回已存该城市的原始聚类ID及最新本人想去状态，避免恢复时重新聚类导致丢选项；单城传输上限8MiB，无旧快照时沿用原读取任务。相同用户/会话/城市合并进行中的请求，禁止紧循环 |
 | GET /journey/sessions/:id/cities/:cityId/boundary | 路径参数 | `{boundary,districts}`；districts为聚类ID到区名列表的映射 |
 | GET /journey/sessions/:id/places/:placeId/detail | 会话UUID、URL编码的`placeId`1…80字符；本人登录会话 | 按需读取候选地点的最新完整资料，返回`{item,hierarchyInference,inferenceCheckedAt,inferenceReviewAfter,sourceIds,fetchedAt}`；不把详情复制回问卷。非本人会话或非候选地点404，当前资料不可用503；无写入、无模型调用 |
-| POST /journey/sessions/:id/wishes | `placeId`1…80，`wanted:boolean` | `{placeId,wanted}`；只能选当前候选，保存“想去”，规划优先考虑 |
+| POST /journey/sessions/:id/wishes | `placeId`1…80，`wanted:boolean` | `{placeId,wanted}`；只能选当前候选，保存“想去”，规划优先考虑；相同目标值的重试不重复写兴趣信号，变更与信号同事务 |
 | POST /journey/sessions/:id/visits | `placeId`≤80，`visited:boolean` | `{ok}`；历史兼容的用户到访声明。当前问卷不展示“去没去过”选项 |
 | POST /journey/sessions/:id/questions | `{}` | `{questions,defaults,source,...}`；基于内部题库/偏好排序，有模型时受结构校验，无模型退回题库，同会话缓存 |
 | POST /journey/sessions/:id/generate | `selections:{[cityId]:clusterId[]}`每城≤30；`answers:{interests?:string[]≤10且每项≤20,pace?,transport?,crowd?,revisit?}` | Trip，保存行程与版本1。模型只能从候选池选点，后端预算/排序/日期规则再处理。同session已生成则返回原行程，避免重复生成 |

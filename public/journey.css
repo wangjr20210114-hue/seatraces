@@ -638,6 +638,9 @@ dialog::backdrop {
 }
 #wizard #form-error { background: #fffdf2; margin: 0; padding: 8px 28px 0; }
 #wizard #form-error:empty { display: none; }
+#draft-status { margin: 0; padding: 6px 28px; color: #55776e; font-size: 13px; }
+#draft-status:empty { display: none; }
+#draft-status.error { color: #a03131; }
 .field {
   display: grid;
   gap: 10px;

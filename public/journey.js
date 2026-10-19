@@ -30,6 +30,7 @@ import {
 } from "./trip-view.js";
 import { scenicMemberMarkup, byScore } from "./scenic-view.js";
 import { observePlaceDescriptions } from './place-descriptions.js';
+import {createJourneyRecovery,overlayPendingWishes} from './journey-recovery.js';
 const $ = (s) => document.querySelector(s),
   esc = (s) =>
     String(s ?? "").replace(
@@ -49,6 +50,7 @@ async function api(path, body, method) {
     r = await fetch(path, {
       method: method || (body === undefined ? "GET" : "POST"),
       headers: { "Content-Type": "application/json", "X-Seatraces": "1" },
+      ...(path.startsWith('/api/journey/sessions') ? {signal:AbortSignal.timeout(path.endsWith('/generate') ? 120000 : 30000)} : {}),
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     });
   } catch {
@@ -80,8 +82,16 @@ async function checkConnection(retry = false) {
     $("#connection-status").hidden = true;
     if (retry) {
       $("#travel-map").contentWindow.location.reload();
+      if(!booted){await boot();return;}
       me = await api("/api/me");
       syncProfile();
+      if(me.user?.id===recoveryOwner){
+        await flushDraftWishes();
+        if($('#wizard').open&&!state.busy){
+          if(restoredSessionPending)await openRecoveredWizard();
+          else await render();
+        }
+      }
       toast("已重新连上");
     }
   } catch {
@@ -123,7 +133,86 @@ const state = {
   limit: 24,
   district: "",
   inspiration: null,
+  clientSessionId: null,
+  pendingWishes: {},
+  resumeCatalog: false,
 };
+let recovery, recoveryOwner, restoredSessionPending=false, booted=false, wishSync, draftStarted=false;
+function saveProgress(active=$('#wizard').open){
+  if(!draftStarted||!recovery||me?.user?.id!==recoveryOwner)return;
+  const ok=recovery.save({...state,active});
+  $('#draft-status').textContent=!ok?'本机保存失败，请勿关闭页面':Object.keys(state.pendingWishes).length?'已存本机 · 待联网同步':'进度已保存在本机';
+  $('#draft-status').classList.toggle('error',!ok);
+}
+function loadProgress(){
+  if(!me?.user||recoveryOwner===me.user.id)return false;
+  if(recoveryOwner&&recoveryOwner!==me.user.id){
+    Object.assign(state,{step:0,origin:{label:''},cities:[],start:'',end:'',session:null,catalog:{},selections:{},questions:[],answerKeys:[],answers:{interests:[],pace:'balanced',transport:'balanced',crowd:'balanced',revisit:'new'},pendingWishes:{},clientSessionId:null,trip:null});
+    draftStarted=false;restoredSessionPending=false;
+  }
+  recoveryOwner=me.user.id;
+  recovery=createJourneyRecovery({storage:localStorage,userId:recoveryOwner});
+  const saved=recovery.read();
+  if(!saved)return false;
+  draftStarted=true;
+  const {sessionId,active,...fields}=saved;
+  Object.assign(state,fields,{session:sessionId?{id:sessionId,cities:saved.cities}:null,resumeCatalog:true,catalog:{},busy:false});
+  restoredSessionPending=!!sessionId;
+  $('#begin').textContent='继续未完成的行程 →';
+  return active;
+}
+async function flushDraftWishes(){
+  const session=state.session?.id,owner=recoveryOwner;
+  if(wishSync){
+    if(wishSync.session===session&&wishSync.owner===owner)return wishSync.promise;
+    await wishSync.promise.catch(()=>{});
+    return flushDraftWishes();
+  }
+  if(!session||!Object.keys(state.pendingWishes).length)return;
+  const flight={session,owner};
+  flight.promise=(async()=>{
+    while(state.session?.id===session&&me?.user?.id===owner){
+      const next=Object.entries(state.pendingWishes)[0];
+      if(!next)break;
+      const [placeId,wanted]=next;
+      await api(`/api/journey/sessions/${session}/wishes`,{placeId,wanted});
+      if(state.session?.id!==session||me?.user?.id!==owner)return;
+      if(state.pendingWishes[placeId]===wanted)delete state.pendingWishes[placeId];
+      saveProgress();
+    }
+  })().finally(()=>{if(wishSync===flight)wishSync=null;});
+  wishSync=flight;
+  return flight.promise;
+}
+async function openRecoveredWizard(){
+  draftStarted=true;
+  workspace('planner');$('#wizard').show();paintMap();
+  try{
+    if(restoredSessionPending&&state.session){
+      setBusy(true,'正在恢复上次进度…');
+      const sessionId=state.session.id;
+      const saved=await api('/api/journey/sessions/'+sessionId);
+      if(state.session?.id!==sessionId||!$('#wizard').open)return;
+      if(saved.tripId){
+        const trip=await api('/api/trips/'+encodeURIComponent(saved.tripId));
+        setBusy(false);closeWizard();await showTrip(trip);recovery.clear();
+        invalidateSession();state.step=0;draftStarted=false;recovery.clear();$('#begin').textContent='制订个性化旅行方案 ↗';
+        toast('已恢复上次生成的行程');return;
+      }
+      restoredSessionPending=false;
+    }
+    await flushDraftWishes();
+    setBusy(false);await render();saveProgress(true);
+  }catch(e){
+    setBusy(false);
+    $('#question').innerHTML=heading('CONTINUE','上次的选择已保留')+'<button id="resume-wizard" class="primary">联网后继续 ↻</button>';
+    $('#form-error').textContent=e.message;
+    $('#next').disabled=true;
+    $('#resume-wizard').onclick=()=>openRecoveredWizard();
+  }
+}
+window.addEventListener('pagehide',()=>{if(recovery)saveProgress();});
+window.addEventListener('offline',()=>{$('#connection-status').hidden=false;if(recovery)saveProgress();});
 let me,
   cityResults = [],
   searchTimer,
@@ -182,6 +271,7 @@ function workspace(mode) {
 function closeWizard() {
   stopDescriptions();
   $("#wizard").close();
+  saveProgress(false);
   ++boundaryRequest;
   clearTimeout(districtRefresh);
   workspace(null);
@@ -450,6 +540,7 @@ function heading(label, title, stamp = "") {
   return `<div class="eyebrow">${esc(label)}</div>${stamp ? `<div class="stamp" aria-hidden="true">${stamp}</div>` : ""}<h1 id="question-title" tabindex="-1">${esc(title)}</h1>`;
 }
 function setBusy(value, title) {
+  if(value)saveProgress();
   state.busy = value;
   if (value) $("#form-error").textContent = "";
   $("#next").disabled = value;
@@ -465,6 +556,11 @@ function invalidateSession() {
   state.questions = [];
   state.answerKeys = [];
   state.adaptiveQuestions = false;
+  state.pendingWishes = {};
+  state.clientSessionId = null;
+  state.resumeCatalog = false;
+  restoredSessionPending=false;
+  saveProgress();
 }
 async function turn(step) {
   if (state.busy) return;
@@ -486,6 +582,7 @@ async function turn(step) {
   state.step = step;
   state.limit = 24;
   state.district = "";
+  saveProgress();
   paper.classList.remove("tear");
   paper.classList.add("arrive");
   setBusy(false);
@@ -513,7 +610,7 @@ async function render() {
   if (s === 0) {
     $("#question").innerHTML =
       heading("START HERE", "您从哪里出发？", "↗") +
-      `<label class="field"><span>出发地</span><input id="origin" placeholder="输入出发城市或地点" autocomplete="off" value="${esc(state.origin.label)}"></label><button id="locate" class="inline-action">◎ 用当前位置</button><div id="city-results" class="choices"></div>`;
+      `<label class="field"><span>出发地</span><input id="origin" maxlength="150" placeholder="输入出发城市或地点" autocomplete="off" value="${esc(state.origin.label)}"></label><button id="locate" class="inline-action">◎ 用当前位置</button><div id="city-results" class="choices"></div>`;
     $("#origin").oninput = (e) => {
       state.origin = { label: e.target.value };
       originCity = null;
@@ -553,6 +650,10 @@ async function render() {
       state.end = e.target.value;
       invalidateSession();
     };
+    // Native date fields can emit input before blur/change. That value must
+    // survive closing the browser immediately, just like ordinary text input.
+    $('#start').oninput=$('#start').onchange;
+    $('#end').oninput=$('#end').onchange;
   } else if (s < 3 + state.cities.length) {
     const city = state.cities[s - 3];
     try {
@@ -564,7 +665,7 @@ async function render() {
         do {
           try {
             data = await api(
-              `/api/journey/sessions/${sessionId}/cities/${encodeURIComponent(city.id)}?async=1`,
+              `/api/journey/sessions/${sessionId}/cities/${encodeURIComponent(city.id)}?async=1${state.resumeCatalog?'&resume=1':''}`,
               {},
             );
             reconnects = 0;
@@ -587,8 +688,8 @@ async function render() {
               setTimeout(resolve, data.retryAfterMs || 1500),
             );
         } while (data.status === "loading");
-        state.catalog[city.id] = data;
-        if(state.inspiration){
+        state.catalog[city.id] = overlayPendingWishes(data,state.pendingWishes);
+        if(state.inspiration&&!state.resumeCatalog){
           const ids=new Set(state.inspiration.placeIds),matches=data.clusters.flatMap(g=>g.members).filter(p=>ids.has(p.id));
           // Reuse the same validated wish endpoint used by the ordinary questionnaire.
           for(const p of matches.slice(0,60)){if(state.session?.id!==sessionId||state.step!==s||!$('#wizard').open)return;await api(`/api/journey/sessions/${sessionId}/wishes`,{placeId:p.id,wanted:true});p.wanted=true;}
@@ -631,10 +732,12 @@ async function render() {
           ? a.filter((v) => v !== value)
           : [...a, value];
       } else state.answers[q.id] = value;
+      saveProgress();
       render();
     };
   }
   $("#question-title")?.focus({ preventScroll: true });
+  saveProgress();
 }
 function searchCities(q, origin, immediate = false) {
   clearTimeout(searchTimer);
@@ -778,10 +881,12 @@ function renderClusters(city) {
   $("#district").onchange = (e) => {
     state.district = e.target.value;
     state.limit = 24;
+    saveProgress();
     renderClusters(city);
   };
   $("#more-clusters")?.addEventListener("click", () => {
     state.limit += 24;
+    saveProgress();
     const y = $("#question").scrollTop;
     renderClusters(city);
     $("#question").scrollTop = y;
@@ -801,6 +906,7 @@ function renderClusters(city) {
       else if (selected.length < 30) selected.push(id);
       else return toast("每座城市最多选 30 片");
       const y = $("#question").scrollTop;
+      saveProgress();
       renderClusters(city);
       $("#question").scrollTop = y;
       return;
@@ -817,37 +923,23 @@ function renderClusters(city) {
       const p = group.members
         .flatMap((p) => [p, ...(p.children || [])])
         .find((p) => p.id === v.dataset.wanted);
-      v.disabled = true;
+      // Save the user's desired value before starting the network request.
+      p.ownWanted=!p.ownWanted;
+      state.pendingWishes[p.id]=p.ownWanted;
+      overlayPendingWishes(data,{[p.id]:p.ownWanted});
+      if(p.ownWanted&&!selected.includes(group.id)&&selected.length<30)selected.push(group.id);
+      saveProgress();
+      v.setAttribute('aria-pressed',String(p.ownWanted));
+      v.textContent=p.ownWanted?'想去 ♥':'想去 ♡';
+      const card=v.closest('.cluster');
+      card.classList.toggle('selected',selected.includes(group.id));
+      card.querySelector('[data-cluster]').setAttribute('aria-pressed',String(selected.includes(group.id)));
+      card.querySelector('.check').textContent=selected.includes(group.id)?'✓':'+';
+      publishPlanner();
       try {
-        const savedWish=await api(`/api/journey/sessions/${state.session.id}/wishes`, {
-          placeId: p.id,
-          wanted: !p.ownWanted,
-        });
-        p.ownWanted = savedWish.wanted;
-        for (const parent of group.members) {
-          for (const child of parent.children || [])
-            child.wanted = Boolean(child.ownWanted);
-          parent.wanted = Boolean(
-            parent.ownWanted || parent.children?.some((c) => c.wanted),
-          );
-        }
-        if (p.ownWanted && !selected.includes(group.id)) {
-          selected.push(group.id);
-          document
-            .querySelectorAll(`[data-cluster="${group.id}"]`)
-            .forEach((b) => b.setAttribute("aria-pressed", "true"));
-          const card = v.closest(".cluster");
-          card.classList.add("selected");
-          card.querySelector(".check").textContent = "✓";
-          toast("已选中这个片区，优先安排想去的地方");
-        }
-        v.setAttribute("aria-pressed", p.ownWanted);
-        v.textContent = p.ownWanted ? "想去 ♥" : "想去 ♡";
-        publishPlanner();
+        await flushDraftWishes();
       } catch (e) {
-        toast(e.message);
-      } finally {
-        v.disabled = false;
+        toast(e.status===503?'选择已保存在本机，联网后继续同步':e.message);
       }
     }
   };
@@ -874,6 +966,7 @@ $("#next").onclick = async () => {
       if (days < state.cities.length || days > 30)
         throw Error("每座城市至少留一天，整趟旅行最多 30 天");
       if (!state.session) {
+        state.clientSessionId ||= crypto.randomUUID();
         setBusy(true, "装好旅行纸签…");
         state.session = await api("/api/journey/sessions", {
           origin: state.origin,
@@ -881,7 +974,9 @@ $("#next").onclick = async () => {
           ...(state.inspiration?.postId?{sourcePostId:state.inspiration.postId}:{}),
           start: state.start,
           end: state.end,
+          clientSessionId:state.clientSessionId,
         });
+        saveProgress();
         if (revision !== pageRevision || !$("#wizard").open) {
           setBusy(false);
           return;
@@ -890,6 +985,7 @@ $("#next").onclick = async () => {
       }
     }
     if (s >= 3 && s < 3 + state.cities.length) {
+      await flushDraftWishes();
       const city = state.cities[s - 3];
       if (!state.selections[city.id]?.length)
         throw Error("至少选一个想逛的片区吧");
@@ -923,11 +1019,13 @@ $("#next").onclick = async () => {
       if(revision!==pageRevision||!$('#wizard').open){setBusy(false);return;}
       state.questions=[...prefix,...next.questions];
       state.answers={...next.defaults,...Object.fromEntries(state.answerKeys.map(k=>[k,state.answers[k]]))};
+      saveProgress();
       generate=next.ready;
       setBusy(false);
     }
     if(!state.adaptiveQuestions&&state.questions.length&&s===2+state.cities.length+state.questions.length)generate=true;
     if (generate) {
+      await flushDraftWishes();
       setBusy(true, "把喜欢的地方排成一路…");
       const trip = await api(
         `/api/journey/sessions/${state.session.id}/generate`,
@@ -948,6 +1046,9 @@ $("#next").onclick = async () => {
       state.answerKeys = [];
       state.selections = {};
       state.inspiration = null;
+      state.pendingWishes={};state.clientSessionId=null;
+      draftStarted=false;
+      recovery?.clear();$('#begin').textContent='制订个性化旅行方案 ↗';
       return;
     }
     await turn(s + 1);
@@ -965,12 +1066,11 @@ $("#close").onclick = () => {
 $("#begin").onclick = async () => {
   try {
     await ensureUser();
+    loadProgress();
     workspace("planner");
     plannerMap = null;
     plannerCity = null;
-    $("#wizard").show();
-    paintMap();
-    await render();
+    await openRecoveredWizard();
   } catch (e) {
     toast(e.message);
   }
@@ -1314,10 +1414,13 @@ async function boot() {
   try {
     me = await api("/api/me");
     syncProfile();
+    const reopen=loadProgress();
+    booted=true;
     document.body.classList.remove("auth-pending");
     $("#auth-loading").hidden = true;
     navigation.start();
     $("#travel-map").src = $("#travel-map").dataset.src;
+    if(reopen&&(!location.hash||location.hash==='#/home')){await openRecoveredWizard();return;}
     const bootRevision = pageRevision;
     const last = localStorage.getItem("seatraces-last-trip");
     if (me.user && last && !location.hash.startsWith("#/services/")) {

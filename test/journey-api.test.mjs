@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { randomBytes } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 test(
   "journey sessions enforce ownership and validate before provider calls",
   { skip: !process.env.TEST_URL },
@@ -55,6 +55,17 @@ test(
     const session = await a("/journey/sessions", request);
     assert.equal(session.status, 201);
     const path = "/journey/sessions/" + session.data.id;
+    const restored=await a(path);
+    assert.equal(restored.status,200);assert.equal(restored.data.id,session.data.id);
+    assert.deepEqual(restored.data.request.cityIds,request.cityIds);
+    assert.equal(Object.hasOwn(restored.data,'catalog'),false);
+    assert.equal((await b(path)).status,404);assert.equal((await anon(path)).status,401);
+    const clientSessionId=randomUUID();
+    const retries=await Promise.all(Array.from({length:6},()=>a('/journey/sessions',{...request,clientSessionId})));
+    assert.equal(retries.filter(r=>r.status===201).length,1);
+    assert.ok(retries.every(r=>[200,201].includes(r.status)&&r.data.id===clientSessionId));
+    assert.equal((await a('/journey/sessions',{...request,clientSessionId,origin:{label:'北京'}})).status,409);
+    assert.equal((await b('/journey/sessions',{...request,clientSessionId})).status,409);
     assert.equal((await b(path + "/questions", {})).status, 404);
     assert.equal((await b(path + "/cities/suzhou", {})).status, 404);
     assert.equal(
@@ -82,7 +93,10 @@ test(
     );
     const questions = await a(path + "/questions", {});
     assert.equal(questions.status, 200);
-    assert.ok(questions.data.questions.some((q) => q.id === "crowd"));
-    assert.ok(questions.data.questions.some((q) => q.id === "revisit"));
+    assert.ok(questions.data.questions.some((q) => q.id === 'companion'));
+    const contextual=await a(path+'/questions',{answers:{companion:'family',visitedNames:['外滩']}});
+    assert.ok(contextual.data.questions.some(q=>q.id==='crowd'));
+    assert.ok(contextual.data.questions.some(q=>q.id==='revisit'));
+    assert.equal(contextual.data.questions.some(q=>q.id==='companion'),false);
   },
 );

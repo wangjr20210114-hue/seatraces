@@ -54,7 +54,7 @@ test('RECOVERY-004 问卷下一题断网保留已选条件，恢复后继续',as
  await page.goto('/#/home');await page.locator('#begin').click();await page.locator('#origin').fill('上海');await page.locator('#next').click();
  await page.locator('#city-search').fill('上海');await page.locator('#city-results [data-city]').filter({hasText:'上海'}).first().click();await page.locator('#next').click();
  await page.locator('#start').fill('2027-06-20');await page.locator('#end').fill('2027-06-21');await page.locator('#next').click();
- await page.locator('button.cluster-main').first().click();await page.locator('#next').click();await expect(page.locator('#question-title')).toContainText('和谁');
+ const cluster=page.locator('button.cluster-main').first();if(await cluster.getAttribute('aria-pressed')==='false')await cluster.click();await page.locator('#next').click();await expect(page.locator('#question-title')).toContainText('和谁');
  await page.locator('[data-answer=parents]').click();await context.setOffline(true);await page.locator('#next').click();
  await expect(page.locator('#form-error')).not.toBeEmpty();await expect(page.locator('[data-answer=parents]')).toHaveAttribute('aria-pressed','true');await expect(page.locator('#next')).toBeEnabled();
  await context.setOffline(false);await page.locator('#next').click();await expect(page.locator('[data-answer="人文"]')).toBeVisible();

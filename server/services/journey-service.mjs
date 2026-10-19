@@ -8,6 +8,7 @@ import {
 import { resolvePlace } from "./catalog.mjs";
 import { z } from "zod";
 import { randomUUID } from "node:crypto";
+import { isDeepStrictEqual } from 'node:util';
 import { query, transaction } from "../db.mjs";
 import { clusterCity } from "./city-clusters.mjs";
 import {
@@ -51,6 +52,7 @@ export const journeyRequest = z
     start: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
     end: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
     sourcePostId: z.uuid().optional(),
+    clientSessionId: z.uuid().optional(),
   })
   .strict();
 export function mergeVisits(completed, declared, inferred = []) {
@@ -105,6 +107,16 @@ export async function citySelectionForUser(city, user, travelHabit) {
       await clusterCity(city, habit, visits, signals, wishes)
     ).clusters;
   return result;
+}
+export async function restoredCitySelection(snapshot,city,wishes,loadBoundary=cityBoundaries){
+  let boundary;
+  try{boundary=publicBoundary(await loadBoundary(city));}
+  catch{
+    // Saved choices remain usable if the independent map-boundary provider is
+    // temporarily down. Do not fabricate an outline or recompute group IDs.
+    boundary={status:'unavailable',cityRings:[],districts:[],provider:null,crs:'GCJ02'};
+  }
+  return {...snapshot,city,boundary,clusters:snapshot.clusters.map(g=>({...g,members:g.members.map(p=>applyWishes(p,wishes))}))};
 }
 async function signalsFor(ids) {
   const result = {};
@@ -221,6 +233,19 @@ async function singleFlight(key, fn) {
   pending.set(key, work);
   return work;
 }
+export async function saveJourneyWish(db,{userId,place,wanted,recordWish}){
+  let changed=false;
+  for(const id of new Set([place.id,...(place.possibleDuplicateIds || [])])){
+    const saved=await db.query(
+      'INSERT INTO user_place_wishes(user_id,place_id,wanted) VALUES($1,$2,$3) ON CONFLICT(user_id,place_id) DO UPDATE SET wanted=excluded.wanted,updated_at=now() WHERE user_place_wishes.wanted IS DISTINCT FROM excluded.wanted RETURNING place_id',
+      [userId,id,wanted],
+    );
+    if(id===place.id)changed=!!saved.rowCount;
+  }
+  // A lost response can replay the same set operation without adding a second
+  // interest signal. The write and signal share the caller's transaction.
+  if(changed)await recordWish(db,{userId,place,value:wanted?1:0});
+}
 export function installJourneyRoutes(app, { auth, travelHabit, recordWish=async()=>{},onSource=async()=>{},onGenerated=async()=>{} }) {
   installAdaptiveQuestions(app,{auth,query,ownSession,travelHabit});
   installPlaceDescriptionRoutes(app,{auth,query,resolvePlace});
@@ -237,7 +262,7 @@ export function installJourneyRoutes(app, { auth, travelHabit, recordWish=async(
     res.json({ city, boundary: publicBoundary(await cityBoundaries(city)) });
   });
   app.post("/api/journey/sessions", auth, async (req, res) => {
-    const input = journeyRequest.parse(req.body);
+    const {clientSessionId,...input} = journeyRequest.parse(req.body);
     if (new Set(input.cityIds).size !== input.cityIds.length)
       throw error("城市不能重复");
     const cities = (
@@ -255,12 +280,23 @@ export function installJourneyRoutes(app, { auth, travelHabit, recordWish=async(
     )
       throw error("同一座城市只选一次就好");
     allocateDates(input, cities);
-    const id = randomUUID();
-    await transaction(async c=>{
-      await c.query("INSERT INTO journey_sessions(id,user_id,request) VALUES($1,$2,$3)",[id,req.user.id,JSON.stringify({...input,cities})]);
-      await onSource(c,{sessionId:id,userId:req.user.id,postId:input.sourcePostId});
+    const id = clientSessionId || randomUUID();
+    const created=await transaction(async c=>{
+      const inserted=await c.query("INSERT INTO journey_sessions(id,user_id,request) VALUES($1,$2,$3) ON CONFLICT(id) DO NOTHING RETURNING id",[id,req.user.id,JSON.stringify({...input,cities})]);
+      if(inserted.rowCount){
+        await onSource(c,{sessionId:id,userId:req.user.id,postId:input.sourcePostId});
+        return true;
+      }
+      const saved=(await c.query('SELECT request FROM journey_sessions WHERE id=$1 AND user_id=$2',[id,req.user.id])).rows[0];
+      const fields=['origin','cityIds','start','end','sourcePostId'];
+      if(!saved || fields.some(k=>!isDeepStrictEqual(saved.request[k]??null,input[k]??null)))throw error('问卷标识已被使用，请重新开始本次问卷',409);
+      return false;
     });
-    res.status(201).json({ id, cities });
+    res.status(created?201:200).json({ id, cities });
+  });
+  app.get('/api/journey/sessions/:id',auth,async(req,res)=>{
+    const s=await ownSession(req.params.id,req.user.id);
+    res.json({id:s.id,request:s.request,questions:s.questions,tripId:s.trip_id});
   });
   app.post(
     "/api/journey/sessions/:id/cities/:cityId",
@@ -269,6 +305,18 @@ export function installJourneyRoutes(app, { auth, travelHabit, recordWish=async(
       const s = await ownSession(req.params.id, req.user.id),
         city = s.request.cities.find((c) => c.id === req.params.cityId);
       if (!city) throw error("城市不在本次旅行中");
+      // Recovery must reuse the exact saved group IDs rather than reclustering
+      // against a changed catalog. Never load all cities or raw provider data.
+      if(req.query.resume==='1'){
+        const row=(await query(`SELECT catalog ? $3 available,
+          CASE WHEN octet_length((catalog->$3)::text)<=8388608 THEN catalog->$3 ELSE NULL END snapshot
+          FROM journey_sessions WHERE id=$1 AND user_id=$2`,[s.id,req.user.id,city.id])).rows[0];
+        if(row?.available){
+          if(!row.snapshot)throw error('问卷地点资料过大，请联系管理员恢复',413);
+          const wishes=await wishesFor(req.user.id);
+          return res.json(await restoredCitySelection(row.snapshot,city,wishes));
+        }
+      }
       const key = `city:${req.user.id}:${s.id}:${city.id}`;
       const work = () =>
         singleFlight(key, async () => {
@@ -367,14 +415,7 @@ export function installJourneyRoutes(app, { auth, travelHabit, recordWish=async(
       includeChildren: true,
     });
     if (!p) throw error("地点不在候选范围内");
-    await transaction(async (db) => {
-      await recordWish(db,{userId:req.user.id,place:p,value:b.wanted?1:0});
-      for (const id of [p.id, ...(p.possibleDuplicateIds || [])])
-        await db.query(
-          "INSERT INTO user_place_wishes(user_id,place_id,wanted) VALUES($1,$2,$3) ON CONFLICT(user_id,place_id) DO UPDATE SET wanted=excluded.wanted,updated_at=now()",
-          [req.user.id, id, b.wanted],
-        );
-    });
+    await transaction(db=>saveJourneyWish(db,{userId:req.user.id,place:p,wanted:b.wanted,recordWish}));
     res.json({ placeId: p.id, wanted: b.wanted });
   });
   app.get(

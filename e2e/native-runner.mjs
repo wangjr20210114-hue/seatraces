@@ -18,9 +18,9 @@ export async function runNative({ appRoot, root, password,dbPort=55439 }) {
   });
   const files = [
     ...new Set(
-      Object.values(coverage).flatMap((c) =>
+      [...Object.values(coverage).flatMap((c) =>
         (c.evidence || []).map((e) => e.file),
-      ),
+      ), 'journey-recovery.test.mjs', 'journey-api.test.mjs'],
     ),
   ].sort();
   const out = path.join(root, "reports/ui");
