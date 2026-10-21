@@ -1,3 +1,4 @@
+import { setIconLabel } from './ui-icons.js';
 import { placeTimeZone } from "./travel-time.js";
 import { safeSourceUrl, knownFact } from "./place-information.js";
 export function mountOpeningPanel(host, place, api) {
@@ -110,7 +111,7 @@ export function mountOpeningPanel(host, place, api) {
         a.href = url;
         a.target = "_blank";
         a.rel = "noopener";
-        a.textContent = "查看官方或原始来源 ↗";
+        setIconLabel(a, '查看官方或原始来源', 'external');
         result.append(a);
       }
     } catch (error) {

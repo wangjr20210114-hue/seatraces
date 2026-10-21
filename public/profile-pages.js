@@ -1,3 +1,4 @@
+import { icon, setIconLabel } from './ui-icons.js';
 import { renderAccountPage } from "./account-page.js";
 import {renderPersonalPage} from './personal-center.js';
 import {publishRoute} from './discovery.js';
@@ -41,8 +42,8 @@ export async function renderProfilePage({
       if (!isCurrent()) return;
       setTitle("旅行详情");
       const days = trip.plan?.days || [];
-      content.innerHTML = `<div class="trip-detail-heading"><span class="eyebrow">MY JOURNEY</span><h2>${esc(trip.title)}</h2><button class="route-share" data-share-trip>分享 ↗</button><p class="muted">${esc(trip.request?.start || "")} — ${esc(trip.request?.end || "")}</p><p class="share-status" role="status"></p></div>
-        ${trip.plan?.schemaVersion === "journey/2" ? '<button class="primary page-map-action">在地图上查看 ↗</button>' : ""}
+      content.innerHTML = `<div class="trip-detail-heading"><span class="eyebrow">MY JOURNEY</span><h2>${esc(trip.title)}</h2><button class="route-share" data-share-trip>分享 ${icon('share')}</button><p class="muted">${esc(trip.request?.start || "")} — ${esc(trip.request?.end || "")}</p><p class="share-status" role="status"></p></div>
+        ${trip.plan?.schemaVersion === "journey/2" ? `<button class="primary page-map-action">在地图上查看 ${icon('pin')}</button>` : ""}
         ${
           days
             .map(
@@ -60,7 +61,7 @@ export async function renderProfilePage({
             )
             .join(
               "",
-            )}${trip.plan.schemaVersion === "journey/2" ? `<a class="inline-action" href="#/services/${encodeURIComponent(trip.id)}?day=${index}">看看附近吃住 ↗</a>` : ""}</article>`,
+            )}${trip.plan.schemaVersion === "journey/2" ? `<a class="inline-action" href="#/services/${encodeURIComponent(trip.id)}?day=${index}">看看附近吃住 ${icon('external')}</a>` : ""}</article>`,
             )
             .join("") || '<p class="page-status">行程内容暂不可展示</p>'
         }`;
@@ -70,7 +71,7 @@ export async function renderProfilePage({
       await mountTripFeedback({content,trip,api,isCurrent});
     } else if (route.page === "history") {
       content.innerHTML =
-        '<a class="inline-action" href="#/report">旅行报告 ↗</a><div class="history-list"></div><p class="page-status" role="status"></p><button class="loadmore" hidden>更多行程 ↓</button>';
+        `<a class="inline-action" href="#/report">旅行报告 ${icon('external')}</a><div class="history-list"></div><p class="page-status" role="status"></p><button class="loadmore" hidden>更多行程 ${icon('down')}</button>`;
       const list = content.querySelector(".history-list"),
         status = content.querySelector(".page-status"),
         more = content.querySelector(".loadmore");
@@ -89,19 +90,19 @@ export async function renderProfilePage({
             visible
               .map(
                 (trip) =>
-                  `<a class="history-item" href="#/history/${encodeURIComponent(trip.id)}"><span>${esc(trip.title)}</span><span class="history-arrow" aria-hidden="true">→</span><small>${esc(trip.request?.start || "")} → ${esc(trip.request?.end || "")}</small></a>`,
+                  `<a class="history-item" href="#/history/${encodeURIComponent(trip.id)}"><span>${esc(trip.title)}</span><span class="history-arrow" aria-hidden="true">${icon('arrow')}</span><small>${esc(trip.request?.start || "")} → ${esc(trip.request?.end || "")}</small></a>`,
               )
               .join(""),
           );
           offset += visible.length;
           status.textContent = offset ? "" : "第一段旅行，从这里开始。";
           more.hidden = trips.length <= 20;
-          more.textContent = "更多行程 ↓";
+          setIconLabel(more, '更多行程', 'down');
         } catch (error) {
           if (!isCurrent()) return;
           status.textContent = error.message;
           more.hidden = false;
-          more.textContent = "重新加载 ↻";
+          setIconLabel(more, '重新加载', 'refresh');
         } finally {
           more.disabled = false;
         }
@@ -124,7 +125,7 @@ export async function renderProfilePage({
     }
   } catch (error) {
     if (!isCurrent()) return;
-    content.innerHTML = `<div class="page-status" role="status"><p>${esc(error.message)}</p><button class="primary">重新加载 ↻</button></div>`;
+    content.innerHTML = `<div class="page-status" role="status"><p>${esc(error.message)}</p><button class="primary">重新加载 ${icon('refresh')}</button></div>`;
     content.querySelector("button").onclick = () =>
       renderProfilePage({
         route,

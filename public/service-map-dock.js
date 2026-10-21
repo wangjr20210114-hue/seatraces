@@ -1,3 +1,4 @@
+import { setIconLabel } from './ui-icons.js';
 import { serviceRecommendations, clearServiceCache } from "./trip-services.js";
 import {
   serviceIcons as icons,
@@ -131,7 +132,7 @@ export function mountServiceMapDock({
     const button = card.querySelector("[data-save]");
     const known =
       slot.selected?.candidate?.id === id && !slot.selected.reviewNeeded;
-    button.textContent = known ? "已选好 ✓" : "选这家 ✓";
+    setIconLabel(button, known ? '已选好' : '选这家', 'check');
     button.disabled = true;
     if (!slot.items.some((x) => x.id === id)) return;
     try {

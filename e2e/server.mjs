@@ -171,6 +171,7 @@ try {
     SCENIC_MODEL_GROUPING_ENABLED: "false",
     OSM_SERVICE_URL: "http://127.0.0.1:19890",
     AMAP_KEY: "ui-test-no-real-key",
+    ...(process.env.UI_PLANNER_MODEL === '1' ? {DEEPSEEK_API_KEY: 'ui-planner-fixture'} : {}),
   });
   // Catch accidental outbound fetches even if a future provider adds a new key.
   const originalFetch = globalThis.fetch;
@@ -178,7 +179,7 @@ try {
     const url = new URL(
       typeof input === "string" || input instanceof URL ? input : input.url,
     );
-    const fixture = providerFixture(url);
+    const fixture = providerFixture(url, init);
     if (fixture) return Promise.resolve(fixture);
     if (!["127.0.0.1", "localhost", "[::1]"].includes(url.hostname))
       throw Error("External network is disabled in UI regression");

@@ -1,3 +1,4 @@
+import { setIconLabel } from './ui-icons.js';
 const node = (tag, className, text) => {
   const el = document.createElement(tag);
   if (className) el.className = className;
@@ -24,10 +25,14 @@ export function mountAgent({
     question,
     disposed = false,
     progressTimer,
-    progressRequest;
+    progressRequest,
+    continueTimer,
+    continueStarted = 0;
   const top = node("div", "agent-toolbar"),
-    fresh = node("button", "agent-chip", "＋ 新对话"),
+    fresh = node("button", "agent-chip", "新对话"),
     memory = node("button", "agent-chip", "我的旅行风格");
+  setIconLabel(fresh, '新对话', 'plus', true);
+  setIconLabel(memory, '我的旅行风格', 'spark', true);
   top.append(fresh, memory);
   const log = node("div", "agent-log");
   log.setAttribute("role", "log");
@@ -41,7 +46,8 @@ export function mountAgent({
   input.maxLength = 1500;
   input.placeholder = "例如：明早去上海，玩两天，少走路";
   input.setAttribute("aria-label", "发给问 AI 的消息");
-  const send = node("button", "primary", "发送 ↑");
+  const send = node("button", "primary", "发送");
+  setIconLabel(send, '发送', 'up');
   send.type = "submit";
   form.append(input, send);
   content.replaceChildren(top, log, choices, status, form);
@@ -97,7 +103,8 @@ export function mountAgent({
   }
   function link(target, parent) {
     if (!target || !paths.test(target.route)) return;
-    const b = node("button", "agent-chip", target.title + " ↗");
+    const b = node("button", "agent-chip");
+    setIconLabel(b, target.title, "external");
     b.onclick = () => navigate(target.route);
     parent.append(b);
   }
@@ -133,8 +140,9 @@ export function mountAgent({
       for (const line of a.lines || []) card.append(node("p", "", line));
       const effective = actionStatuses[a.id] || "pending";
       if (effective === "pending") {
-        const yes = node("button", "primary", "确认执行 ✓"),
+        const yes = node("button", "primary", "确认执行"),
           no = node("button", "agent-chip", "取消");
+        setIconLabel(yes, '确认执行', 'check');
         const choose = async (decision) => {
           if (busy) return;
           yes.disabled = no.disabled = true;
@@ -200,6 +208,7 @@ export function mountAgent({
     if (reply.action && !reply.question) form.hidden = true;
   }
   function renderQuestion(q) {
+    clearTimeout(continueTimer);
     question = q;
     choices.replaceChildren();
     if (q) choices.setAttribute("aria-label", q.text);
@@ -231,7 +240,8 @@ export function mountAgent({
         choices.append(b);
       }
       if (q.multi) {
-        const done = node("button", "primary", "选好了 →");
+        const done = node("button", "primary", "选好了");
+        setIconLabel(done, '选好了', 'arrow');
         done.type = "button";
         done.onclick = () => {
           if (selected.size)
@@ -253,7 +263,8 @@ export function mountAgent({
       date.type = "date";
       date.required = true;
       date.setAttribute("aria-label", q.text);
-      const next = node("button", "primary", "选好了 →");
+      const next = node("button", "primary", "选好了");
+      setIconLabel(next, '选好了', 'arrow');
       next.type = "button";
       next.onclick = () => {
         if (date.reportValidity()) void sendMessage(date.value);
@@ -274,6 +285,16 @@ export function mountAgent({
     const cancel = node("button", "agent-custom", "取消这一步");
     cancel.onclick = () => void sendMessage("取消");
     choices.append(cancel);
+    if (q.autoContinue && ['retryCity', 'retryWalkRoute'].includes(q.key)) {
+      continueStarted ||= Date.now();
+      if (Date.now() - continueStarted < 120000) {
+        continueTimer = setTimeout(() => {
+          if (active() && !busy && question?.id === q.id)
+            void sendMessage('', [q.options[0].id], '继续自动安排', true);
+          else if (active() && question?.id === q.id) renderQuestion(q);
+        }, 1500);
+      } else status.textContent = '景点准备得有些久，可以稍后点“继续安排”，已填写的信息会保留。';
+    } else continueStarted = 0;
   }
   async function ensure() {
     if (!conversationId) {
@@ -283,11 +304,11 @@ export function mountAgent({
       sessionStorage.setItem(key, c.id);
     }
   }
-  async function sendMessage(text, optionIds, label) {
+  async function sendMessage(text, optionIds, label, automatic = false) {
     if (busy || (!text && !optionIds?.length)) return;
     waiting(true);
     log.querySelector(".agent-examples")?.remove();
-    bubble(label || text, "user");
+    if (!automatic) { bubble(label || text, "user"); continueStarted = 0; }
     try {
       await ensure();
       const requestId = crypto.randomUUID();
@@ -306,7 +327,8 @@ export function mountAgent({
       if (!active()) return;
       revision = r.revision;
       renderQuestion(r.question);
-      showReply(r);
+      if (!automatic || !r.question?.autoContinue || r.error) showReply(r);
+      if (r.error) clearTimeout(continueTimer);
       input.value = "";
       if (
         r.classification?.capability === "navigate" &&
@@ -356,6 +378,8 @@ export function mountAgent({
   }
   fresh.onclick = () => {
     if (busy) return;
+    clearTimeout(continueTimer);
+    continueStarted = 0;
     conversationId = null;
     revision = 0;
     sessionStorage.removeItem(key);
@@ -435,6 +459,7 @@ export function mountAgent({
   void load();
   return () => {
     disposed = true;
+    clearTimeout(continueTimer);
     stopProgress();
     content.classList.remove("agent-page");
   };

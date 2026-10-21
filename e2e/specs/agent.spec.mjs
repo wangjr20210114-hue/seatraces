@@ -3,7 +3,7 @@ import { check } from "../cases.mjs";
 test.beforeEach(async ({ context, fixture }) => signIn(context, fixture));
 async function ask(page, text) {
   await page.goto("/#/agent");
-  await page.getByRole("button", { name: "＋ 新对话", exact: true }).click();
+  await page.getByRole("button", { name: "新对话", exact: true }).click();
   await page.getByLabel("发给问 AI 的消息").fill(text);
   const response = page.waitForResponse(
     (r) =>
@@ -11,7 +11,7 @@ async function ask(page, text) {
       r.url().endsWith("/messages") &&
       r.request().method() === "POST",
   );
-  await page.getByRole("button", { name: "发送 ↑", exact: true }).click();
+  await page.getByRole("button", { name: "发送", exact: true }).click();
   const r = await response;
   expect(r.ok()).toBe(true);
   return r.json();

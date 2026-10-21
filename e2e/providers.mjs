@@ -26,7 +26,16 @@ const json = (data) =>
   new Response(JSON.stringify(data), {
     headers: { "Content-Type": "application/json" },
   });
-export function providerFixture(url) {
+export function providerFixture(url, init) {
+  // Opt-in synthetic planner output for end-to-end save tests. Never contacts a model.
+  if (process.env.UI_PLANNER_MODEL === '1' && url.hostname === 'api.deepseek.com') {
+    const request = JSON.parse(init?.body || '{}');
+    if (!request.messages?.[0]?.content.includes('按每日时间预算选景点'))
+      return new Response(JSON.stringify({error:'This fixture only supports itinerary selection'}), {status:503});
+    const data = JSON.parse(request.messages[1].content);
+    const days = data.dates.map((date,i) => ({date,places:data.candidates.filter((_,j)=>j%data.dates.length===i).map(p=>p.ref)}));
+    return json({choices:[{finish_reason:'stop',message:{content:JSON.stringify({days})}}]});
+  }
   if (url.hostname === "127.0.0.1" && url.port === "19890") {
     const category = url.searchParams.get("category");
     const items = places.filter((p) =>

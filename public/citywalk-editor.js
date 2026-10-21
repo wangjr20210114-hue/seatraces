@@ -1,3 +1,4 @@
+import { icon, setIconLabel } from './ui-icons.js';
 import { uniqueCities } from "./city-selection.js";
 import { orderWalk, walkName, metres, routeMetres } from "./citywalk-route.js";
 import { schematicConnections } from "./route-curves.js";
@@ -206,7 +207,7 @@ export async function renderWalkEditor({
     nearbySequence++;
     frame = null;
     let shown = 24;
-    content.innerHTML = `<div class="walk-editor">${steps(1)}<div class="walk-intro"><h2>${esc(city.name)}，从这一片开始</h2></div><div id="walk-areas" class="walk-cluster-list"></div><button id="walk-area-more" class="loadmore">更多步行圈 ↓</button><p class="error" id="walk-error" role="alert"></p><button class="walk-create" id="walk-city-back">换座城市</button></div>`;
+    content.innerHTML = `<div class="walk-editor">${steps(1)}<div class="walk-intro"><h2>${esc(city.name)}，从这一片开始</h2></div><div id="walk-areas" class="walk-cluster-list"></div><button id="walk-area-more" class="loadmore">更多步行圈 ${icon('down')}</button><p class="error" id="walk-error" role="alert"></p><button class="walk-create" id="walk-city-back">换座城市</button></div>`;
     const paint = () => {
       const all = data.clusters.slice(0, shown);
       $("#walk-areas").innerHTML =
@@ -262,7 +263,7 @@ export async function renderWalkEditor({
           Array.isArray(savedRoute.legs)) verified = savedRoute;
     }
     notice = "";
-    content.innerHTML = `<div class="walk-editor">${steps(2)}<div class="walk-intro"><h2>${esc(g.name)}</h2><button class="walk-create" id="walk-area-back">换个步行圈 ↶</button></div><label class="walk-label" for="walk-title">路线名称</label><input id="walk-title" maxlength="80" value="${esc(title)}"><div class="walk-preview walk-edit-map"><iframe id="walk-edit-map" src="/amap-view.html?mode=home&walk=1" title="CityWalk 地图选点"></iframe></div><div id="walk-route-state" class="walk-route-state" role="status"></div><div id="walk-selected"></div><h3>下一站，去这里</h3><label class="walk-label" for="walk-place-query">附近地点</label><input id="walk-place-query" placeholder="搜索附近地点"><p id="walk-nearby-state" role="status"></p><div class="walk-sights" id="walk-candidates"></div><p id="walk-error" class="error" role="alert"></p><div class="walk-save-bar"><b id="walk-count"></b><button id="walk-save" class="primary" disabled>保存路线 ✓</button></div></div>`;
+    content.innerHTML = `<div class="walk-editor">${steps(2)}<div class="walk-intro"><h2>${esc(g.name)}</h2><button class="walk-create" id="walk-area-back">换个步行圈 ${icon('undo')}</button></div><label class="walk-label" for="walk-title">路线名称</label><input id="walk-title" maxlength="80" value="${esc(title)}"><div class="walk-preview walk-edit-map"><iframe id="walk-edit-map" src="/amap-view.html?mode=home&walk=1" title="CityWalk 地图选点"></iframe></div><div id="walk-route-state" class="walk-route-state" role="status"></div><div id="walk-selected"></div><h3>下一站，去这里</h3><label class="walk-label" for="walk-place-query">附近地点</label><input id="walk-place-query" placeholder="搜索附近地点"><p id="walk-nearby-state" role="status"></p><div class="walk-sights" id="walk-candidates"></div><p id="walk-error" class="error" role="alert"></p><div class="walk-save-bar"><b id="walk-count"></b><button id="walk-save" class="primary" disabled>保存路线 ✓</button></div></div>`;
     frame = $("#walk-edit-map");
     $("#walk-title").oninput = (e) => {
       title = e.target.value;
@@ -352,7 +353,7 @@ export async function renderWalkEditor({
       saving ||
       stops.length < 2 ||
       !!verified?.blocked;
-    $("#walk-save").textContent = saving ? "正在保存…" : busy ? "规划中…" : verified?.status === "verified" ? "保存路线 ✓" : "规划步行路线 →";
+    setIconLabel($('#walk-save'), saving ? '正在保存…' : busy ? '规划中…' : verified?.status === 'verified' ? '保存路线' : '规划步行路线', saving || busy ? null : verified?.status === 'verified' ? 'check' : 'arrow');
     $("#walk-route-state").className =
       "walk-route-state" +
       (busy ? " loading" : "") +
@@ -371,7 +372,7 @@ export async function renderWalkEditor({
                 (verified.blocked ? " · 达到 15 公里，请减少地点" : verified.warning ? " · 超过 10 公里，建议分段走" : "")
               : "连线约 " + (routeMetres(stops) / 1000).toFixed(2) + " 公里 · 选好后规划步行路线");
     $("#walk-selected").innerHTML = stops.length
-      ? `<div class="walk-order"><label>从这里出发<select id="walk-start">${stops.map((p) => `<option value="${esc(p.id)}" ${p.id === startId ? "selected" : ""}>${esc(p.name)}</option>`).join("")}</select></label><ol>${stops.map((p) => `<li><span>${esc(p.name)}</span><button data-remove="${esc(p.id)}" aria-label="移除${esc(p.name)}" ${saving ? "disabled" : ""}>×</button></li>`).join("")}</ol>${verified?.status === "preview" ? '<button class="walk-create" id="walk-recheck">重新核验 ↻</button>' : ""}</div>`
+      ? `<div class="walk-order"><label>从这里出发<select id="walk-start">${stops.map((p) => `<option value="${esc(p.id)}" ${p.id === startId ? "selected" : ""}>${esc(p.name)}</option>`).join("")}</select></label><ol>${stops.map((p) => `<li><span>${esc(p.name)}</span><button data-remove="${esc(p.id)}" aria-label="移除${esc(p.name)}" ${saving ? "disabled" : ""}>${icon('close')}</button></li>`).join("")}</ol>${verified?.status === "preview" ? `<button class="walk-create" id="walk-recheck">重新核验 ${icon('refresh')}</button>` : ""}</div>`
       : "";
     $("#walk-selected").onclick = (e) => {
       const b = e.target.closest("[data-remove]");
@@ -525,7 +526,7 @@ export async function renderWalkEditor({
     } finally {
       saving = false;
       if (current() && stage === 2) {
-        $("#walk-save").textContent = "保存路线 ✓";
+        setIconLabel($('#walk-save'), '保存路线', 'check');
         paint();
       }
     }

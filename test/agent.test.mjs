@@ -409,10 +409,11 @@ test("journey follows existing create → catalog → questions → generate end
     false,
   );
   await e.execute(ctx, offers.at(-1), "confirm");
-  await answer("", [0]);
-  await answer("", [0]);
+  assert.equal(state.question.autoContinue, true);
   r = await answer("", [0]);
   assert.ok(r.action);
+  assert.equal(state.question, undefined);
+  assert.deepEqual(state.flow.selections, {bj: ["g1"]});
   assert.equal(
     calls.some((x) => x.path.endsWith("/generate")),
     false,
@@ -425,12 +426,11 @@ test("journey follows existing create → catalog → questions → generate end
       "/api/journey/sessions",
       `/api/journey/sessions/${session}/cities/bj?async=1`,
       `/api/journey/sessions/${session}/questions`,
-      `/api/journey/sessions/${session}/questions`,
       `/api/journey/sessions/${session}/generate`,
     ],
   );
-  assert.equal(calls.at(-1).body.answers.pace, "relaxed");
-  assert.deepEqual(calls.filter(c=>c.path.endsWith('/questions')).at(-1).body,{answers:{pace:'relaxed'}});
+  assert.equal(calls.at(-1).body.answers.pace, "balanced");
+  assert.deepEqual(calls.filter(c=>c.path.endsWith('/questions')).at(-1).body,{answers:{}});
 });
 
 test("eating and lodging: actual candidates → preview → confirmation → same versioned save, refresh targets selected slot", async () => {
@@ -582,11 +582,9 @@ test("CityWalk uses catalog draft, validated cluster/stop choices and existing o
       ...(ids ? { optionIds: ids.map((n) => q.options[n].id) } : {}),
     });
   };
-  await answer("上海");
-  await answer("", [0]);
-  await answer("", [0, 1]);
-  await answer("", [0]);
-  r = await answer("江畔漫步");
+  r = await answer("上海");
+  assert.equal(state.question, undefined);
+  assert.equal(state.flow.title, "上海漫步");
   assert.ok(r.action);
   assert.equal(
     calls.some((c) => c.method === "POST" && c.path === "/api/citywalks"),

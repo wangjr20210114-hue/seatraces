@@ -82,7 +82,7 @@ test("compound travel wins over memory; unsafe, hypothetical and software questi
     undefined,
   );
 });
-function engineFixture() {
+function engineFixture(memory = []) {
   const state = {},
     calls = [],
     offers = [],
@@ -139,7 +139,7 @@ function engineFixture() {
     throw Error("unexpected " + path);
   };
   const e = createAgentEngine({
-    query: async () => ({ rows: [] }),
+    query: async () => ({ rows: memory }),
     transaction: async () => {},
     store: {
       offer: async (c, u, capability, payload, preview) => {
@@ -185,11 +185,11 @@ test("compound trip fills known fields, skips answered preference questions and 
   assert.equal(calls.filter((c) => c.method !== "GET").length, 0);
   assert.deepEqual(r.action.payload.request.cityIds, ["sh"]);
   await e.execute(ctx, offers.at(-1), "confirm");
-  await choose();
-  await choose();
-  assert.equal(state.question.key, "preference");
-  assert.equal(state.flow.answering, "pace");
+  assert.equal(state.question.autoContinue, true);
   r = await choose();
+  assert.equal(state.question, undefined);
+  assert.equal(state.flow.answers.pace, "balanced");
+  assert.deepEqual(state.flow.selections, {sh: ["a"]});
   assert.ok(r.action);
   assert.equal(calls.filter((c) => c.path.endsWith("/generate")).length, 0);
   await e.execute(ctx, offers.at(-1), "confirm");
@@ -346,4 +346,37 @@ test("CityWalk agent checks actual distance before offering save and cannot wide
     assert.equal(calls.length, 1);
     assert.equal(calls[0].p, "/api/citywalk/preview");
   }
+});
+
+test('automatic planning reuses saved preferences, honors current overrides and refreshes legacy area names', async () => {
+  const memory=[{dimension:'pace',value:'relaxed',confidence:1,updated_at:new Date().toISOString(),expires_at:'2100-01-01T00:00:00Z'}];
+  for (const [extra,pace] of [['','relaxed'],['，行程充实一点','full']]) {
+    const {e,ctx,state,offers,calls,choose}=engineFixture(memory);
+    await e.message(ctx,{text:'我从北京去上海，2026-11-01出发，2026-11-02返回'+extra});
+    await e.execute(ctx,offers.at(-1),'confirm');
+    state.flow.catalog={sh:[{id:'legacy',name:'旧片区',members:['旧地点']}]};
+    const reply=await choose();
+    assert.equal(reply.question,undefined);
+    assert.equal(reply.action.payload.answers.pace,pace);
+    assert.deepEqual(reply.action.payload.selections,{sh:['a']});
+    assert.equal(calls.filter(c=>c.path.includes('/cities/')).length,1);
+  }
+});
+
+test('a loading catalog returns automatic continuation and then a single save preview', async () => {
+  const {e,ctx,state,offers,choose}=engineFixture();
+  const api=ctx.api;let waiting=true;
+  ctx.api=async(method,path,body)=>{
+    if(path.includes('/cities/')&&waiting){waiting=false;return {status:'loading'};}
+    return api(method,path,body);
+  };
+  await e.message(ctx,{text:'我从北京去上海，2026-11-01出发，2026-11-02返回'});
+  await e.execute(ctx,offers.at(-1),'confirm');
+  let reply=await choose();
+  assert.equal(reply.question.autoContinue,true);
+  assert.equal(reply.action,undefined);
+  reply=await choose();
+  assert.equal(reply.question,undefined);
+  assert.equal(reply.action.title,'生成并保存旅行方案');
+  assert.equal(offers.length,2);
 });

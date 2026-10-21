@@ -67,9 +67,10 @@ export function installInboxRoutes(app,{auth,query,transaction,events}) {
   });
   app.get('/api/me/messages',auth,async(req,res)=>{
     const {limit,offset}=page.parse(req.query);
-    const rows=(await query(`SELECT m.id,c.title,m.created_at,m.read_at FROM inbox_messages m JOIN inbox_campaigns c ON c.id=m.campaign_id WHERE m.user_id=$1 ORDER BY m.created_at DESC,m.id DESC LIMIT $2 OFFSET $3`,[req.user.id,limit+1,offset])).rows;
+    const unreadOnly=z.enum(['0','1']).optional().parse(req.query.unread)==='1';
+    const rows=(await query(`SELECT m.id,c.title,m.created_at,m.read_at FROM inbox_messages m JOIN inbox_campaigns c ON c.id=m.campaign_id WHERE m.user_id=$1 AND ($4::boolean=false OR m.read_at IS NULL) ORDER BY m.created_at DESC,m.id DESC LIMIT $2 OFFSET $3`,[req.user.id,limit+1,offset,unreadOnly])).rows;
     const unread=(await query('SELECT count(*)::int n FROM inbox_messages WHERE user_id=$1 AND read_at IS NULL',[req.user.id])).rows[0].n;
-    res.json({items:rows.slice(0,limit),hasMore:rows.length>limit,unread});
+    res.set('Cache-Control','no-store').json({items:rows.slice(0,limit),hasMore:rows.length>limit,unread,userId:req.user.id});
   });
   app.get('/api/me/messages/:id',auth,async(req,res)=>{
     const row=(await query('SELECT m.id,c.title,c.body,m.created_at,m.read_at FROM inbox_messages m JOIN inbox_campaigns c ON c.id=m.campaign_id WHERE m.id=$1 AND m.user_id=$2',[z.uuid().parse(req.params.id),req.user.id])).rows[0];if(!row)throw fail('消息不存在',404);res.json(row);

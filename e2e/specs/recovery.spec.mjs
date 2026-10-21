@@ -61,10 +61,10 @@ test('RECOVERY-004 问卷下一题断网保留已选条件，恢复后继续',as
 });
 
 test('RECOVERY-005 问AI断网保留输入，恢复后按正常接口导航',async({page,context})=>{
- await page.goto('/#/agent');await page.getByRole('button',{name:'＋ 新对话',exact:true}).click();
+ await page.goto('/#/agent');await page.getByRole('button',{name:'新对话',exact:true}).click();
  const input=page.getByLabel('发给问 AI 的消息');await input.fill('打开我的收藏');await context.setOffline(true);
- await page.getByRole('button',{name:'发送 ↑',exact:true}).click();await expect(page.locator('.agent-error')).toBeVisible();await expect(input).toHaveValue('打开我的收藏');
- await context.setOffline(false);await page.getByRole('button',{name:'发送 ↑',exact:true}).click();await expect(page).toHaveURL(/#\/favorites/);
+ await page.getByRole('button',{name:'发送',exact:true}).click();await expect(page.locator('.agent-error')).toBeVisible();await expect(input).toHaveValue('打开我的收藏');
+ await context.setOffline(false);await page.getByRole('button',{name:'发送',exact:true}).click();await expect(page).toHaveURL(/#\/favorites/);
 });
 
 test('RECOVERY-006 网络恢复重新初始化地图，保留当前行程和日期',async({page,context,fixture})=>{

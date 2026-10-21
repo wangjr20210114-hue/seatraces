@@ -12,7 +12,8 @@ import {
   memoryPreferences,
   saveMemory,
 } from "./memory.mjs";
-import { journeyAnswers } from "../services/journey-draft.mjs";
+import { journeyAnswers, allocateDates } from "../services/journey-draft.mjs";
+import { areaSummary, selectTravelAreas, eligiblePlace, preferenceScore } from './area-selection.mjs';
 import { datesBetween, interests } from "../planner.mjs";
 import { fail } from "./store.mjs";
 import { orderWalk } from "../../public/citywalk-route.js";
@@ -68,6 +69,7 @@ export function publicState(state) {
           multi: q.multi || false,
           options: q.options.map(({ id, label }) => ({ id, label })),
           input: q.input || null,
+          ...(q.autoContinue ? { autoContinue: true } : {}),
         }
       : null,
   };
@@ -104,6 +106,12 @@ export function createAgentEngine({
   }
   const textQuestion = (s, key, text, input = "text") =>
     ask(s, key, text, [], { input });
+  function waitForPlanning(s, text, key = 'retryCity') {
+    const reply = ask(s, key, text, [{ label: '继续安排', data: true }]);
+    s.question.autoContinue = true;
+    reply.question.autoContinue = true;
+    return reply;
+  }
   const cityQuestion = (s, key, text) =>
     ask(
       s,
@@ -163,10 +171,7 @@ export function createAgentEngine({
             questionKey: key,
           })
         : {};
-    const style =
-      f.kind === "create_trip"
-        ? tripPreferences(text)
-        : { values: {}, conflicts: {} };
+    const style = tripPreferences(text);
     if (
       !Object.keys(fields).length &&
       !Object.keys(timing).length &&
@@ -450,8 +455,12 @@ export function createAgentEngine({
     if (f.kind === "navigate")
       f.page = intent.page || pageFromText(text) || ctx.context.page;
     if (f.kind === "memory") f.style = explicitStyle(text);
-    if (f.kind === "create_citywalk")
+    if (f.kind === "create_citywalk") {
       f.walkMode = /(编辑|修改)/.test(text) ? "edit" : "create";
+      f.answers = { ...await memoryPreferences(query, ctx.user.id), ...(ctx.state.style || {}), ...tripPreferences(text).values };
+      const collected = await collectTravel(ctx, text);
+      if (collected) return collected;
+    }
     if (f.kind === "post_reaction") {
       f.reaction = /收藏/.test(text)
         ? "save"
@@ -852,16 +861,18 @@ export function createAgentEngine({
             end: f.end,
           },
         },
-        "开始选择旅行片区",
+        "按我的偏好安排旅行",
         [
           `从 ${f.origin.name} 出发`,
           f.cities.map((c) => c.name).join(" → "),
           `${f.start} 至 ${f.end}`,
+          "我会结合你的旅行偏好挑选片区和景点，安排好后再确认保存。",
         ],
         "journey_session",
       );
-    const city = f.cities.find((c) => !f.selections?.[c.id]?.length);
-    if (city) {
+    for (const city of f.cities) {
+      // Conversations created before automatic selection stored only a few names.
+      if (f.catalog?.[city.id]?.some(g => g.members.some(p => typeof p === 'string'))) delete f.catalog[city.id];
       if (!f.catalog?.[city.id]) {
         const result = await ctx.api(
           "POST",
@@ -869,31 +880,13 @@ export function createAgentEngine({
           {},
         );
         if (result.status === "loading")
-          return ask(s, "retryCity", `${city.name}的片区正在准备。`, [
-            { label: "查看片区", data: true },
-          ]);
+          return waitForPlanning(s, `正在整理${city.name}的景点，会按你的偏好自动安排。`);
         f.catalog ||= {};
-        f.catalog[city.id] = result.clusters.map((g) => ({
-          id: g.id,
-          name: g.name,
-          memberCount: g.memberCount,
-          members: g.members.slice(0, 5).map((p) => p.name),
-        }));
+        f.catalog[city.id] = areaSummary(result.clusters);
       }
       const groups = f.catalog[city.id];
       if (!groups.length)
         throw fail("这座城市暂时没有可用片区，请重新选择城市");
-      f.selectingCity = city.id;
-      return ask(
-        s,
-        "clusters",
-        `想逛${city.name}的哪些片区？`,
-        groups.map((g) => ({
-          label: `${g.name} · ${g.memberCount} 处 · ${g.members.slice(0, 3).join("、")}`,
-          data: g.id,
-        })),
-        { multi: true },
-      );
     }
     if (!f.questions) {
       const r = await ctx.api(
@@ -904,24 +897,14 @@ export function createAgentEngine({
       f.questions = r.questions;
       f.answers = { ...r.defaults, ...f.answers };
     }
-    f.answered ||= [];
-    const q = f.questions.find(
-      (q) =>
-        !f.answered.includes(q.id) && !f.explicitAnswerKeys?.includes(q.id),
-    );
-    if (q) {
-      f.answering = q.id;
-      return ask(
-        s,
-        "preference",
-        q.title,
-        q.options.map((o) =>
-          typeof o === "string"
-            ? { label: o, data: o }
-            : { label: o.label, data: o.value },
-        ),
-        { multi: q.type === "multi" },
-      );
+    f.answers = journeyAnswers.parse(f.answers);
+    f.selections = {};
+    f.selectedAreaNames = [];
+    for (const { city, dates } of allocateDates({ start: f.start, end: f.end }, f.cities)) {
+      const areas = selectTravelAreas(f.catalog[city.id], f.answers, dates.length);
+      if (!areas.length) throw fail(`${city.name}暂时没有符合这次偏好的景点，可以补充调整重游或不去的地点。`, 422);
+      f.selections[city.id] = areas.map(g => g.id);
+      f.selectedAreaNames.push(`${city.name}：${areas.map(g => g.name).join('、')}`);
     }
     return prepare(
       ctx,
@@ -935,6 +918,8 @@ export function createAgentEngine({
       [
         f.cities.map((c) => c.name).join(" → "),
         `${f.start} 至 ${f.end}`,
+        ...f.selectedAreaNames,
+        "已自动选好片区；本次说出的偏好优先，其余沿用旅行风格，没有记录的项目按均衡节奏安排。",
         ...Object.entries(f.answers).map(
           ([k, v]) => `${styleLabels[k] || k}：${labelValue(v)}`,
         ),
@@ -1073,30 +1058,17 @@ export function createAgentEngine({
         `/api/citywalk/catalog/${encodeURIComponent(f.walkCity.id)}`,
       );
       if (r.status === "loading")
-        return ask(s, "retryCity", "正在准备这座城市的片区。", [
-          { label: "查看片区", data: true },
-        ]);
+        return waitForPlanning(s, "正在寻找适合你漫步的街区。无需手动选择片区。");
       f.draftId = r.draftId;
-      f.walkCatalog = r.clusters.map((g) => ({
-        id: g.id,
-        name: g.name,
-        members: g.members.map((p) => ({
-          id: p.id,
-          name: p.name,
-          lat: p.lat,
-          lng: p.lng,
-        })),
-      }));
+      f.walkCatalog = areaSummary(r.clusters);
     }
     if (!f.walkCatalog.length) throw fail("这座城市暂时没有可用片区");
-    if (!f.walkClusters)
-      return ask(
-        s,
-        "walkClusters",
-        "选择想逛的片区。",
-        f.walkCatalog.map((g) => ({ label: g.name, data: g.id })),
-        { multi: true },
-      );
+    if (!f.walkClusters) {
+      const suitable = f.walkCatalog.filter(g => g.members.filter(p => eligiblePlace(p, f.answers || {})).length >= 2);
+      const best = selectTravelAreas(suitable, f.answers || {}, 1)[0];
+      if (!best) throw fail('暂时没有找到能连成步行路线的合适地点，试试另一座城市或调整偏好。', 422);
+      f.walkClusters = [best.id];
+    }
     const candidates = [
       ...new Map(
         f.walkCatalog
@@ -1105,6 +1077,13 @@ export function createAgentEngine({
           .map((p) => [p.id, p]),
       ).values(),
     ];
+    if (!f.stopIds && f.walkMode !== 'edit' && !f.manualWalkStops) {
+      f.stopIds = candidates.filter(p => eligiblePlace(p, f.answers || {}))
+        .sort((a, b) => Number(Boolean(b.wanted)) - Number(Boolean(a.wanted)) || preferenceScore(b, f.answers || {}) - preferenceScore(a, f.answers || {}) || a.id.localeCompare(b.id))
+        .slice(0, f.answers?.pace === 'full' ? 5 : 3).map(p => p.id);
+      f.startId = f.stopIds[0];
+      f.title ||= `${f.walkCity.name}漫步`;
+    }
     if (!f.stopIds)
       return ask(
         s,
@@ -1150,9 +1129,7 @@ export function createAgentEngine({
       ...(f.previous ? { walkId: f.previous.id } : {}),
     });
     if (routePreview.status === "loading")
-      return ask(s, "retryWalkRoute", "步行路线正在核验。", [
-        { label: "查看路线", data: true },
-      ]);
+      return waitForPlanning(s, "正在核验实际步行距离。", 'retryWalkRoute');
     if (
       routePreview.route?.status !== "verified" ||
       !Number.isFinite(routePreview.route.distanceM) ||
@@ -1165,6 +1142,11 @@ export function createAgentEngine({
         [{ label: "重新核验", data: true }],
       );
     if (routePreview.route.blocked || routePreview.route.distanceM >= 15000) {
+      if (f.walkMode !== 'edit' && !f.manualWalkStops && f.stopIds.length > 2) {
+        f.stopIds.pop();
+        return citywalk(ctx);
+      }
+      f.manualWalkStops = true;
       delete f.stopIds;
       delete f.startId;
       return {
@@ -1508,9 +1490,7 @@ export function createAgentEngine({
           s.flow.sessionId = data.id;
           s.flow.cities = data.cities;
           // The saved session is the committed effect. Loading candidates is a separate turn.
-          reply = ask(s, "retryCity", "旅行信息已存好，接着选片区。", [
-            { label: "选择片区", data: true },
-          ]);
+          reply = waitForPlanning(s, "出行信息已确认，正在按你的偏好安排片区和景点。无需手动选择。");
           break;
         }
         if (p.after !== "journey_generate") throw fail("无效的行程操作");

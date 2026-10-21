@@ -1,0 +1,24 @@
+.ui-icon{display:inline-block;width:20px;height:20px;flex:0 0 auto;vertical-align:middle;color:inherit;pointer-events:none}
+button>.ui-icon,a>.ui-icon{margin-inline:5px}
+button>.ui-icon:only-child,a>.ui-icon:only-child,[data-ui-icon]>.ui-icon{margin:0}
+[data-ui-icon]{display:inline-flex;align-items:center;justify-content:center;vertical-align:middle}
+.round .ui-icon,.page-back .ui-icon,.walk-icon .ui-icon{width:21px;height:21px}
+.tile-icon .ui-icon,.menu-icon .ui-icon{width:26px;height:26px}
+.profile-topbar a{position:relative;display:inline-flex;align-items:center;justify-content:center;width:42px;height:42px;border-radius:14px;color:#275e54;background:#e9f0e2}
+.profile-topbar a .ui-icon{width:22px;height:22px}
+.profile-topbar a:hover{background:#d8eadb}
+.bottom-nav .nav-icon{position:relative}
+.inbox-badge{position:absolute;right:5px;top:4px;width:9px;height:9px;border:2px solid #fffdf2;border-radius:50%;background:#d85b57;pointer-events:none}
+.inbox-badge[hidden]{display:none}
+.nav-icon>.inbox-badge{right:-3px;top:0}
+.bottom-nav button[data-page="profile"]{position:relative}
+.bottom-nav button>.inbox-badge{right:calc(50% - 24px);top:10px}
+.inbox-welcome{position:fixed;inset:0;margin:auto;box-sizing:border-box;width:min(440px,calc(100vw - 32px));max-height:calc(100dvh - 48px);overflow:auto;border:1.5px solid #bad2c8;border-radius:24px;background:#fffdf2;color:#183c40;padding:24px;box-shadow:0 18px 70px #183c4033}
+.inbox-welcome::backdrop{background:#183c4059;backdrop-filter:blur(3px)}
+.inbox-welcome-heading{display:flex;align-items:center;gap:10px;font-weight:700;color:#286d5c}
+.inbox-welcome-heading .round{margin-left:auto;flex-shrink:0}
+.inbox-welcome h2{font-size:23px;overflow-wrap:anywhere;margin:12px 0}
+.inbox-welcome time{font-size:13px;color:#637e7d}
+.inbox-welcome .inbox-body{margin-top:18px;max-height:38dvh;overflow:auto}
+.inbox-welcome-actions{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:18px;flex-wrap:wrap}
+.inbox-welcome [role=status]{color:#a6443c;font-size:14px}

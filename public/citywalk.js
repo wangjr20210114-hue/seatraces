@@ -1,3 +1,4 @@
+import { icon } from './ui-icons.js';
 import {renderWalkEditor} from './citywalk-editor.js';
 import {renderClassicWalk} from './classic-walk-view.js';
 import { publishRoute } from "./discovery.js";
@@ -39,7 +40,7 @@ export function createCityWalkHome({ api, navigate, toast, authenticated=()=>tru
   rail.innerHTML = classicWalks
     .map(
       (w, i) =>
-        `<article class="walk-slide ${w.theme}" aria-label="${i + 1} / ${classicWalks.length} · ${esc(w.city)}"><button data-classic="${w.id}" class="classic-open"><span class="walk-city">${esc(w.city)} <span aria-hidden="true">↗</span></span>${walkArt(w.motif)}<div class="walk-caption"><h3>${esc(w.title)}</h3><b>${w.stops.length} 站${Number.isFinite(w.distance_m)?' · '+(w.distance_m/1000).toFixed(1)+' 公里':''}</b><p>${w.stops.map(esc).join(" → ")}</p></div></button></article>`,
+        `<article class="walk-slide ${w.theme}" aria-label="${i + 1} / ${classicWalks.length} · ${esc(w.city)}"><button data-classic="${w.id}" class="classic-open"><span class="walk-city">${esc(w.city)} <span aria-hidden="true">${icon('external')}</span></span>${walkArt(w.motif)}<div class="walk-caption"><h3>${esc(w.title)}</h3><b>${w.stops.length} 站${Number.isFinite(w.distance_m)?' · '+(w.distance_m/1000).toFixed(1)+' 公里':''}</b><p>${w.stops.map(esc).join(" → ")}</p></div></button></article>`,
     )
     .join("");
   dots.innerHTML = classicWalks
@@ -56,14 +57,14 @@ export function createCityWalkHome({ api, navigate, toast, authenticated=()=>tru
     classicsRequest = loadClassicWalks(api)
       .then(() => { paintClassics(); classicsLoaded = true; })
       .catch(() => {
-        rail.innerHTML = '<button type="button" class="walk-create" data-classics-retry>重新加载 ↻</button>';
+        rail.innerHTML = `<button type="button" class="walk-create" data-classics-retry>重新加载 ${icon('refresh')}</button>`;
         dots.replaceChildren();
       })
       .finally(() => { classicsRequest = null; });
     return classicsRequest;
   }
   function syncAuto() {
-    auto.textContent = paused ? "▶" : "Ⅱ";
+    auto.innerHTML = icon(paused ? 'play' : 'pause');
     auto.setAttribute("aria-label", paused ? "开启自动轮播" : "暂停自动轮播");
   }
   function go(i, manual = false) {
@@ -182,10 +183,10 @@ export function createCityWalkHome({ api, navigate, toast, authenticated=()=>tru
           .slice(0, limit)
           .map(
             (w) =>
-              `<div class="walk-card-wrap"><button class="my-walk-card" data-edit-walk="${esc(w.id)}"><span class="walk-pin" aria-hidden="true">↗</span><span><small>${esc(w.city.name)} · ${w.stops.length} 个地点</small><b>${esc(w.title)}</b><span class="walk-stop-names">${w.stops.map((p) => esc(p.name)).join(" → ")}</span></span></button><button type="button" class="route-share" data-publish-walk="${esc(w.id)}" aria-label="发布这条 CityWalk 到发现">分享 ↗</button></div>`,
+              `<div class="walk-card-wrap"><button class="my-walk-card" data-edit-walk="${esc(w.id)}"><span class="walk-pin" aria-hidden="true">${icon('pin')}</span><span><small>${esc(w.city.name)} · ${w.stops.length} 个地点</small><b>${esc(w.title)}</b><span class="walk-stop-names">${w.stops.map((p) => esc(p.name)).join(" → ")}</span></span></button><button type="button" class="route-share" data-publish-walk="${esc(w.id)}" aria-label="发布这条 CityWalk 到发现">分享 ↗</button></div>`,
           )
           .join("") ||
-        '<div class="walk-empty"><span aria-hidden="true">〰</span><p>把想逛的地方，连成自己的路线。</p><button class="walk-create" data-empty-create>开始画路线 ↗</button></div>';
+        `<div class="walk-empty"><span aria-hidden="true">〰</span><p>把想逛的地方，连成自己的路线。</p><button class="walk-create" data-empty-create>开始画路线 ${icon('external')}</button></div>`;
       list
         .querySelector("[data-empty-create]")
         ?.addEventListener("click", () => navigate("/citywalk/new"));
@@ -193,7 +194,7 @@ export function createCityWalkHome({ api, navigate, toast, authenticated=()=>tru
     } catch (e) {
       if (revision === request) {
         list.innerHTML =
-          '<p class="muted">路线暂时没加载出来。</p><button class="walk-create" data-walk-retry>重新加载 ↻</button>';
+          `<p class="muted">路线暂时没加载出来。</p><button class="walk-create" data-walk-retry>重新加载 ${icon('refresh')}</button>`;
         list.querySelector("[data-walk-retry]").onclick = () => refresh();
       }
     }

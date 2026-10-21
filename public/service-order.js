@@ -1,8 +1,9 @@
+import { icon } from './ui-icons.js';
 export const serviceIcons = {
-  dining: "🍜",
-  lunch: "🍜",
-  dinner: "🍜",
-  stay: "🛏",
+  dining: icon('dining'),
+  lunch: icon('dining'),
+  dinner: icon('dining'),
+  stay: icon('stay'),
 };
 export const servicePriceText = (p) =>
   p.price?.status === "available" && Number.isFinite(p.price.amount)

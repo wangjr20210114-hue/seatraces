@@ -7,7 +7,7 @@ export const workflows = {
   create_trip: [
     "确认城市和日期",
     "创建旅行草稿",
-    "选择片区和偏好",
+    "按旅行偏好自动安排片区",
     "确认生成",
     "保存行程",
   ],
@@ -21,7 +21,7 @@ export const workflows = {
     "预览商家",
     "确认保存",
   ],
-  create_citywalk: ["选择城市和片区", "选择地点和起点", "核验步行路线", "确认保存"],
+  create_citywalk: ["确认城市", "按偏好安排街区和地点", "核验步行路线", "确认保存"],
   share_trip: ["读取本人行程", "预览发布", "确认发布"],
   post_reaction: ["选择可见帖子", "预览互动", "确认执行"],
   post_comment: ["选择可见帖子", "填写评论", "确认发布"],
@@ -155,7 +155,7 @@ export function workflowAllows({ state, action }, method, path, body) {
       if (
         f.cities?.some(
           (c) =>
-            !f.selections?.[c.id]?.length &&
+            !f.catalog?.[c.id] &&
             call(
               "POST",
               `/api/journey/sessions/${f.sessionId}/cities/${encodeURIComponent(c.id)}?async=1`,
@@ -165,7 +165,7 @@ export function workflowAllows({ state, action }, method, path, body) {
       )
         return true;
       return (
-        f.cities?.every((c) => f.selections?.[c.id]?.length) &&
+        f.cities?.every((c) => f.catalog?.[c.id]?.length) &&
         (call("POST", `/api/journey/sessions/${f.sessionId}/questions`, {})||
         call("POST", `/api/journey/sessions/${f.sessionId}/questions`, {
           answers:Object.fromEntries([...new Set([...(f.explicitAnswerKeys||[]),...(f.answered||[])])].filter(k=>Object.hasOwn(f.answers||{},k)).map(k=>[k,f.answers[k]])),

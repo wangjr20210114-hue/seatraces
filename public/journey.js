@@ -12,6 +12,9 @@ import {refreshPersonalOverview} from './personal-center.js';
 import { mountAgent } from "./agent-page.js";
 import { mountAgentLauncher } from './agent-launcher.js';
 import { renderInbox } from './inbox.js';
+import { createInboxNotifications } from './inbox-notifications.js';
+import { mountStaticIcons, icon, setIconLabel } from './ui-icons.js';
+mountStaticIcons();
 import { mountTripServices } from "./trip-services.js";
 import {mountTripWeather} from './trip-weather.js';
 import {mountPlanningAlternatives} from './planning-alternatives.js';
@@ -50,6 +53,7 @@ async function api(path, body, method) {
     r = await fetch(path, {
       method: method || (body === undefined ? "GET" : "POST"),
       headers: { "Content-Type": "application/json", "X-Seatraces": "1" },
+      ...(path.startsWith('/api/me/messages') ? {signal:AbortSignal.timeout(10000)} : {}),
       ...(path.startsWith('/api/journey/sessions') ? {signal:AbortSignal.timeout(path.endsWith('/generate') ? 120000 : 30000)} : {}),
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     });
@@ -60,7 +64,7 @@ async function api(path, body, method) {
     });
   }
   const data = await r.json();
-  if (r.status === 401) location.replace("/login.html");
+  if (r.status === 401) { inboxNotifications.setUser(null); location.replace("/login.html"); }
   if (data.code === "backend_unavailable")
     $("#connection-status").hidden = false;
   if (!r.ok)
@@ -70,6 +74,7 @@ async function api(path, body, method) {
     });
   return data;
 }
+const inboxNotifications = createInboxNotifications({ api, navigate: path => navigation.go(path) });
 async function checkConnection(retry = false) {
   const button = $("#reconnect");
   if (button.disabled) return;
@@ -158,7 +163,7 @@ function loadProgress(){
   const {sessionId,active,...fields}=saved;
   Object.assign(state,fields,{session:sessionId?{id:sessionId,cities:saved.cities}:null,resumeCatalog:true,catalog:{},busy:false});
   restoredSessionPending=!!sessionId;
-  $('#begin').textContent='继续未完成的行程 →';
+  setIconLabel($('#begin'),'继续未完成的行程','arrow');
   return active;
 }
 async function flushDraftWishes(){
@@ -196,7 +201,7 @@ async function openRecoveredWizard(){
       if(saved.tripId){
         const trip=await api('/api/trips/'+encodeURIComponent(saved.tripId));
         setBusy(false);closeWizard();await showTrip(trip);recovery.clear();
-        invalidateSession();state.step=0;draftStarted=false;recovery.clear();$('#begin').textContent='制订个性化旅行方案 ↗';
+        invalidateSession();state.step=0;draftStarted=false;recovery.clear();setIconLabel($('#begin'),'制订个性化旅行方案','external');
         toast('已恢复上次生成的行程');return;
       }
       restoredSessionPending=false;
@@ -205,7 +210,7 @@ async function openRecoveredWizard(){
     setBusy(false);await render();saveProgress(true);
   }catch(e){
     setBusy(false);
-    $('#question').innerHTML=heading('CONTINUE','上次的选择已保留')+'<button id="resume-wizard" class="primary">联网后继续 ↻</button>';
+    $('#question').innerHTML=heading('CONTINUE','上次的选择已保留')+`<button id="resume-wizard" class="primary">联网后继续 ${icon('refresh')}</button>`;
     $('#form-error').textContent=e.message;
     $('#next').disabled=true;
     $('#resume-wizard').onclick=()=>openRecoveredWizard();
@@ -225,6 +230,7 @@ function toast(s) {
   toastTimer = setTimeout(() => ($("#toast").hidden = true), 4500);
 }
 function syncProfile() {
+  inboxNotifications.setUser(me?.user);
   $('#admin-entry').hidden=me?.user?.role!=='admin';
   $("#profile-name").textContent = me?.user?.nickname || "旅行者";
   const avatar = $("#profile-avatar");
@@ -442,7 +448,7 @@ const navigation = createPageNavigation({
         const mount=route.page==='post'?mountSocialPost:mountComposer;
         void mount({route,content,setTitle,api,navigate:path=>navigation.go(path),toast,isCurrent:()=>revision===pageRevision,onAdopt:adoptSocialRoute}).then(cleanup=>{if(revision===pageRevision)pageCleanup=cleanup;else cleanup?.();});
       } else if (['settings','messages','social-messages'].includes(route.page)) {
-        void renderInbox({route,content,setTitle,api,navigate:path=>navigation.go(path),isCurrent:()=>revision===pageRevision});
+        void renderInbox({route,content,setTitle,api,navigate:path=>navigation.go(path),isCurrent:()=>revision===pageRevision}).then(() => inboxNotifications.paint());
       } else if (route.page === 'agent') {
         pageCleanup = mountAgent({content,setTitle,api,userId:me.user.id,context:agentContext,isCurrent:()=>revision===pageRevision,navigate:path=>navigation.go(path)});
       } else if (route.page === "citywalk") {
@@ -476,6 +482,7 @@ const navigation = createPageNavigation({
             syncProfile();
           },
           onLogout: () => {
+            inboxNotifications.setUser(null);
             if (presence.isEnabled()) presence.toggle();
             localStorage.removeItem("seatraces-last-trip");
             location.replace("/login.html");
@@ -524,7 +531,7 @@ const presence = createPresenceRecorder({
     const b = $("#record-presence");
     if (b) {
       b.setAttribute("aria-pressed", enabled);
-      b.textContent = enabled ? "到访记录中 ◎" : "记录到访 ◎";
+      setIconLabel(b, enabled ? '到访记录中' : '记录到访', 'locate');
     }
     if (message) toast(message);
   },
@@ -597,11 +604,8 @@ async function render() {
   $("#question").onkeydown = null;
   $("#form-error").textContent = "";
   $("#back").hidden = s === 0;
-  $("#next").textContent =
-    s === 3 + state.cities.length + state.questions.length - 1 &&
-    state.questions.length
-      ? "排好行程 ↗"
-      : "下一页 →";
+  const readyToPlan = s === 3 + state.cities.length + state.questions.length - 1 && state.questions.length;
+  setIconLabel($("#next"), readyToPlan ? "排好行程" : "下一页", readyToPlan ? "external" : "arrow");
   $("#progress").textContent =
     String(s + 1).padStart(2, "0") +
     " / " +
@@ -610,7 +614,7 @@ async function render() {
   if (s === 0) {
     $("#question").innerHTML =
       heading("START HERE", "您从哪里出发？", "↗") +
-      `<label class="field"><span>出发地</span><input id="origin" maxlength="150" placeholder="输入出发城市或地点" autocomplete="off" value="${esc(state.origin.label)}"></label><button id="locate" class="inline-action">◎ 用当前位置</button><div id="city-results" class="choices"></div>`;
+      `<label class="field"><span>出发地</span><input id="origin" maxlength="150" placeholder="输入出发城市或地点" autocomplete="off" value="${esc(state.origin.label)}"></label><button id="locate" class="inline-action">${icon('locate')} 用当前位置</button><div id="city-results" class="choices"></div>`;
     $("#origin").oninput = (e) => {
       state.origin = { label: e.target.value };
       originCity = null;
@@ -795,7 +799,7 @@ function paintCities() {
   $("#selected-cities").innerHTML = state.cities
     .map(
       (c, i) =>
-        `<button class="chip" data-remove="${i}" aria-label="移除${esc(c.name)}">${i + 1} · ${esc(c.name)} ×</button>`,
+        `<button class="chip" data-remove="${i}" aria-label="移除${esc(c.name)}">${i + 1} · ${esc(c.name)} ${icon('close')}</button>`,
     )
     .join("");
   $("#selected-cities").onclick = (e) => {
@@ -826,10 +830,10 @@ async function locate(silent) {
     void focusPlannerCity(originCity, false);
     invalidateSession();
     $("#origin").value = state.origin.label;
-    button.textContent = "◎ 已定位，可修改";
+    setIconLabel(button, '已定位，可修改', 'locate', true);
   } catch (e) {
     if (state.step === 0 && !silent) $("#form-error").textContent = e.message;
-    button.textContent = "◎ 用当前位置";
+    setIconLabel(button, '用当前位置', 'locate', true);
   } finally {
     button.disabled = false;
   }
@@ -852,7 +856,7 @@ function renderClusters(city) {
   $("#question").onclick = null;
   $("#question").innerHTML =
     heading("PICK YOUR PATCH", city.name + "，想逛哪一片？") +
-    `<select id="district" class="district-filter" aria-label="选择区县"><option value="">整座城市</option>${data.boundary.districts.map((d) => `<option value="${esc(d.name)}" ${d.name === state.district ? "selected" : ""}>${esc(d.name)}</option>`).join("")}</select><div class="clusters">${shown.map((c) => `<article class="cluster ${selected.includes(c.id) ? "selected" : ""}"><button class="cluster-main" data-cluster="${c.id}" aria-pressed="${selected.includes(c.id)}"><div><b>${c.number} · ${esc(c.name)}</b><small>${c.memberCount} 处 · 综合 ${c.score} 分${c.districts.length ? " · " + esc(c.districts[0]) : ""}</small></div><span class="check">${selected.includes(c.id) ? "✓" : "+"}</span></button><details data-members="${c.id}"><summary>看看这些地方</summary><div class="member-list"></div></details></article>`).join("")}</div>${!groups.length ? '<p class="muted">这里暂时没有可选景点，试试其他区县。</p>' : ""}`;
+    `<select id="district" class="district-filter" aria-label="选择区县"><option value="">整座城市</option>${data.boundary.districts.map((d) => `<option value="${esc(d.name)}" ${d.name === state.district ? "selected" : ""}>${esc(d.name)}</option>`).join("")}</select><div class="clusters">${shown.map((c) => `<article class="cluster ${selected.includes(c.id) ? "selected" : ""}"><button class="cluster-main" data-cluster="${c.id}" aria-pressed="${selected.includes(c.id)}"><div><b>${c.number} · ${esc(c.name)}</b><small>${c.memberCount} 处 · 综合 ${c.score} 分${c.districts.length ? " · " + esc(c.districts[0]) : ""}</small></div><span class="check">${icon(selected.includes(c.id) ? 'check' : 'plus')}</span></button><details data-members="${c.id}"><summary>看看这些地方</summary><div class="member-list"></div></details></article>`).join("")}</div>${!groups.length ? '<p class="muted">这里暂时没有可选景点，试试其他区县。</p>' : ""}`;
   const inventory = data.inventory;
   if (inventory) {
     const info = document.createElement("p");
@@ -866,7 +870,7 @@ function renderClusters(city) {
     details.querySelector(".member-list").innerHTML =
       byScore(c.members).slice(0, limit).map(scenicMemberMarkup).join("") +
       (c.members.length > limit
-        ? '<button class="loadmore" data-more-members>更多景点 ↓</button>'
+        ? `<button class="loadmore" data-more-members>更多景点 ${icon('down')}</button>`
         : "");
     details.stopDescriptions?.();
     if(state.session?.id){
@@ -934,7 +938,7 @@ function renderClusters(city) {
       const card=v.closest('.cluster');
       card.classList.toggle('selected',selected.includes(group.id));
       card.querySelector('[data-cluster]').setAttribute('aria-pressed',String(selected.includes(group.id)));
-      card.querySelector('.check').textContent=selected.includes(group.id)?'✓':'+';
+      card.querySelector('.check').innerHTML=icon(selected.includes(group.id)?'check':'plus');
       publishPlanner();
       try {
         await flushDraftWishes();
@@ -1048,7 +1052,7 @@ $("#next").onclick = async () => {
       state.inspiration = null;
       state.pendingWishes={};state.clientSessionId=null;
       draftStarted=false;
-      recovery?.clear();$('#begin').textContent='制订个性化旅行方案 ↗';
+      recovery?.clear();setIconLabel($('#begin'),'制订个性化旅行方案','external');
       return;
     }
     await turn(s + 1);
@@ -1304,7 +1308,7 @@ function paintTrip(updateMap = true) {
     overview = state.mapView === "overview";
   $("#itinerary").hidden = false;
   $("#itinerary").innerHTML =
-    `<div class="trip-head"><h2>${esc(t.title)}</h2><button id="publish-trip" class="route-share" type="button" aria-label="发布这份行程到发现">分享 ↗</button></div>
+    `<div class="trip-head"><h2>${esc(t.title)}</h2><button id="publish-trip" class="route-share" type="button" aria-label="发布这份行程到发现">分享 ${icon('share')}</button></div>
     <div class="days"><button class="day" data-overview aria-pressed="${overview}">旅行总览</button>${t.plan.days.map((d, i) => `<button class="day" data-day="${i}" aria-pressed="${!overview && i === state.day}">Day ${i + 1} · ${esc(d.city)}</button>`).join("")}</div>
     <div class="stopline">${overview ? [typeof t.request.origin === "string" ? t.request.origin : t.request.origin?.label, ...t.plan.cities.map((c) => c.name)].filter(Boolean).map(esc).join(" → ") : d.stops.map((p, i) => `${i + 1}. ${esc(p.name)}`).join(" → ") || "自由时光"}</div>
     <p class="muted">${overview ? `${esc(t.request.start)} — ${esc(t.request.end)}` : esc(d.date)}${!overview && d.transferAllowance ? " · 跨城日，已预留交通时间" : ""}</p>
@@ -1320,7 +1324,7 @@ function paintTrip(updateMap = true) {
     const record = document.createElement("button");
     record.id = "record-presence";
     record.className = "inline-action";
-    record.textContent = presence.isEnabled() ? "到访记录中 ◎" : "记录到访 ◎";
+    setIconLabel(record, presence.isEnabled() ? '到访记录中' : '记录到访', 'locate');
     record.setAttribute("aria-pressed", presence.isEnabled());
     $("#itinerary").append(record);
     $("#navigation-leg")?.addEventListener("change", (e) => {

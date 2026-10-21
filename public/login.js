@@ -1,3 +1,5 @@
+import { setIconLabel, mountStaticIcons } from './ui-icons.js';
+mountStaticIcons();
 const $ = s => document.querySelector(s);
 let mode = 'login', emailEnabled = false, busy = false, guestAvailable = false;
 const link = new URLSearchParams(location.hash.slice(1));
@@ -33,7 +35,7 @@ function setMode(next) {
   $('#guest-field').hidden = !(mode === 'register' && guestAvailable);
   $('[name="claimGuest"]').disabled = mode !== 'register' || !guestAvailable;
   $('#back-login').hidden = regular;
-  $('#submit-login').textContent = ({ login: '登录 ↗', register: '创建账号 ↗', forgot: '发送重设邮件 ↗', reset: '保存新密码 ↗', verify: '确认绑定邮箱 ↗' })[mode];
+  setIconLabel($('#submit-login'), ({ login: '登录', register: '创建账号', forgot: '发送重设邮件', reset: '保存新密码', verify: '确认绑定邮箱' })[mode], 'external');
   $('#login-title').textContent = ({ login: '收好行囊，出发吧', register: '第一程，从这里开始', forgot: '找回你的通行证', reset: '换一把新的钥匙', verify: '确认你的邮箱' })[mode];
   $('#login-subtitle').textContent = mode === 'forgot' ? (emailEnabled ? '使用之前验证绑定的邮箱。' : '邮箱服务尚未配置，暂时无法发送邮件。') : mode === 'verify' ? '确认后，可用此邮箱找回密码。' : mode === 'register' ? '账号唯一且固定，昵称之后可以修改。' : '登录，收好你的每一程。';
   $('#submit-login').disabled = mode === 'forgot' && !emailEnabled;
@@ -56,7 +58,7 @@ $('#login-form').onsubmit = async e => {
     const body = mode === 'verify' ? { token } : mode === 'reset' ? { token, password: fields.get('password') } : Object.fromEntries([...fields].filter(([k]) => !['confirm','claimGuest'].includes(k)));
     if (mode === 'register') body.claimGuest = fields.has('claimGuest');
     const result = await api(paths[mode], body);
-    if (['login','register'].includes(mode)) { localStorage.removeItem('seatraces-last-trip'); location.replace(new URLSearchParams(location.search).get('next')==='admin'?'/admin.html':'/'); return; }
+    if (['login','register'].includes(mode)) { try { sessionStorage.setItem('seatraces:inbox-login','1'); } catch {} localStorage.removeItem('seatraces-last-trip'); location.replace(new URLSearchParams(location.search).get('next')==='admin'?'/admin.html':'/'); return; }
     form.reset();
     busy = false;
     if (mode === 'reset' || mode === 'verify') setMode('login');

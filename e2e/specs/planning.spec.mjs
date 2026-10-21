@@ -128,7 +128,7 @@ check(
     await expect(page.locator("#walk-route-state")).toContainText(
       /预览|暂不可用/,
     );
-    await expect(page.locator("#walk-save")).not.toHaveText("保存路线 ✓");
+    await expect(page.locator("#walk-save")).not.toHaveText("保存路线");
     await expect(page).toHaveURL(/citywalk\/new/);
   },
   "partial",
