@@ -164,6 +164,7 @@ try {
     DOTENV_CONFIG_PATH: path.join(runtime, "no-env-file"),
     DATABASE_URL: `postgresql://seatraces_ui:${password}@127.0.0.1:${dbPort}/seatraces_ui`,
     NODE_ENV: "test",
+    APP_ORIGIN: "http://127.0.0.1:19888",
     PORT: "19887",
     HOST: "127.0.0.1",
     AMAP_PARENT_LOOKUP_ENABLED: "false",
@@ -296,7 +297,7 @@ try {
     ],
   );
   await q(
-    "INSERT INTO citywalks(id,user_id,title,city,stops,distance_m) VALUES($1,$2,$3,$4,$5,1250)",
+    "INSERT INTO citywalks(id,user_id,title,city,stops,distance_m,verified_route) VALUES($1,$2,$3,$4,$5,1250,$6)",
     [
       walk,
       credentials.a.id,
@@ -309,6 +310,12 @@ try {
         lng: 121.4737,
       },
       JSON.stringify(stops),
+      {
+        status: 'verified', distanceM: 1250, warning: false, blocked: false,
+        provider: 'ui-fixture',
+        legs: [{fromId: stops[0].id, toId: stops[1].id, distanceM: 1250,
+          paths: [[[stops[0].lng,stops[0].lat],[stops[1].lng,stops[1].lat]]]}],
+      },
     ],
   );
   const controlToken = randomBytes(24).toString("hex");

@@ -276,11 +276,13 @@ export function applyEdit(plan, operation, places) {
   if (operation.type === "move") {
     if (i < 0) throw new Error("地点不存在");
     const target = operation.to;
-    if (target < 0 || target >= day.stops.length)
+    if (!Number.isInteger(target) || target < 0 || target >= day.stops.length)
       throw Object.assign(new Error("超出当日行程范围"), { status: 400 });
-    if (day.stops[target].locked)
-      throw Object.assign(new Error("目标位置已锁定"), { status: 409 });
-    [day.stops[i], day.stops[target]] = [day.stops[target], day.stops[i]];
+    if (target === i) return p;
+    if (day.stops.slice(Math.min(i, target), Math.max(i, target) + 1).some(stop => stop.locked))
+      throw Object.assign(new Error("移动会改变已锁定地点的位置，请先解锁"), { status: 409 });
+    const [moved] = day.stops.splice(i, 1);
+    day.stops.splice(target, 0, moved);
   }
   const computed = schedule(day.stops, day.date, p.pace, day.anchor);
   if (computed.stops.length !== day.stops.length)

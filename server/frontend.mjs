@@ -23,7 +23,7 @@ export function createFrontend({ backendOrigin = "http://127.0.0.1:8787", proxyT
   app.set("trust proxy", trustProxy);
   app.use(helmet({ contentSecurityPolicy: { directives: {
     defaultSrc: ["'self'"], scriptSrc: ["'self'"], styleSrc: ["'self'", "'unsafe-inline'"],
-    imgSrc: ["'self'", "data:"], connectSrc: ["'self'"], upgradeInsecureRequests: null,
+    imgSrc: ["'self'", "data:", "blob:"], connectSrc: ["'self'"], upgradeInsecureRequests: null,
   } }, crossOriginEmbedderPolicy: false }));
   app.get("/frontend-health", (req, res) => res.json({ ok: true, service: "seatraces-frontend" }));
   app.use((req, res, next) => {

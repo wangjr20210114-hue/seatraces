@@ -253,6 +253,13 @@ export async function renderWalkEditor({
     } else {
       for (const p of selected.values()) pool.set(p.id, {...pool.get(p.id), ...p});
       anchorId = selected.keys().next().value || "";
+      // The saved path belongs to this exact order, not a newly optimised tour.
+      orderedStops = [...selected.values()].map(p => ({...p, name: walkName(p)}));
+      orderRevision = revision;
+      const savedRoute = previous.verified_route;
+      if (savedRoute?.status === "verified" &&
+          Number.isFinite(savedRoute.distanceM) && savedRoute.distanceM >= 0 &&
+          Array.isArray(savedRoute.legs)) verified = savedRoute;
     }
     notice = "";
     content.innerHTML = `<div class="walk-editor">${steps(2)}<div class="walk-intro"><h2>${esc(g.name)}</h2><button class="walk-create" id="walk-area-back">换个步行圈 ↶</button></div><label class="walk-label" for="walk-title">路线名称</label><input id="walk-title" maxlength="80" value="${esc(title)}"><div class="walk-preview walk-edit-map"><iframe id="walk-edit-map" src="/amap-view.html?mode=home&walk=1" title="CityWalk 地图选点"></iframe></div><div id="walk-route-state" class="walk-route-state" role="status"></div><div id="walk-selected"></div><h3>下一站，去这里</h3><label class="walk-label" for="walk-place-query">附近地点</label><input id="walk-place-query" placeholder="搜索附近地点"><p id="walk-nearby-state" role="status"></p><div class="walk-sights" id="walk-candidates"></div><p id="walk-error" class="error" role="alert"></p><div class="walk-save-bar"><b id="walk-count"></b><button id="walk-save" class="primary" disabled>保存路线 ✓</button></div></div>`;

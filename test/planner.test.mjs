@@ -108,6 +108,31 @@ test("locked stops resist assistant/manual removal, duplication and infeasible r
   );
   assert.equal(plan.days[0].stops.length, 2);
 });
+test('move inserts the selected stop and preserves every intervening stop',()=>{
+  const plan={pace:'balanced',days:[{city:'苏州',date:'2026-10-24',stops:['a','b','c','d'].map(id=>p(id,{duration_min:30}))},
+    {city:'苏州',date:'2026-10-25',stops:[p('other')]}]};
+  for(const [from,to,expected] of [
+    ['a',3,['b','c','d','a']],['d',0,['d','a','b','c']],
+    ['b',2,['a','c','b','d']],['c',1,['a','c','b','d']],['b',1,['a','b','c','d']],
+  ]){
+    const changed=applyEdit(plan,{type:'move',day:0,placeId:from,to},[]);
+    assert.deepEqual(changed.days[0].stops.map(p=>p.id),expected);
+    assert.deepEqual(changed.days[1],plan.days[1]);
+    assert.deepEqual(plan.days[0].stops.map(p=>p.id),['a','b','c','d']);
+  }
+});
+
+test('move cannot shift a locked stop or accept a missing/noninteger target',()=>{
+  const plan={pace:'balanced',days:[{city:'苏州',date:'2026-10-24',stops:['a','b','c','d'].map(id=>p(id,{duration_min:30,locked:id==='b'}))}]};
+  for(const [placeId,to] of [['a',3],['d',0],['a',1],['b',3]]){
+    assert.throws(()=>applyEdit(plan,{type:'move',day:0,placeId,to},[]),e=>e.status===409);
+  }
+  for(const to of [undefined,-1,4,1.5]){
+    assert.throws(()=>applyEdit(plan,{type:'move',day:0,placeId:'c',to},[]),e=>e.status===400);
+  }
+  assert.deepEqual(applyEdit(plan,{type:'move',day:0,placeId:'c',to:2},[]),plan,'an unchanged position must not reschedule the day');
+});
+
 test("geographical distance and coordinate projection are plausible", () => {
   assert.equal(distance(p("a"), p("b")), 0);
   const coord = toGcj({ lat: 31.31, lng: 120.62 }),

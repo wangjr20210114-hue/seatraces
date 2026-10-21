@@ -256,6 +256,11 @@ test(
         if (d < 15000) {
           assert.equal(result.data.distance_m, d);
           assert.equal(result.data.verified_route.warning, d > 10000);
+          const reopened = await f.request('/api/citywalks/' + result.data.id, {user:'user'});
+          assert.equal(reopened.status, 200);
+          assert.equal(reopened.data.distance_m, d);
+          assert.deepEqual(reopened.data.verified_route, result.data.verified_route);
+          assert.deepEqual(reopened.data.stops, result.data.stops);
         }
       }
       unavailable = true;

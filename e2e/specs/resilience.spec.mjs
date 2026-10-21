@@ -16,9 +16,25 @@ check(
     });
     expect(status).toBe(403);
     expect((await get(page, "/api/me")).user.nickname).toBe(before);
+    for(const headers of [
+      {'X-Seatraces':'1',Origin:'https://outside.invalid'},
+      {'X-Seatraces':'1',Origin:'null'},
+      {'X-Seatraces':'1',Origin:'http://127.0.0.1:19888','Sec-Fetch-Site':'cross-site'},
+    ]){
+      // Browser fetch cannot forge Origin. APIRequestContext exercises the
+      // server's raw-header boundary without contacting another site.
+      const response=await page.request.patch('/api/me',{headers,data:{nickname:'不应保存'}});
+      expect(response.status()).toBe(403);
+      expect((await get(page,'/api/me')).user.nickname).toBe(before);
+    }
+    const valid=await page.request.patch('/api/me',{
+      headers:{'X-Seatraces':'1',Origin:'http://127.0.0.1:19888','Sec-Fetch-Site':'same-origin'},
+      data:{nickname:before},
+    });
+    expect(valid.status()).toBe(200);
   },
   "partial",
-  "浏览器缺少写操作来源头被拒绝；跨站Cookie及完整CSRF矩阵另测",
+  "浏览器缺标头与HTTP Origin/Sec-Fetch-Site矩阵均拒绝写入；真实跨站Cookie链路另测",
 );
 check(
   "E2E-016",

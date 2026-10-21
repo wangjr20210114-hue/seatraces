@@ -10,6 +10,41 @@ function surface(){
  };return {root,nodes,messages};
 }
 const flush=()=>new Promise(resolve=>setImmediate(resolve));
+
+test('ME-011: reopening a saved walk restores verified distance, paths and order until selection changes',async()=>{
+ const originalWindow=globalThis.window,originalLocation=globalThis.location;
+ globalThis.window={addEventListener(){},removeEventListener(){}};globalThis.location={origin:'http://test.local'};
+ const city={id:'city',name:'上海',lat:31,lng:121,country:'CN'};
+ // Use a saved order different from the current geometric ordering.
+ const stops=[{...city,id:'a',name:'起点'},{...city,id:'b',name:'远站',lng:121.003},{...city,id:'c',name:'近站',lng:121.001}];
+ const paths=[[[121,31],[121.002,31.001],[121.003,31]],[[121.003,31],[121.001,31]]];
+ const verified={status:'verified',distanceM:1250,legs:paths.map(path=>({paths:[path]})),blocked:false,warning:false};
+ let saved={id:'saved-walk',version:1,title:'已保存路线',city,stops,verified_route:verified},cleanup;
+ const calls=[];
+ try{
+  for(const route of [verified,{...verified,distanceM:11000,warning:true},null,{status:'preview'}, {...verified,distanceM:null}]){
+   saved={...saved,verified_route:route};
+   const {root,nodes,messages}=surface();
+   const api=async(path,body)=>{calls.push({path,body});if(path==='/api/citywalks/saved-walk')return saved;if(path.startsWith('/api/citywalk/catalog/'))return {draftId:'draft',clusters:[{id:'g',name:'步行圈',members:stops,anchor:stops[0]}]};if(path.endsWith('/nearby'))return {items:[]};throw Error(path);};
+   cleanup=await renderWalkEditor({route:{id:saved.id},content:root,setTitle(){},api,navigate(){},isCurrent:()=>true,toast(){}});await flush();
+   assert.ok(nodes.get('#walk-selected').innerHTML.indexOf('远站')<nodes.get('#walk-selected').innerHTML.indexOf('近站'),'saved stop order stays intact');
+   if(route?.status==='verified'&&Number.isFinite(route.distanceM)){
+    assert.equal(nodes.get('#walk-save').textContent,'保存路线 ✓');
+    assert.match(nodes.get('#walk-route-state').textContent,new RegExp((route.distanceM/1000).toFixed(2)+' 公里'));
+    assert.deepEqual(messages.at(-1).connections,paths.map(path=>({path})));
+    nodes.get('#walk-title').oninput({target:{value:'只改标题'}});
+    assert.equal(nodes.get('#walk-save').textContent,'保存路线 ✓','title edit does not invalidate route');
+    nodes.get('#walk-start').onchange({target:{value:'c'}});
+    assert.match(nodes.get('#walk-route-state').textContent,/连线约/);
+    assert.equal(nodes.get('#walk-save').textContent,'规划步行路线 →');
+   }else{
+    assert.match(nodes.get('#walk-route-state').textContent,/连线约/,'legacy walks cannot present an estimate as verified');
+   }
+   cleanup();cleanup=null;
+  }
+  assert.equal(calls.filter(c=>c.path==='/api/citywalk/preview').length,0,'reopening does not call the walking provider');
+ }finally{cleanup?.();globalThis.window=originalWindow;globalThis.location=originalLocation;}
+});
 test('CityWalk selection stays local, debounces nearby reads and rejects stale verification',async t=>{
  const originalWindow=globalThis.window,originalLocation=globalThis.location;
  globalThis.window={addEventListener(){},removeEventListener(){}};globalThis.location={origin:'http://test.local'};

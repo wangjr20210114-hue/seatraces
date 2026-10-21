@@ -1,4 +1,5 @@
 import {createRequestTracer,createDatabaseTraceSink,installTraceRoutes} from './operations/tracing.mjs';
+import {createSourceCheck} from './request-source.mjs';
 import {installRouteCovers} from './social/route-covers.mjs';
 import {recommend} from './recommendation/engine.mjs';
 import {ensureCurrentProfile} from './recommendation/freshness.mjs';
@@ -90,7 +91,7 @@ app.use(
         defaultSrc: ["'self'"],
         scriptSrc: ["'self'"],
         styleSrc: ["'self'", "'unsafe-inline'"],
-        imgSrc: ["'self'", "data:", "https://tile.openstreetmap.org", "https://*.tile.openstreetmap.org"],
+        imgSrc: ["'self'", "data:", "blob:", "https://tile.openstreetmap.org", "https://*.tile.openstreetmap.org"],
         connectSrc: ["'self'"],
         upgradeInsecureRequests: production ? [] : null,
       },
@@ -113,13 +114,9 @@ app.use("/api", (req, res, next) => {
   rate.set(key, v);
   if (++v.count > limit)
     return res.status(429).json({ error: "操作太快，请稍后重试" });
-  if (
-    !["GET", "HEAD", "OPTIONS"].includes(req.method) &&
-    (req.get("X-Seatraces") !== "1" || req.get("Sec-Fetch-Site") === "cross-site")
-  )
-    return res.status(403).json({ error: "请求来源校验失败" });
   next();
 });
+app.use('/api', createSourceCheck({production}));
 const operationEvents=createEventRecorder({query});
 const mailer=createOutboxMailer({query,transaction,transport:createMailer(),events:operationEvents});
 const accounts = createAccounts({ query, transaction, production, mailer });

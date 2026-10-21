@@ -2,6 +2,10 @@
 
 ## 当前团队服务
 
+浏览器写请求同时校验 `X-Seatraces: 1`、`Sec-Fetch-Site` 和存在时的 `Origin`。生产 `backend.env` 中的 `APP_ORIGIN` 应为实际公开入口（当前为 `https://trip.seatraces.com`）；仅接受该精确来源，不使用 `Host` 或 `X-Forwarded-Host` 自动扩展白名单。省略此配置时，生产环境带 Origin 的写请求会被拒绝。独立前端须继续保留原始 Origin 标头。内部智能体不带 Origin 的本机调用仍要求既有会话与来源标头。
+
+本地开发允许 8787/8788 的 localhost 与 127.0.0.1 入口，其他前端端口须明确设置 `APP_ORIGIN`。头像在浏览器经 `blob:` 地址解码后上传，前后端页面的 CSP 均允许图片使用 `blob:`，脚本来源权限不变。
+
 2026-10-14 20:25（北京时间）已为 `ubuntu` 和 `seatraces_dev` 开通共享源码读写：`/srv/seatraces` 指向当前 `drawer-4c6f2f57bb8f` 发布包原有的源码目录，未另建 checkout。安装时核对了 119 个应用文件与运行容器一致，并以两个账号验证读写权限；源码和 ACL 备份位于 `/var/lib/seatraces/shared-source/`。队友未获得 sudo/Docker 管理权限，线上容器没有重启。双方通过 Remote SSH 打开 `/srv/seatraces` 才是在编辑同一批文件；各自电脑上的源码不会自动同步。
 
 2026-10-15 已在原目录补入完整 Git 历史，`/srv/seatraces` 现为真实仓库，跟踪 `main → origin/main`，远端为 `https://github.com/wangjr20210114-hue/seatraces.git`。两个账号均通过 pull 预检查，原源码保留。**发布前必须先保留服务器中的团队修改**；下面的一键发布检测到未提交修改会停止。Git pull 只更新源码，部署完成才会更新线上镜像。

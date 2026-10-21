@@ -10,6 +10,7 @@ import {installOperationsRoutes} from '../../server/operations/routes.mjs';
 import {installAdminAccess,adminTokenHash} from '../../server/operations/admin-access.mjs';
 import {installAccessRoutes} from '../../server/operations/access-routes.mjs';
 import {requestContext,applyRequestContext,trackedMutation,withRequestContext} from '../../server/operations/request-context.mjs';
+import {createSourceCheck} from '../../server/request-source.mjs';
 
 export async function iterationFixture({schemas=[],production=false}={}) {
   const cfg=JSON.parse(await readFile(process.env.ITERATION_DB_CONFIG || new URL('../../.runtime/local.json',import.meta.url),'utf8'));
@@ -35,7 +36,7 @@ export async function iterationFixture({schemas=[],production=false}={}) {
     events=createEventRecorder({query,intervalMs:60000});
     const accounts=createAccounts({query,transaction});
     const app=express();app.use(express.json(),cookieParser());
-    app.use('/api',(req,res,next)=>!['GET','HEAD'].includes(req.method)&&req.get('X-Seatraces')!=='1'?res.status(403).json({error:'source'}):next());
+    app.use('/api',createSourceCheck({production}));
     app.use('/api',accounts.attach,events.middleware);
     installAdminAccess(app,{query,transaction,production});
     app.use('/api',accounts.gate,accounts.router);

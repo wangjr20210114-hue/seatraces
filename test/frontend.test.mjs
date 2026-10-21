@@ -22,6 +22,9 @@ test("frontend survives backend loss; API failure is explicit and static files s
   await close(backend);
   const page = await fetch(base + "/");
   assert.equal(page.status, 200);
+  const policy=page.headers.get('content-security-policy');
+  assert.match(policy, /img-src[^;]*blob:/, 'local upload images must be decodable');
+  assert.doesNotMatch(policy, /script-src[^;]*blob:/, 'image support must not enable blob scripts');
   const html = await page.text();
   for (const id of ["home", "discover-page", "profile-page", "connection-status"]) assert.ok(html.includes(`id="${id}"`));
   for (const file of ["journey.js", "journey.css", "amap-view.html", "amap-view.js"]) assert.equal((await fetch(base + "/" + file)).status, 200);

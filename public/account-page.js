@@ -64,15 +64,19 @@ export async function renderAccountPage({ content, api, esc, isCurrent, onUser, 
     content.querySelectorAll('[data-avatar]').forEach(other => other.setAttribute('aria-pressed', other === b));
   });
   $('#avatar-file').onchange = async e => {
-    const file = e.target.files[0]; if (!file) return;
-    if (!['image/jpeg','image/png','image/webp'].includes(file.type) || file.size > 10 * 1024 * 1024) { message('请选择 10 MB 以内的 JPG、PNG 或 WebP 图片', 'error'); return; }
+    const input = e.target, file = input.files[0]; if (!file || uploading) return;
+    if (!['image/jpeg','image/png','image/webp'].includes(file.type) || file.size > 10 * 1024 * 1024) { message('请选择 10 MB 以内的 JPG、PNG 或 WebP 图片', 'error'); input.value = ''; return; }
     uploading = true;
     const uploadText = $('#upload-avatar span');
     uploadText.textContent = '上传中…';
     content.querySelectorAll('#profile-form button').forEach(b => b.disabled = true);
-    const url = URL.createObjectURL(file);
+    let url;
     try {
-      const img = new Image(); img.src = url; await img.decode();
+      url = URL.createObjectURL(file);
+      const img = new Image(); img.src = url;
+      try { await img.decode(); }
+      catch { throw Error('图片无法读取，请选择完整的 JPG、PNG 或 WebP 图片'); }
+      if (!img.naturalWidth || !img.naturalHeight) throw Error('图片无法读取，请重新选择图片');
       if (!isCurrent()) return;
       if (img.naturalWidth * img.naturalHeight > 16000000) throw Error('图片过大，请选择 1600 万像素以内的照片');
       const canvas = document.createElement('canvas'); canvas.width = canvas.height = 256;
@@ -83,7 +87,7 @@ export async function renderAccountPage({ content, api, esc, isCurrent, onUser, 
       content.querySelectorAll('[data-avatar]').forEach(b => b.setAttribute('aria-pressed', 'false'));
       message('头像已保存');
     } catch (error) { message(error.message || '图片暂时无法读取', 'error'); }
-    finally { URL.revokeObjectURL(url); uploading = false; uploadText.textContent = '上传头像'; e.target.value = ''; content.querySelectorAll('#profile-form button').forEach(b => b.disabled = false); }
+    finally { if (url) URL.revokeObjectURL(url); uploading = false; uploadText.textContent = '上传头像'; input.value = ''; content.querySelectorAll('#profile-form button').forEach(b => b.disabled = false); }
   };
   $('#profile-form').onsubmit = async e => {
     e.preventDefault(); if (uploading) return;

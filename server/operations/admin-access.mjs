@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
 import { hashToken } from '../auth.mjs';
 import {managementAccess,authorizeManagement} from './permissions.mjs';
+import {createSourceCheck} from '../request-source.mjs';
 
 const sessionMinutes = 30;
 const validToken = value => typeof value === 'string' && /^[a-f0-9]{64}$/.test(value);
@@ -19,6 +20,7 @@ const pageFile = fileURLToPath(new URL('./admin.html', import.meta.url));
 
 export function installAdminAccess(app, { query, transaction, production = false }) {
   const cookie = { httpOnly: true, sameSite: 'strict', secure: production, path: '/' };
+  const sourceCheck = createSourceCheck({production});
   async function attach(req, res, next) {
     // Never inherit the application session for management requests.
     req.applicationUser = req.user;
@@ -38,12 +40,6 @@ export function installAdminAccess(app, { query, transaction, production = false
       }
       next();
     } catch (error) { next(error); }
-  }
-  function sourceCheck(req, res, next) {
-    if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method) &&
-        (req.get('X-Seatraces') !== '1' || req.get('Sec-Fetch-Site') === 'cross-site'))
-      return res.status(403).json({ error: '请求来源校验失败' });
-    next();
   }
   function requireSession(req, res, next) {
     if (!req.user && req.applicationUser && req.applicationUser.role !== 'admin')
