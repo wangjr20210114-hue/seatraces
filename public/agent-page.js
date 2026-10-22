@@ -115,13 +115,11 @@ export function mountAgent({
         .join("\n"),
     );
     if (reply.error) b.classList.add("agent-error");
-    if (reply.steps?.length || reply.workflow?.length) {
+    if (!reply.workflow?.length && reply.steps?.length) {
       const trace = node("details", "agent-trace");
-      trace.append(
-        node("summary", "", reply.workflow ? "操作流程" : "处理步骤"),
-      );
+      trace.append(node("summary", "", "处理步骤"));
       const list = node("ol");
-      for (const label of reply.workflow || reply.steps)
+      for (const label of reply.steps)
         list.append(node("li", "", label));
       trace.append(list);
       b.append(trace);
