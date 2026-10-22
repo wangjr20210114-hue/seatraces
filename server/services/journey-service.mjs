@@ -17,6 +17,7 @@ import {
   districtOf,
 } from "./city-boundaries.mjs";
 import { createReadJobs } from "./read-jobs.mjs";
+import { sendSavedCitySelection } from "./journey-recovery-stream.mjs";
 const cityReadJob = createReadJobs();
 import { catalogRequest } from "./catalog.mjs";
 import {installAdaptiveQuestions} from './adaptive-questions.mjs';
@@ -308,14 +309,11 @@ export function installJourneyRoutes(app, { auth, travelHabit, recordWish=async(
       // Recovery must reuse the exact saved group IDs rather than reclustering
       // against a changed catalog. Never load all cities or raw provider data.
       if(req.query.resume==='1'){
-        const row=(await query(`SELECT catalog ? $3 available,
-          CASE WHEN octet_length((catalog->$3)::text)<=8388608 THEN catalog->$3 ELSE NULL END snapshot
-          FROM journey_sessions WHERE id=$1 AND user_id=$2`,[s.id,req.user.id,city.id])).rows[0];
-        if(row?.available){
-          if(!row.snapshot)throw error('问卷地点资料过大，请联系管理员恢复',413);
-          const wishes=await wishesFor(req.user.id);
-          return res.json(await restoredCitySelection(row.snapshot,city,wishes));
-        }
+        const wishes=await wishesFor(req.user.id);
+        if(await sendSavedCitySelection({
+          res,transaction,sessionId:s.id,userId:req.user.id,cityId:city.id,wishes,
+          restoreHeader:header=>restoredCitySelection({...header,clusters:[]},city,wishes),
+        }))return;
       }
       const key = `city:${req.user.id}:${s.id}:${city.id}`;
       const work = () =>
