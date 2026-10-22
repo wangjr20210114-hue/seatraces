@@ -137,7 +137,7 @@ docker compose exec -T db psql -U seatraces_owner -d seatraces < server/postgis.
 
 顶部列出的 trip.seatraces.com 部署已完成应用镜像、数据库权限、HTTPS 和 Cookie 接口验收。若采用本节旧的独立数据库 Compose/Nginx 模板，仍须针对那个环境单独验证。供应商页面效果、跨端操作和真实设备定位不在本次服务器接口验收范围内。
 
-真实地图、导航、铁路、航班服务可能涉及按量费用。系统内 200 元限制使用每请求预留估算；每家供应商仍应独立设置硬额度和告警。不得把此估算当成真实账单精度。
+调用量和费用估算持续记录，默认不按预算拦截请求；仅在 `API_LOCAL_LIMITS_ENABLED=true` 时启用本地预算限制。费用估算基于每请求预留金额，不代表供应商实际账单。
 
 ## 已部署的 OSM 地点服务
 
