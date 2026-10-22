@@ -2,6 +2,7 @@
 // Existing provider/official hierarchy remains authoritative and untouched.
 import {readdir,mkdir,unlink} from 'node:fs/promises';
 import dotenv from 'dotenv';
+import {localApiLimitsEnabled} from '../server/domain/api-limits.mjs';
 import {atomicJSON,readJSON} from '../server/services/hierarchy-evidence.mjs';
 import {hashJSON,hierarchyPlaceHash} from '../server/domain/scenic-hierarchy.mjs';
 import {assessmentVersion,assessmentInstruction,buildAssessmentJobs,assessmentJobHash,validateAssessment} from '../server/domain/hierarchy-assessment.mjs';
@@ -22,8 +23,9 @@ const {createJsonRequester}=await import('../server/integrations/http.mjs');
 const status={version:assessmentVersion,status:'preparing',startedAt:new Date().toISOString(),commercialAmapCalls:0};
 let connection,locked=false,lost=false;
 const checkpoint=async extra=>{Object.assign(status,extra,{updatedAt:new Date().toISOString()});await atomicJSON(new URL('status.json',dir),status);};
-const budget=Number(process.env.HIERARCHY_ASSESSMENT_BUDGET_CNY||20),model=process.env.DEEPSEEK_MODEL||'deepseek-flash';
-if(model!=='deepseek-flash'||!Number.isFinite(budget)||budget<=0||budget>200)throw Error('Unsupported model or invalid batch budget');
+const limitsEnabled=localApiLimitsEnabled();
+const budget=limitsEnabled?Number(process.env.HIERARCHY_ASSESSMENT_BUDGET_CNY||20):null,model=process.env.DEEPSEEK_MODEL||'deepseek-flash';
+if(model!=='deepseek-flash'||(limitsEnabled&&(!Number.isFinite(budget)||budget<=0||budget>200)))throw Error('Unsupported model or invalid batch budget');
 try {
   connection=await pool.connect();connection.on('error',()=>{lost=true;});
   locked=(await connection.query('SELECT pg_try_advisory_lock(20261012,3) locked')).rows[0].locked;

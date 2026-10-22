@@ -157,6 +157,7 @@ test("budget exhaustion preserves prior results and leaves unprocessed points pe
 test("authorized hierarchy batches have no local count cap", async () => {
   const make = (own, parent) =>
     createApiReservation({
+      env: { API_LOCAL_LIMITS_ENABLED: "true" },
       transact: async (fn) =>
         fn({
           query: async (sql, args) => {

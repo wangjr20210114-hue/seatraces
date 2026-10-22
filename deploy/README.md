@@ -2,6 +2,8 @@
 
 ## 当前团队服务
 
+应用自身的 API 每日调用次数、月预算和离线模型批次预算默认不拦截请求；已有 `*_DAILY_REQUEST_LIMIT`、`API_MONTHLY_BUDGET_CNY` 数值不会单独启用限制。需要恢复时，在 `backend.env`（本地为 `.env`）设置 `API_LOCAL_LIMITS_ENABLED=true` 并重启服务。关闭时 `/api/status` 返回 `budget.limit=null`、`budget.unlimited=true`，调用量和费用估算继续记录；供应商账号配额、请求节奏、超时及账号安全限制仍生效。
+
 浏览器写请求同时校验 `X-Seatraces: 1`、`Sec-Fetch-Site` 和存在时的 `Origin`。生产 `backend.env` 中的 `APP_ORIGIN` 应为实际公开入口（当前为 `https://trip.seatraces.com`）；仅接受该精确来源，不使用 `Host` 或 `X-Forwarded-Host` 自动扩展白名单。省略此配置时，生产环境带 Origin 的写请求会被拒绝。独立前端须继续保留原始 Origin 标头。内部智能体不带 Origin 的本机调用仍要求既有会话与来源标头。
 
 本地开发允许 8787/8788 的 localhost 与 127.0.0.1 入口，其他前端端口须明确设置 `APP_ORIGIN`。头像在浏览器经 `blob:` 地址解码后上传，前后端页面的 CSP 均允许图片使用 `blob:`，脚本来源权限不变。

@@ -4,6 +4,7 @@ import { readFile, writeFile, mkdir, unlink } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import dotenv from 'dotenv';
+import {localApiLimitsEnabled} from '../server/domain/api-limits.mjs';
 import { hierarchyVersion, hierarchyPlaceHash, hashJSON, hierarchyInstruction, validateHierarchyProposal, estimateFinish } from '../server/domain/scenic-hierarchy.mjs';
 import { atomicJSON, readJSON, collectEvidence, buildEvidenceJobs } from '../server/services/hierarchy-evidence.mjs';
 
@@ -121,8 +122,9 @@ try {
       const model=process.env.DEEPSEEK_MODEL || 'deepseek-flash';
       const ledgerPath=new URL('ledger-'+data.fingerprint.slice(0,20)+'.json',dir);
       const ledger=await readJSON(ledgerPath) || {reservedCny:0,calls:0,estimatedCny:0};
-      const budget=Number(process.env.HIERARCHY_MODEL_BUDGET_CNY || 5);
-      if(!Number.isFinite(budget)||budget<0||budget>200)throw Object.assign(Error('budget invalid'),{code:'invalid_batch_budget'});
+      const limitsEnabled=localApiLimitsEnabled();
+      const budget=limitsEnabled?Number(process.env.HIERARCHY_MODEL_BUDGET_CNY || 5):null;
+      if(limitsEnabled&&(!Number.isFinite(budget)||budget<0||budget>200))throw Object.assign(Error('budget invalid'),{code:'invalid_batch_budget'});
       let completed=0,rejectedJobs=0,failedJobs=0;const modelStarted=new Date().toISOString();
       const activeHashes=new Set(jobs.map(input=>hashJSON({version:hierarchyVersion,instruction:hierarchyInstruction,model,
         input:{...input,evidence:input.evidence.map(({retrievedAt,...e})=>e)}})));
@@ -139,7 +141,7 @@ try {
         if(!job) {
           if(model!=='deepseek-flash') {status.status='paused';status.reason='model_price_not_configured';break;}
           const reserve=Math.max(.1,(Buffer.byteLength(JSON.stringify(input)+hierarchyInstruction)+2000)*2/1e6+1800*8/1e6);
-          if(ledger.reservedCny+reserve>budget) {status.status='paused';status.reason='batch_model_budget';break;}
+          if(limitsEnabled&&ledger.reservedCny+reserve>budget) {status.status='paused';status.reason='batch_model_budget';break;}
           ledger.reservedCny+=reserve;ledger.calls++;
           await atomicJSON(ledgerPath,ledger);
           job={hash,status:'attempting',startedAt:new Date().toISOString(),reservedCny:reserve};

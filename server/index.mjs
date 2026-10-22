@@ -1,5 +1,6 @@
 import {createRequestTracer,createDatabaseTraceSink,installTraceRoutes} from './operations/tracing.mjs';
 import {createSourceCheck} from './request-source.mjs';
+import {apiBudgetStatus} from './domain/api-limits.mjs';
 import {installRouteCovers} from './social/route-covers.mjs';
 import {recommend} from './recommendation/engine.mjs';
 import {ensureCurrentProfile} from './recommendation/freshness.mjs';
@@ -189,11 +190,7 @@ app.get("/api/status", async (req, res) => {
     counts,
     database: "PostgreSQL",
     spatial: ext ? "PostGIS" : "经纬度 + 城市索引（本机）",
-    budget: {
-      limit: Number(process.env.API_MONTHLY_BUDGET_CNY || 200),
-      reserved: Number(used),
-      note: "请求预留估算，并非供应商账单",
-    },
+    budget: apiBudgetStatus(used),
     demo: true,
   });
 });

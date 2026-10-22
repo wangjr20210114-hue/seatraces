@@ -1,7 +1,7 @@
 import {traceSpan} from '../operations/tracing.mjs';
 import { reserveApiCall } from "../repositories/api-usage.mjs";
 
-// Every commercial call passes the same budget gate. No automatic paid retries.
+// Every commercial call records usage and honors optional local caps. No paid retries.
 // URL/headers/body and vendor error text must never reach logs or public errors.
 export function createJsonRequester({
   reserve = reserveApiCall,

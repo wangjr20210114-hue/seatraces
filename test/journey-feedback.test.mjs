@@ -30,7 +30,7 @@ function reservation({ total = 100, own = 10, used = 10, env = {} } = {}) {
   return {
     count: () => inserts,
     call: createApiReservation({
-      env,
+      env: { API_LOCAL_LIMITS_ENABLED: "true", ...env },
       transact: async (fn) =>
         fn({
           query: async (sql) => {
@@ -45,7 +45,7 @@ function reservation({ total = 100, own = 10, used = 10, env = {} } = {}) {
     }),
   };
 }
-test("map usage no longer consumes model daily allowance; budget and explicit ceilings still apply", async () => {
+test("opt-in local caps keep separate provider allowances and enforce daily/monthly ceilings", async () => {
   const r = reservation();
   await r.call("DeepSeek");
   assert.equal(r.count(), 1);

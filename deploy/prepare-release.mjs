@@ -10,7 +10,7 @@ await mkdir(output,{recursive:true,mode:0o700});
 const env=parse(await readFile(path.join(root,'.env')));
 // Never transfer the local DB password, SSH credentials, cached sessions, or
 // arbitrary workstation settings into the server's application environment.
-const keys=['AMAP_KEY','AMAP_POI_VERSION','AMAP_JS_KEY','AMAP_JS_SECURITY_CODE','DEEPSEEK_API_KEY','DEEPSEEK_MODEL','API_MONTHLY_BUDGET_CNY','API_DAILY_REQUEST_LIMIT','AMAP_DAILY_REQUEST_LIMIT','DEEPSEEK_DAILY_REQUEST_LIMIT','API_REQUEST_RESERVE_CNY','SCENIC_MODEL_GROUPING_ENABLED','OVERSEAS_MAP_PROVIDER','SMTP_HOST','SMTP_PORT','SMTP_USER','SMTP_PASSWORD','SMTP_FROM'];
+const keys=['AMAP_KEY','AMAP_POI_VERSION','AMAP_JS_KEY','AMAP_JS_SECURITY_CODE','DEEPSEEK_API_KEY','DEEPSEEK_MODEL','API_LOCAL_LIMITS_ENABLED','API_MONTHLY_BUDGET_CNY','API_DAILY_REQUEST_LIMIT','AMAP_DAILY_REQUEST_LIMIT','DEEPSEEK_DAILY_REQUEST_LIMIT','API_REQUEST_RESERVE_CNY','SCENIC_MODEL_GROUPING_ENABLED','OVERSEAS_MAP_PROVIDER','SMTP_HOST','SMTP_PORT','SMTP_USER','SMTP_PASSWORD','SMTP_FROM'];
 const lines=keys.filter(k=>env[k]).map(k=>{
   if(/[\r\n]/.test(env[k])) throw Error('Unexpected multiline setting: '+k);
   return k+'='+env[k];
