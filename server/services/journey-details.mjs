@@ -1,3 +1,5 @@
+/* 整理问卷候选地点的详细资料。 */
+
 import { catalogMember } from "../repositories/journey-candidates.mjs";
 export async function journeyPlaceDetail({
   query,

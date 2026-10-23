@@ -1,3 +1,5 @@
+/* 验证用户兴趣与个性化推荐。 */
+
 import {test,expect,signIn,write} from '../fixtures.mjs';
 test.beforeEach(async({context,fixture})=>signIn(context,fixture));
 

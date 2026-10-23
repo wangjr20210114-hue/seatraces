@@ -1,3 +1,5 @@
+/* 处理后台登录、管理会话和页面访问。 */
+
 import bcrypt from 'bcryptjs';
 import { randomBytes } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
@@ -8,8 +10,6 @@ import {createSourceCheck} from '../request-source.mjs';
 
 const sessionMinutes = 30;
 const validToken = value => typeof value === 'string' && /^[a-f0-9]{64}$/.test(value);
-// Domain separation prevents an ordinary app cookie from becoming an admin
-// session simply by changing its cookie name. Existing sessions remain valid.
 export const adminTokenHash = token => hashToken('admin-session:' + token);
 const dummyHash = bcrypt.hash(randomBytes(32).toString('hex'), 12);
 const allowed = user => !!managementAccess(user);
@@ -22,7 +22,6 @@ export function installAdminAccess(app, { query, transaction, production = false
   const cookie = { httpOnly: true, sameSite: 'strict', secure: production, path: '/' };
   const sourceCheck = createSourceCheck({production});
   async function attach(req, res, next) {
-    // Never inherit the application session for management requests.
     req.applicationUser = req.user;
     req.user = undefined;
     req.adminAccess = undefined;
@@ -51,8 +50,6 @@ export function installAdminAccess(app, { query, transaction, production = false
   app.post('/api/auth/admin/login', async (req, res) => {
     const b = z.object({ username: z.string().trim().regex(/^[a-zA-Z0-9_]{3,32}$/).transform(s => s.toLowerCase()),
       password: z.string().min(8).refine(s => Buffer.byteLength(s, 'utf8') <= 72) }).strict().parse(req.body);
-    // Share the account lockout with ordinary login; switching endpoints must
-    // not double the password guessing allowance.
     const limitKey = hashToken('login:' + b.username);
     const rate = (await query(`INSERT INTO auth_rate_limits(key_hash,hits,until) VALUES($1,1,now()+interval '600 seconds')
       ON CONFLICT(key_hash) DO UPDATE SET hits=CASE WHEN auth_rate_limits.until<=now() THEN 1 ELSE auth_rate_limits.hits+1 END,
@@ -81,7 +78,6 @@ export function installAdminAccess(app, { query, transaction, production = false
     if (validToken(req.cookies?.st_admin)) await query('DELETE FROM sessions WHERE token_hash=$1', [adminTokenHash(req.cookies.st_admin)]);
     res.clearCookie('st_admin', cookie).json({ ok: true });
   });
-  // All current and future admin endpoints must pass the same server-side gate.
   app.use('/api/admin', attach, sourceCheck, requireSession,authorizeManagement);
   app.get(['/admin', '/admin.html'], attach, (req, res) => {
     if (!allowed(req.user)) return res.redirect(302, '/admin-login.html');

@@ -1,3 +1,5 @@
+/* 筛选步行地点，按距离与类别生成 CityWalk 片区。 */
+
 import { createHash } from "node:crypto";
 import {
   metres,
@@ -25,8 +27,6 @@ export function validWalkPlace(p) {
       !["private", "no"].includes(p.access),
   );
 }
-// Only collapse exact same-category names within 40 m in this recommendation
-// view. Source records and genuinely distinct branches remain untouched.
 export function uniqueWalkPlaces(input) {
   const ids = new Set(),
     names = new Map(),
@@ -46,8 +46,6 @@ export function uniqueWalkPlaces(input) {
   }
   return out;
 }
-// A bounded-radius connected cluster, not city-scale k-means. The spatial grid
-// keeps isolated points from bridging distant districts into a single walk.
 export function clusterWalkPlaces(
   input,
   { linkMetres = 500, radiusMetres = 850, maxMembers = 60 } = {},

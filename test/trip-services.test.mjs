@@ -1,3 +1,5 @@
+/* 验证行程周边服务。 */
+
 import test from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID, randomBytes } from "node:crypto";
@@ -288,7 +290,7 @@ test(
         groupMeals: true,
         activeSlot: "dining:0",
         refresh: true,
-        sort: "price", // Older clients remain valid, but no longer trigger price lookups.
+        sort: "price",
       });
       assert.equal(refreshed.status, 200);
       assert.equal(refreshed.data.slots[0].sort, "distance");

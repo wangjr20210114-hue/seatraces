@@ -1,3 +1,5 @@
+/* 校验修改请求的来源和标头。 */
+
 const localOrigins = [
   'http://127.0.0.1:8787', 'http://127.0.0.1:8788',
   'http://localhost:8787', 'http://localhost:8788',
@@ -15,8 +17,6 @@ function parseOrigin(value, configuration = false) {
   } catch { return null; }
 }
 
-// Public origins come from server configuration, never Host or forwarded
-// headers. Requests without Origin still need the marker for internal tools.
 export function createSourceCheck({
   appOrigin = process.env.APP_ORIGIN || '',
   production = process.env.NODE_ENV === 'production',

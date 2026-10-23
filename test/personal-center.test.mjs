@@ -1,3 +1,5 @@
+/* 验证个人中心查询与展示。 */
+
 import test from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";

@@ -1,3 +1,5 @@
+/* 识别查询、操作和页面跳转等用户意图。 */
+
 import { z } from "zod";
 import { capabilities, pages } from "./catalog.mjs";
 import { explicitStyle } from "./memory.mjs";
@@ -58,7 +60,6 @@ export function ruleIntent(text) {
     )
   )
     return { intent: "clarify", confidence: 1, source: "rule_abstain" };
-  // Questions about an operation are not instructions to perform it.
   if (
     question.test(text) &&
     !/(帮我|替我|给我).{0,6}(打开|创建|规划|生成|修改|清空|删除|推荐)/.test(

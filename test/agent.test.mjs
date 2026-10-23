@@ -1,3 +1,5 @@
+/* 验证AI 对话与操作确认。 */
+
 import test from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID, randomBytes } from "node:crypto";

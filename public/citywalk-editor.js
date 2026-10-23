@@ -1,3 +1,5 @@
+/* 编辑 CityWalk 站点，预览道路、距离并保存路线。 */
+
 import { icon, setIconLabel } from './ui-icons.js';
 import { uniqueCities } from "./city-selection.js";
 import { orderWalk, walkName, metres, routeMetres } from "./citywalk-route.js";
@@ -254,7 +256,6 @@ export async function renderWalkEditor({
     } else {
       for (const p of selected.values()) pool.set(p.id, {...pool.get(p.id), ...p});
       anchorId = selected.keys().next().value || "";
-      // The saved path belongs to this exact order, not a newly optimised tour.
       orderedStops = [...selected.values()].map(p => ({...p, name: walkName(p)}));
       orderRevision = revision;
       const savedRoute = previous.verified_route;
@@ -281,7 +282,6 @@ export async function renderWalkEditor({
     $("#walk-save").onclick = () => verified?.status === "verified" ? save() : refreshRoute();
     filter = "";
     paint();
-    // Restoring or editing a selection is local; only an explicit confirmation routes it.
     void loadNearby(anchorId || g.anchor?.id || g.members[0]?.id);
   }
   function candidates() {
@@ -482,7 +482,6 @@ export async function renderWalkEditor({
     }
     if (!selected.has(startId)) startId = selected.keys().next().value || "";
     selectionChanged();
-    // Local candidates stay interactive while the next neighbourhood loads.
     nearbySequence++;
     clearTimeout(nearbyTimer);
     nearbyTimer = setTimeout(() => void loadNearby(anchorId || group.anchor?.id), 220);

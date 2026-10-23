@@ -1,3 +1,5 @@
+/* 管理官方资料来源和地点信息更新。 */
+
 const sourceStates={unfetched:'待采集',changed:'原文已更新',unchanged:'原文未变',model_unavailable:'待提取',unavailable:'暂不可用'};
 const fields={openingHours:'开放时间',lastEntry:'最后入场',ticketPrice:'参考票价',reservation:'预约规则',phone:'咨询电话'};
 const time=v=>v?new Date(v).toLocaleString('zh-CN'):'—';

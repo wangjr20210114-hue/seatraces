@@ -1,3 +1,5 @@
+/* 验证页面状态恢复。 */
+
 import {test,expect,signIn} from '../fixtures.mjs';
 
 const item={id:'9ac8c117-a338-4711-8765-25385f23be00',name:'少走路',metrics:{walkingMeters:800,travelMinutes:20,visitMinutes:240,finishAt:'16:30'},verification:'required',stops:[{name:'博物馆'},{name:'园林'}],explanations:[],excluded:[]};

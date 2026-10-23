@@ -1,4 +1,5 @@
-// Shared by the browser and Node regression tests. Coordinates are [lat, lng].
+/* 计算步行进度与路线位置，生成导航链接。 */
+
 const radians = x => x * Math.PI / 180;
 export const validPoint = p => Array.isArray(p) && p.length === 2 && p.every(Number.isFinite) && Math.abs(p[0]) <= 90 && Math.abs(p[1]) <= 180;
 export function metersBetween(a, b) {
@@ -13,7 +14,6 @@ export function walkingGeometry(leg) {
   let total = 0, previousEnd = null;
   for (const [stepIndex, step] of steps.entries()) {
     const points = step.polyline || [];
-    // Missing turns or disconnected geometry cannot support reliable progress.
     if (points.length < 2 || !points.every(validPoint)) return null;
     if (previousEnd && metersBetween(previousEnd, points[0]) > 20) return null;
     for (let i = 1; i < points.length; i++) {
@@ -44,8 +44,6 @@ export function walkingProgress(geometry, fix, previous = null) {
   const matches = geometry.edges.map(e => project(point, e)).sort((a, b) => a.distance - b.distance);
   const nearest = matches[0];
   if (nearest.distance > Math.max(30, fix.accuracy * 2)) return { status: 'off_route', distanceFromRoute: nearest.distance };
-  // At crossings choose the branch nearest the previous progress; a loop's
-  // endpoint must not look like arrival when the user is still at its start.
   const candidates = matches.filter(p => p.distance <= nearest.distance + Math.min(12, fix.accuracy / 2 + 3));
   const reference = previous?.along ?? 0;
   candidates.sort((a, b) => Math.abs(a.along - reference) - Math.abs(b.along - reference));
@@ -64,7 +62,6 @@ export function walkingProgress(geometry, fix, previous = null) {
 }
 
 export function navigationUrl({ from, to, mode, leg = null, mainland = false, convertToGcj, selections = {} }) {
-  // A missing leg endpoint is not permission to navigate the whole trip.
   const a = leg ? leg.start : [Number(from.lat), Number(from.lng)];
   const b = leg ? leg.end : [Number(to.lat), Number(to.lng)];
   if (!validPoint(a) || !validPoint(b)) return null;

@@ -1,3 +1,5 @@
+/* 验证周边服务筛选与细化。 */
+
 import test from "node:test";
 import assert from "node:assert/strict";
 import { matchServicePrice } from "../server/domain/service-pricing.mjs";

@@ -1,3 +1,5 @@
+/* 检查人工评分页面的展示和交互。 */
+
 import assert from 'node:assert/strict';
 import {readFile,mkdir} from 'node:fs/promises';
 import {fileURLToPath} from 'node:url';
@@ -24,7 +26,6 @@ try{
  const downloadPromise=page.waitForEvent('download');await page.locator('#download').click();const download=await downloadPromise;
  const destination=new URL('qa-answer.json',qa);await download.saveAs(fileURLToPath(destination));validateGradedAnswers(study,JSON.parse(await readFile(destination,'utf8')));
  await page.locator('#revise').click();assert.equal(await page.locator('button[aria-pressed=true]').count(),3);
- // Render the human artifact only: do not choose or save any human answers.
  await page.goto('http://127.0.0.1:'+real.address().port);await page.locator('#start').click();
  await page.screenshot({path:fileURLToPath(new URL('desktop.png',qa)),fullPage:true});
  await page.setViewportSize({width:390,height:844});await page.screenshot({path:fileURLToPath(new URL('mobile.png',qa)),fullPage:true});

@@ -1,4 +1,5 @@
-// Transactional local PostgreSQL smoke check; no production or existing tables changed.
+/* 检查 OSM site 层级表结构和查询能力。 */
+
 import {readFile} from 'node:fs/promises';
 import assert from 'node:assert/strict';
 import pg from 'pg';
@@ -32,7 +33,7 @@ try{
  assert.equal(rows[1].category,'accommodation');
  assert.equal(rows[0].site_parent_id,'osm:relation/100');
  assert.equal(rows[2].site_membership_status,'no_site_membership_recorded');
- await client.query(sql); // Migration can be reapplied without clearing rows.
+ await client.query(sql);
  assert.equal((await client.query(`SELECT count(*)::int AS n FROM ${schema}.current_site_edges`)).rows[0].n,2);
  console.log(JSON.stringify({passed:true,checks:['atomic publication','all categories preserved','supplemental parent','unlinked places retained','idempotent migration'],rolledBack:true}));
 }catch(e){console.error('Site schema check failed: '+e.message);process.exitCode=1;}

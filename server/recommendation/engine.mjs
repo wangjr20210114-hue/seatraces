@@ -1,3 +1,5 @@
+/* 召回候选内容，结合兴趣与模型得分生成推荐列表。 */
+
 import {randomUUID,createHash} from 'node:crypto';
 import {algorithm,profileVector,cosine,validVector,clamp} from './features.mjs';
 import {readProfile} from './profiles.mjs';
@@ -21,7 +23,6 @@ export function rerank(rows,{limit=120,explorationEvery=5,explorationSeed=''}={}
  const jitter=new Map(rows.map(p=>[p.id,explorationSeed?createHash('sha256').update(explorationSeed+':'+p.id).digest().readUInt32BE(0)/4294967296:0]));
  while(left.length&&out.length<limit){
   const diverse=left.filter(p=>!(out.length>=2&&out.at(-1).user_id===p.user_id&&out.at(-2).user_id===p.user_id)&&!(p.route_key&&seenRoutes.has(p.route_key)));
-  // Near-identical routes are suppressed, rather than silently appended later.
   let pool=diverse.length?diverse:left.filter(p=>!p.route_key||!seenRoutes.has(p.route_key));if(!pool.length)break;
   const explore=out.length%explorationEvery===explorationEvery-1;
   const recent=out.slice(-9),counts=new Map();for(const p of recent){const t=primaryTopic(p);if(t)counts.set(t,(counts.get(t)||0)+1);}
@@ -61,8 +62,6 @@ export async function recommend(query,user,{q='',city='',persist=true,allowSynth
  AND NOT EXISTS(SELECT 1 FROM social_feedback sf WHERE sf.user_id=$1 AND sf.post_id=p.id)
  AND NOT(p.id=ANY($6::uuid[]))
  AND ($2='' OR p.title ILIKE $2 ESCAPE '\\' OR p.body ILIKE $2 ESCAPE '\\')`;
- // Each channel has its own bounded SQL selection over the whole eligible
- // corpus; it is not a reordering of the latest 120 posts.
  const channels=[
   ['interest',`i.concepts && $4::text[]`,`recommendation_dot(i.vector,$5::real[]) DESC,p.created_at DESC`],
   ['content',`i.post_id IS NOT NULL`,`recommendation_dot(i.vector,$5::real[]) DESC,p.created_at DESC`],

@@ -1,3 +1,5 @@
+# 启动项目的本地开发环境。
+
 param([switch]$Foreground)
 $ErrorActionPreference='Stop'
 Set-Location -LiteralPath $PSScriptRoot

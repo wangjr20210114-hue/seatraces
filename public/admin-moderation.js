@@ -1,3 +1,5 @@
+/* 审核社区内容，处理举报和屏蔽记录。 */
+
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const reasonLabels={spam:'广告/垃圾内容',abuse:'不当内容',inaccurate:'信息不准确',other:'其他'};
 const table=(heads,rows)=>`<div class="table-wrap"><table><thead><tr>${heads.map(x=>`<th>${esc(x)}</th>`).join('')}</tr></thead><tbody>${rows.join('')||`<tr><td colspan="${heads.length}" class="empty">暂无记录</td></tr>`}</tbody></table></div>`;

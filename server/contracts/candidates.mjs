@@ -1,6 +1,7 @@
+/* 定义候选地点查询参数和校验规则。 */
+
 import { z } from "zod";
 
-// Bounded discovery, not a country-wide crawler. Coordinates are WGS84.
 export const candidateQuery = z
   .object({
     intent: z.enum(["named", "discover"]).default("named"),

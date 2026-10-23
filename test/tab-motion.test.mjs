@@ -1,3 +1,5 @@
+/* 验证底部导航图标动画。 */
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createTabMotion } from '../public/tab-motion.js';

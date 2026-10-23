@@ -1,4 +1,4 @@
-"""Run a single idempotent build, then install and verify its read API."""
+"""依次重建几何层级、安装接口并验证结果。"""
 from pathlib import Path
 import subprocess
 import sys

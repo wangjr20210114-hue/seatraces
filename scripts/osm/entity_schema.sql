@@ -1,4 +1,5 @@
--- Source POIs/facts and previous containment builds are immutable.
+-- 定义统一景点实体及来源映射的数据表、索引和关联结构。
+
 CREATE TABLE IF NOT EXISTS osm.entity_builds (
  build_id text PRIMARY KEY, containment_build text NOT NULL REFERENCES osm.containment_builds(build_id),
  algorithm text NOT NULL, status text NOT NULL, created_at timestamptz NOT NULL DEFAULT now(),

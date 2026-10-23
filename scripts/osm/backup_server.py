@@ -1,4 +1,4 @@
-"""Create a logical backup and optionally restore it into a disposable database."""
+"""备份地点数据库，支持在独立数据库中验证恢复。"""
 import argparse
 from datetime import datetime,timezone
 import json

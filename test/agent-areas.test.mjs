@@ -1,3 +1,5 @@
+/* 验证AI 旅行片区选择。 */
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { selectTravelAreas } from '../server/agent/area-selection.mjs';

@@ -1,4 +1,5 @@
-// Three real Lottie instances: independent timelines, no shared sliding backdrop.
+/* 创建底部导航图标动画，切换选中状态。 */
+
 const color = [0.094, 0.235, 0.251, 1];
 const still = k => ({ a: 0, k });
 const frames = values => ({ a: 1, k: values.map(([t, value], i) => ({ t, s: [value], ...(i < values.length - 1 ? { o: { x: 0.25, y: 0 }, i: { x: 0.75, y: 1 } } : {}) })) });
@@ -21,7 +22,7 @@ export function createTabMotion({ buttons, lottie, reducedMotion }) {
   const animations = new Map();
   for (const button of buttons) {
     const container = button.querySelector('.nav-icon');
-    if (!lottie) continue; // Keep the static SVG if the optional renderer cannot load.
+    if (!lottie) continue;
     container.replaceChildren();
     const animation = lottie.loadAnimation({ container, renderer: 'svg', loop: false, autoplay: false, animationData: animationData(button.dataset.page) });
     animations.set(button.dataset.page, animation);

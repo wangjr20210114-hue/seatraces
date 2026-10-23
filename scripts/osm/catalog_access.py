@@ -1,8 +1,4 @@
-"""Install/revoke one explicitly authorized, forwarding-only development key.
-
-This script is run from the existing Tencent maintenance login, not through the
-new key. --apply is only used after user approval. No new database role is made.
-"""
+"""安装或撤销地点服务的 SSH 转发密钥。"""
 import argparse
 from datetime import datetime, timezone
 import fcntl
@@ -18,8 +14,6 @@ def key_line(public_key):
     parts=public_key.strip().split()
     if len(parts)<2 or parts[0]!='ssh-ed25519' or not re.fullmatch(r'[A-Za-z0-9+/=]{40,160}',parts[1]):
         raise ValueError('Expected one Ed25519 public key')
-    # Remote listening is restricted to the already occupied loopback catalog
-    # port. No public reverse listener or other destination can be requested.
     options='restrict,port-forwarding,permitopen="127.0.0.1:8791",permitlisten="127.0.0.1:8791",command="/bin/false"'
     return f'{options} ssh-ed25519 {parts[1]} {MARKER}\n',parts[1]
 

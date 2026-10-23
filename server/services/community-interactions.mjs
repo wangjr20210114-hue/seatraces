@@ -1,3 +1,5 @@
+/* 处理社区点赞、收藏和评论等互动。 */
+
 import {z} from 'zod';
 import {randomUUID} from 'node:crypto';
 export const visiblePost=(alias='p')=>`${alias}.hidden_at IS NULL AND NOT ${alias}.auto_shared`;

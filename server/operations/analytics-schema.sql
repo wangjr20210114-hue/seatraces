@@ -1,3 +1,5 @@
+-- 定义业务统计指标的数据表、索引和关联结构。
+
 ALTER TABLE users ADD COLUMN IF NOT EXISTS analytics_excluded boolean NOT NULL DEFAULT false;
 CREATE INDEX IF NOT EXISTS operation_navigation_time ON operation_events(created_at,user_id) WHERE kind='navigation';
 CREATE INDEX IF NOT EXISTS trips_created_owner ON trips(created_at,user_id);

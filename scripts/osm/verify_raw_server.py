@@ -1,4 +1,4 @@
-"""Verify one uploaded raw PBF against its trusted transfer manifest."""
+"""根据传输清单校验上传的 PBF 原始文件。"""
 import argparse
 import json
 from pathlib import Path

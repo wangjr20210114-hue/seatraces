@@ -1,4 +1,4 @@
-"""Read-only geometric parent/children API. Pin one immutable build per request."""
+"""查询当前版本的几何包含层级及上下级地点。"""
 from site_catalog import ID, CATEGORIES
 
 METHOD='full_geometry_covers_smallest_scenic_area'
@@ -30,7 +30,6 @@ def annotate_containment(gateway,items,build=None):
            depthLimited=bool(row['depth_limited']),maxDepth=8,rootLevel=1,
            childCount=row['child_count'] or 0,childrenByCategory=row['children_by_category'] or {},
            geometryState=row['geometry_state'],status=status,method=METHOD,categoryPreserved=True)
-        # Keep source evidence in relationships/siteHierarchy, publish this product rule as parentId.
         p['geometricHierarchy']=hierarchy
         if 'childPlaceIds' in p:
             p['editorialChildPlaceIds']=p.pop('childPlaceIds')

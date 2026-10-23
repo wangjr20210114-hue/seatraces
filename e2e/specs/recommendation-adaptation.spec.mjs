@@ -1,3 +1,5 @@
+/* 验证推荐结果随用户行为的变化。 */
+
 import {test,expect,signIn} from '../fixtures.mjs';
 test('REC-ADAPT-UI-001 点赞后下一批使用新请求，保留眼前卡片并排除已显示内容',async({page,context,fixture})=>{
   await signIn(context,fixture);const calls=[];

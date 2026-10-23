@@ -1,7 +1,7 @@
+/* 将用户行为整理为 UniSRec 序列输入。 */
+
 import {combine, digest, profileText, week} from './offline-semantic.mjs';
 
-// An offline, bounded export. Every history item must have finished its label
-// window before the current exposure. No current or future outcome is a feature.
 export function sequenceInputs(samples, itemVectors, queryVectors, split) {
   if (!samples.length || samples.length > 5000) throw Error('Expected 1..5000 samples');
   const posts = [], profiles = [], postIndex = new Map(), profileIndex = new Map();

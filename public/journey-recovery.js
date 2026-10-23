@@ -1,5 +1,5 @@
-// Persist choices, never catalogs, credentials, maps or generated plans. Writes
-// are synchronous so an input does not depend on a timer or unload event.
+/* 保存和恢复旅行问卷进度，合并尚未同步的地点选择。 */
+
 const MAX_BYTES = 256 * 1024;
 const uuid = /^[a-f\d]{8}(?:-[a-f\d]{4}){3}-[a-f\d]{12}$/i;
 const text = (v, n = 150) => typeof v === 'string' ? v.slice(0, n) : '';

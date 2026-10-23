@@ -1,3 +1,5 @@
+/* 验证周边服务地图链接。 */
+
 import test from "node:test";
 import assert from "node:assert/strict";
 import { servicePlaceUrl } from "../public/service-place-link.js";

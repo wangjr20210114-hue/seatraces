@@ -1,3 +1,5 @@
+/* 验证邮件队列与重试。 */
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createHash,randomBytes} from 'node:crypto';

@@ -1,6 +1,7 @@
+/* 将 AI 操作映射到允许调用的业务接口。 */
+
 import { fail } from "./store.mjs";
 
-// Only code-owned calls. No model-selected URL, HTTP method, credentials or headers.
 const patterns = {
   GET: [
     /^\/api\/places\?/,
@@ -56,7 +57,6 @@ export function createApiBridge({
     const p = Number(typeof port === "function" ? port() : port);
     if (!Number.isInteger(p) || p < 1 || p > 65535)
       throw fail("服务尚未就绪", 503);
-    // Local listener is fixed by startup, never by Host / forwarded headers or request text.
     const audit = (
       await query(
         "INSERT INTO agent_tool_calls(conversation_id,user_id,method,path,turn_id,action_id,parent_request_id,outcome) VALUES($1,$2,$3,$4,$5,$6,$7,'pending') RETURNING id",

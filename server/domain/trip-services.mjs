@@ -1,3 +1,5 @@
+/* 确定行程中的服务时段，筛选和排序周边服务地点。 */
+
 import { serviceComparator } from "../../public/service-order.js";
 export { serviceComparator };
 import { createHash } from "node:crypto";
@@ -59,7 +61,6 @@ export function serviceSlots(plan, dayIndex, { groupMeals = false } = {}) {
   const area = days
     .slice(first, last + 1)
     .flatMap((d) => (d.stops || []).filter(point));
-  // Use a real stop nearest all the block's sights, rather than a centroid in water.
   const anchors = area.filter(
     (p, i) => area.findIndex((x) => x.id === p.id) === i,
   );

@@ -1,11 +1,11 @@
+/* 汇总人工偏好选择，生成评审分析结果。 */
+
 import { validateAnswers, summarizeReview } from './preference-review.mjs';
 import { summarizeChoiceSemantics } from './preference-review-interpretation.mjs';
 
 const emptyCounts=()=>({firstMethodWins:0,secondMethodWins:0,both:0,neither:0,unsure:0,tasks:0});
 const outcomes=['firstMethodWins','secondMethodWins','both','neither','unsure'];
 
-// Frozen method counts and exact-repeat metric remain unchanged. The separately
-// marked semantic supplement is post-hoc. No database/model writes.
 export function aggregateReviews(study, protocol, inputs) {
   if(!Array.isArray(inputs)||inputs.length>1000)throw Error('At most 1000 answer sets are supported');
   if(protocol.protocolId!==study.protocolId)throw Error('Protocol mismatch');

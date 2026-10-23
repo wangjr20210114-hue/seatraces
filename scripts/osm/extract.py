@@ -1,4 +1,4 @@
-"""Build a portable, provenance-preserving POI snapshot from an OSM PBF."""
+"""从 OSM PBF 中提取带来源信息的地点快照。"""
 import argparse
 from collections import Counter
 import gzip
@@ -57,7 +57,6 @@ def properties(tags):
         return None
     name = display_name(None,tags)
     if not name:
-        # The raw PBF retains unnamed objects; the place picker needs a real label.
         return None
     aliases = sorted(set(v for k, value in tags.items() if k.startswith("name:") or k in ("name", "alt_name", "short_name", "old_name", "official_name") for raw in value.split(";") if (v:=clean_text(raw)) and v != name))
     return {"name": name, "aliases": aliases, "category": category,

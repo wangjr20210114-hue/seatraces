@@ -1,4 +1,4 @@
-"""Apply the explicitly approved 3-place batch on its database host; backup first."""
+"""备份并写入已核验的地点证据批次。"""
 from pathlib import Path
 from datetime import datetime,timezone,timedelta
 import importlib.util,json,shutil,subprocess,sys,time,urllib.request

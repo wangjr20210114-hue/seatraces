@@ -1,4 +1,4 @@
-"""Display the latest non-secret data-delivery evidence."""
+"""汇总地点数据交付和验证结果。"""
 import argparse
 from datetime import datetime,timedelta,timezone
 import json

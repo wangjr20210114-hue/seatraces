@@ -1,3 +1,5 @@
+/* 筛选日志，配置列表字段和查询条件。 */
+
 import {mountLogExports} from './admin-log-exports.js';
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const columnNames={created_at:'时间',username:'用户',kind:'类型',action:'操作',status:'HTTP 状态',duration_ms:'耗时',request_id:'请求编号',resource_id:'对象编号'};

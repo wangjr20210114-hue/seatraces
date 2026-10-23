@@ -1,3 +1,5 @@
+/* 汇总多份人工偏好评审结果。 */
+
 import {readFile,readdir,stat,writeFile} from 'node:fs/promises';
 import {aggregateReviews,renderAnalysis} from './lib/preference-review-analysis.mjs';
 import {hash} from './lib/preference-review.mjs';

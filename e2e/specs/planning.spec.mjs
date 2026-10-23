@@ -1,3 +1,5 @@
+/* 验证旅行规划页面流程。 */
+
 import { test, expect, signIn, home } from "../fixtures.mjs";
 import { check } from "../cases.mjs";
 test.beforeEach(async ({ context, fixture }) => signIn(context, fixture));

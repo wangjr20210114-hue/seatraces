@@ -1,3 +1,5 @@
+/* 展示用户活跃、业务漏斗和趋势统计。 */
+
 import {mountDailyArchives} from './admin-archives.js';
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const table=(head,rows)=>`<div class="table-wrap"><table><thead><tr>${head.map(v=>`<th>${esc(v)}</th>`).join('')}</tr></thead><tbody>${rows.join('')||`<tr><td class="empty" colspan="${head.length}">所选期间暂无记录</td></tr>`}</tbody></table></div>`;

@@ -1,5 +1,5 @@
-// Repeatable five-city cycle. No Amap calls; checkpoints prevent repeated model
-// spending. Uncertain outcomes are completed investigations, not invented roots.
+/* 批量生成景区层级建议，保存结果和任务进度。 */
+
 import { readFile, writeFile, mkdir, unlink } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
@@ -46,7 +46,6 @@ try {
     await unlink(new URL('stop.json',dir)).catch(e=>{if(e.code!=='ENOENT')throw e;});
     await migrate();
     await checkpoint();
-    // Quota warnings must not be consumed by concurrent web background lookups.
     if ((await query('SELECT count(*)::int n FROM pg_locks WHERE locktype=\'advisory\' AND classid=20261012 AND objid=1 AND granted')).rows[0].n) throw Object.assign(Error('Amap worker active'),{code:'amap_worker_active'});
     if (!args.has('--skip-extract')) {
       await checkpoint({phase:'extract_osm'});
@@ -90,8 +89,6 @@ try {
       scopedWebsiteTags:points.filter(p=>p.rawTags?.website || p.rawTags?.['contact:website']).length};
     const discovery=points.filter(p=>p.rawTags?.website || p.rawTags?.['contact:website']).map(p=>({id:p.id,name:p.name,city:p.city,url:p.rawTags.website || p.rawTags['contact:website'],trust:'unreviewed_osm_link'}));
     await atomicJSON(new URL('source-discovery.json',dir),discovery);
-    // Deterministic stratified audit across all five cities, including positives,
-    // spatial-only, unknown, and provider-known records. No precision is claimed.
     const sample=[];
     for(const cityId of data.cities) {
       const cityRows=rows.filter(r=>byId.get(r.placeId).cityId===cityId);
@@ -132,8 +129,6 @@ try {
       await checkpoint({phase:'model_extract',jobsTotal:jobs.length,jobsCompleted:0,modelBudgetCny:budget,ledger});
       for(const input of jobs) {
         if(await stopRequested()){status.status='paused';status.reason='stop_requested';break;}
-        // Hash stable content, not fetch time: fetching the same page tomorrow
-        // should not cause another model payment.
         const stable={...input,evidence:input.evidence.map(({retrievedAt,...e})=>e)};
         const hash=hashJSON({version:hierarchyVersion,instruction:hierarchyInstruction,model,input:stable});
         const path=new URL('jobs/'+hash+'.json',dir);
@@ -181,8 +176,6 @@ try {
         proposedRelations:rows.reduce((n,r)=>n+(r.proposals||[]).length,0),sourceFetchErrors:collected.errors.length};
       await atomicJSON(new URL('validation/scenic-hierarchy-latest.json',root),summary);
     }
-    // Explicit semantic reviews are pinned to the exact model job and source
-    // bytes. New evidence cannot inherit an old review automatically.
     const reviews=await readJSON(new URL('data/editorial/hierarchy-reviews.json',root)) || {decisions:[]};
     for(const decision of reviews.decisions) {
       const row=rows.find(r=>r.placeId===decision.childId);

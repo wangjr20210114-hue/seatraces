@@ -1,3 +1,5 @@
+/* 校验人工分级评分，生成评审页面和统计结果。 */
+
 import {createHash} from 'node:crypto';
 export const digest=v=>createHash('sha256').update(typeof v==='string'?v:JSON.stringify(v)).digest('hex');
 export const dimensions=['read','save','adopt'];

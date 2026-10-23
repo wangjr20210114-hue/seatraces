@@ -1,1 +1,3 @@
+/* 声明鸿蒙工程的包信息与开发依赖。 */
+
 {"modelVersion":"6.0.2","name":"seatraces","version":"0.1.0","description":"SeaTraces HarmonyOS hybrid prototype","dependencies":{},"devDependencies":{}}

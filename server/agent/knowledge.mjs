@@ -1,3 +1,5 @@
+/* 检索产品知识和旅行资料，整理回答依据。 */
+
 import { createHash } from "node:crypto";
 import { knowledge } from "./catalog.mjs";
 import { embedNames, embeddingModel } from "../integrations/embedding.mjs";
@@ -66,7 +68,6 @@ export function createKnowledge({
       )
         vectors = new Map(cached.map((r) => [r.id, r.embedding]));
       else {
-        // Short, code-owned summaries fit the already installed local BGE encoder.
         const encoded = await embed(
           knowledge.map((d) => (d.title + "。" + d.content).slice(0, 180)),
         );
@@ -105,8 +106,6 @@ export function createKnowledge({
           ...d,
           lexical,
           semantic,
-          // Specific FAQ titles carry more intent than a generic word buried
-          // in a long article. Semantic evidence must survive incidental bigrams.
           score: lexical + lexicalScore(text, d.title) * .5 + (q ? Math.max(0, semantic - 0.35) * 4 : 0),
         };
       })
@@ -161,7 +160,6 @@ export function createKnowledge({
           used = [...new Set(r.sentences.map((s) => s.sourceId))];
         }
       } catch {
-        /* Retrieval remains useful if the model or budget is unavailable. */
       }
     return {
       text: answer,

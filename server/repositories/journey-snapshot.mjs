@@ -1,7 +1,7 @@
+/* 通过数据库游标逐条读取已保存的城市选择快照。 */
+
 import { scenicSummarySql } from "../domain/scenic-summary.mjs";
 
-// Keep the saved grouping and ordering. The cursor holds one consistent database
-// snapshot, while Node reads one bounded record at a time, never the whole city.
 const snapshotRowsSql = `DECLARE journey_snapshot NO SCROLL CURSOR FOR
   WITH city AS MATERIALIZED (
     SELECT catalog->$3 value FROM journey_sessions

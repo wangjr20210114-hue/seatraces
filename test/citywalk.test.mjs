@@ -1,3 +1,5 @@
+/* 验证CityWalk 规划与保存。 */
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
@@ -32,7 +34,6 @@ test('PostgreSQL CityWalk preserves editable snapshots and rejects stale drafts'
   let draft;for(let i=0;i<50;i++){const r=await f.request('/api/citywalk/catalog/'+city.id,{user:'user'});if(r.status===200){draft=r.data;break;}await new Promise(r=>setTimeout(r,10));}assert.ok(draft?.draftId);
   const input={id:randomUUID(),draftId:draft.draftId,title:'snapshot route',clusterIds:['area'],stopIds:['a','b','c','d'],startId:'a'};
   assert.equal((await f.request('/api/citywalks',{user:'user',body:input})).status,200);
-  // Existing selected snapshots remain editable even after the live catalog shrinks.
   await f.query('UPDATE citywalk_drafts SET catalog=$2 WHERE id=$1',[draft.draftId,JSON.stringify({clusters:[{id:'area',members:[points[0]]}]})]);
   const updated=await f.request('/api/citywalks/'+input.id,{user:'user',method:'PUT',body:{...input,startId:'c',version:1}});
   assert.equal(updated.status,200);assert.equal(updated.data.stops[0].id,'c');assert.equal(updated.data.version,2);

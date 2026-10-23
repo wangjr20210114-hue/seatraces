@@ -1,3 +1,5 @@
+/* 从问卷快照中读取行程候选地点和坐标。 */
+
 import { scenicSummarySql } from "../domain/scenic-summary.mjs";
 import { applyWishes } from "../domain/scenic-entities.mjs";
 
@@ -31,8 +33,6 @@ export async function catalogCoordinates({ query, sessionId, userId, cityId }) {
   );
   return r.rows;
 }
-// The database owns the full catalog. Transfer only the already-defined planning
-// shortlist, rather than parsing tens of MB twice in the HTTP process.
 export async function planningPools({
   query,
   sessionId,
@@ -92,7 +92,6 @@ export async function planningPools({
         [sessionId, userId, city.id, ids, wantedIds, remainingBytes],
       )
     ).rows;
-    // Never silently drop wishes or remove places from the underlying catalog.
     if (rows.some((r) => r.point === null))
       throw failure("所选景点资料过多，请减少本次选择的片区后重试", 413);
     remainingBytes -= Number(rows[0]?.total_bytes || 0);

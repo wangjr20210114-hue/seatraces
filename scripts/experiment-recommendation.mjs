@@ -1,3 +1,5 @@
+/* 运行推荐模型离线对比实验并记录指标。 */
+
 import { mkdir, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { localDatabase } from './recommendation-local-db.mjs';
@@ -5,8 +7,6 @@ import { trainingSamples } from '../server/recommendation/training.mjs';
 import { cosine } from '../server/recommendation/features.mjs';
 import { experimentConfigs, trainExperiment, partitionSamples, evaluateExperiment, experimentScore, pairedInterval } from './lib/tower-experiment.mjs';
 
-// Local, read-only data access. No production connection, model activation,
-// generated interactions, or database artifact writes are performed here.
 const db = await localDatabase(), started = performance.now();
 const scope = process.argv.includes('--real') ? 'real' : 'synthetic';
 const directory = new URL('../validation/tower-diagnosis/', import.meta.url);
@@ -36,9 +36,6 @@ try {
       console.log(JSON.stringify({ trial: config.name, parameters: trial.parameters, epoch: selectedEpoch, validationNdcg: trial.validation.ndcgAtK, ms: trial.trainingMs }));
       await writeFile(new URL(scope + '-report.json', directory), JSON.stringify({ ...report, status: 'running' }, null, 2));
     }
-    // Freeze the choice using validation ONLY, then evaluate that one choice on
-    // the historical test partition. It was evaluated in the previous release,
-    // so this diagnostic must not be called new untouched real-user evidence.
     await writeFile(new URL(scope + '-selected.json', directory), JSON.stringify(winner));
     const predict = s => experimentScore(winner.model, s.user, s.item);
     report.selected = { name: winner.config.name, epoch: winner.epoch, validationNdcg: best, test: evaluateExperiment(split.test, predict), baselineTest: evaluateExperiment(split.test, baseline), interval: pairedInterval(split.test, predict, baseline) };

@@ -1,3 +1,5 @@
+/* 验证景点实体识别与去重。 */
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {deduplicateVisitPlaces,applyWishes} from '../server/domain/scenic-entities.mjs';

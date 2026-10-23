@@ -1,1 +1,3 @@
+/* 配置鸿蒙工程的构建产品和模块。 */
+
 {"app":{"signingConfigs":[],"products":[{"name":"default","targetSdkVersion":"6.1.0(23)","compatibleSdkVersion":"6.1.0(23)","runtimeOS":"HarmonyOS","buildOption":{"strictMode":{"caseSensitiveCheck":true,"useNormalizedOHMUrl":true}}}],"buildModeSet":[{"name":"debug"},{"name":"release"}]},"modules":[{"name":"entry","srcPath":"./entry","targets":[{"name":"default","applyToProducts":["default"]}]}]}

@@ -1,3 +1,5 @@
+/* 验证UniSRec 序列数据。 */
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {spawnSync} from 'node:child_process';

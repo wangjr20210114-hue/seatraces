@@ -1,3 +1,5 @@
+/* 组织后台导航、权限检查和各管理页面。 */
+
 import {mountLogExplorer} from './admin-log-explorer.js';
 import {mountAdminCityWalks} from './admin-citywalks.js';
 import {createAdminDetails} from './admin-details.js';
@@ -106,7 +108,6 @@ $('#admin-logout').onclick=async()=>{
   try{await api('/api/auth/admin/logout',{});leave();}
   catch(e){status.textContent=e.message;$('#admin-logout').disabled=false;}
 };
-// Do not reveal an old management screen from the browser back/forward cache.
 window.addEventListener('pagehide',()=>{document.body.hidden=true;});
 window.addEventListener('pageshow',e=>{if(e.persisted)location.reload();});
 let expiryTimer;

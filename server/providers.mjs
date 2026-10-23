@@ -1,4 +1,5 @@
-// Compatibility exports: existing HTTP handlers and clients retain their contracts.
+/* 汇总地图、地点和模型服务的调用入口。 */
+
 export { toGcj, toWgs } from "../public/coordinates.js";
 export { providerStatus } from "./config/providers.mjs";
 export { llmJSON } from "./integrations/deepseek.mjs";

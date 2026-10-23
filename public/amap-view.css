@@ -1,3 +1,5 @@
+/* 定义高德地图标记、图层和状态提示样式。 */
+
 html,
 body,
 #map {
@@ -193,7 +195,6 @@ body,
   right: 10px !important;
 }
 
-/* Compact named pins; click target remains generous through transparent padding. */
 .map-action.service {
   min-height: 28px;
   border-width: 1.5px;

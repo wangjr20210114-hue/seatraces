@@ -1,7 +1,7 @@
+/* 计算每日游览、交通和休息时间预算。 */
+
 import { distance } from "../planner.mjs";
 
-// Planning coefficients, not a model fitted to observed journeys. Amap replaces
-// the travel estimate later; visit durations remain explicit planning allowances.
 export function dayBudget(pace = "balanced", transfer = false) {
   const rule = {
     relaxed: { end: 17 * 60, buffer: 12 },
@@ -47,7 +47,6 @@ export function visitAllowance(place, now = Date.now()) {
 export function travelAllowance(from, to, transport = "balanced") {
   if (!from) return 0;
   const km = distance(from, to);
-  // Approximate road detour / speed / boarding time. Never used for navigation.
   if (km <= 1.2 && transport !== "fewWalking")
     return Math.max(3, Math.ceil(((km * 1.3) / 4) * 60));
   return Math.ceil(12 + ((km * 1.3) / 18) * 60);

@@ -1,4 +1,5 @@
-// Self-contained offline page. No fetch, credentials, remote resources or scores.
+/* 处理人工分级评审页面的评分与提交。 */
+
 (()=>{
  const study=JSON.parse(document.getElementById('study-data').textContent),$=id=>document.getElementById(id),storageKey='seatraces-graded-'+study.protocolId;
  const fields={read:'想继续阅读这篇内容吗？',save:'想收藏，留到以后参考吗？',adopt:'愿意把其中的路线或地点用于出行吗？'},labels={no:'不愿意',maybe:'可能愿意',yes:'愿意',unknown:'信息不足'};

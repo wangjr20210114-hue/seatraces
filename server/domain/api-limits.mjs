@@ -1,5 +1,5 @@
-// Application spending/count caps are opt-in. Provider quotas and request
-// pacing are independent, and usage is recorded in either mode.
+/* 读取本地 API 限额配置，计算月度预算与使用状态。 */
+
 export function localApiLimitsEnabled(env = process.env) {
   return (
     String(env.API_LOCAL_LIMITS_ENABLED || "false")

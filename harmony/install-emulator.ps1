@@ -1,3 +1,5 @@
+# 向模拟器安装应用并启动主界面。
+
 param(
     [string]$DevEco = 'D:/SWE-OpenHarmony/DevEcoStudio',
     [Parameter(Mandatory=$true)][string]$DeviceId
@@ -34,7 +36,6 @@ $launchOutput = @(& $hdc -t $DeviceId shell aa start -a EntryAbility -b com.seat
 $launchExit = $LASTEXITCODE
 $launchText = $launchOutput -join "`n"
 $launchOutput | ForEach-Object { Write-Host $_ }
-# HDC may exit with code 0 even when aa reports a locked screen or launch error.
 if ($launchExit -ne 0 -or $launchText -notmatch 'start ability successfully\.') {
     throw "Ability launch was not confirmed. If the emulator screen is locked, unlock it and rerun this script."
 }

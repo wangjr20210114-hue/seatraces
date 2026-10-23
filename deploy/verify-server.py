@@ -1,4 +1,4 @@
-"""Read-only deployment acceptance; never prints database/provider secrets."""
+"""检查已部署服务、数据库和外部接口配置。"""
 from pathlib import Path
 import json,sys,urllib.request,subprocess
 root=Path('/home/ubuntu/seatraces-app');osm=Path('/home/ubuntu/seatraces-osm')

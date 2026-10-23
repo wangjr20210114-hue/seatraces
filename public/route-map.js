@@ -1,7 +1,8 @@
+/* 绘制路线示意图并计算显示范围。 */
+
 import {scenePoint} from './map-scene.js';
 import {schematicConnections} from './route-curves.js';
 
-// One coordinate boundary for the interactive map and its geographic cover.
 export function routeMap(snapshot={}) {
  const stops=(snapshot.days||[]).flatMap(d=>(d.stops||[]).map(p=>{
   if(!Number.isFinite(p.lat)||!Number.isFinite(p.lng)||Math.abs(p.lat)>85||Math.abs(p.lng)>180)return null;
@@ -10,7 +11,6 @@ export function routeMap(snapshot={}) {
  return {stops,connections:schematicConnections(stops)};
 }
 
-// AMap static-map zoom uses a 512-pixel world tile at scale=1.
 export function routeViewport(positions,size=480,padding=48) {
  if(!positions.length)throw Error('路线没有坐标');
  const merc=([lng,lat])=>[(lng+180)/360,(1-Math.asinh(Math.tan(lat*Math.PI/180))/Math.PI)/2];

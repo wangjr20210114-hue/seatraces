@@ -1,8 +1,4 @@
-"""Initial, non-overwriting migration to a separate PostgreSQL business DB.
-
-Run on the approved server as ubuntu after inspecting database/network state.
-The OSM DB and existing users are not modified. Existing target DB => stop.
-"""
+"""将业务数据迁移到独立 PostgreSQL 数据库。"""
 from pathlib import Path
 import argparse,gzip,hashlib,json,secrets,subprocess,sys,shutil,os
 from urllib.parse import urlunsplit
@@ -44,7 +40,6 @@ target={**cfg,'dbname':db};target.pop('database',None)
 with psycopg.connect(**target,autocommit=True) as c:
     c.execute('CREATE EXTENSION IF NOT EXISTS postgis')
     c.execute('CREATE EXTENSION IF NOT EXISTS pg_trgm')
-# Stream the COPY-based archive into psql; no database passwords in argv/logs.
 log=root/'migration.log'
 with log.open('w') as output:
     log.chmod(0o600)

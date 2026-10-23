@@ -1,3 +1,5 @@
+/* 组织地点目录查询，汇总地点和景区资料。 */
+
 import { requestOsm } from "../integrations/osm.mjs";
 import {
   rememberCatalog,

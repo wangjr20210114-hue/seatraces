@@ -1,4 +1,5 @@
-// Human evidence is diagnostic, never an automatic model-activation signal.
+/* 定义偏好评审题目、答案校验和页面生成。 */
+
 import { createHash } from 'node:crypto';
 export const hash = x => createHash('sha256').update(typeof x === 'string' ? x : JSON.stringify(x)).digest('hex');
 export const choices = ['first', 'second', 'both', 'neither', 'unsure'];

@@ -1,3 +1,5 @@
+/* 展示地点事实、资料来源及信息状态。 */
+
 export const factNames = {
   access: "访问限制",
   openingHours: "开放时段",

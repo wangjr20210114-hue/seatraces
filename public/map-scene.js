@@ -1,8 +1,8 @@
+/* 将旅行地点和周边服务整理为地图展示数据。 */
+
 import { toGcj, mainlandEligible } from "./coordinates.js";
 import { hasPosition } from "./trip-view.js";
 
-// Stored places are WGS84; provider boundaries are already GCJ02.
-// Keep conversion at this boundary, never in the map renderer.
 export function scenePoint(place, context = {}) {
   if (!hasPosition(place)) return null;
   const p = {

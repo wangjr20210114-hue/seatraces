@@ -1,3 +1,5 @@
+/* 串联旅行问卷、地点选择、行程生成和编辑流程。 */
+
 import { mountDiscovery, mountPersonalPosts, publishRoute } from "./discovery.js";
 import {mountComposer} from './social-composer.js';
 import {mountSocialPost} from './social-post.js';
@@ -106,9 +108,6 @@ async function checkConnection(retry = false) {
   }
 }
 $("#reconnect").onclick = () => checkConnection(true);
-// A network loss can interrupt the map SDK before its "complete" event. A
-// healthy API alone cannot repair that iframe. Reconnect through the same path
-// as the visible button; the map-ready message repaints the current day.
 window.addEventListener("online", () => checkConnection(true));
 const state = {
   step: 0,
@@ -316,9 +315,8 @@ async function focusPlannerCity(city, withBoundary = true) {
       plannerCity?.id !== city.id
     )
       return;
-    publishPlanner(); // Geometry may arrive later; preserve a manually moved camera.
+    publishPlanner();
   } catch {
-    /* Boundary failure must not block answering the questionnaire. */
   }
 }
 function syncPlannerStep() {
@@ -332,7 +330,6 @@ function syncPlannerStep() {
     void focusPlannerCity(state.cities.at(-1));
   else if (state.step >= 3 && state.step < 3 + state.cities.length)
     void focusPlannerCity(state.cities[state.step - 3]);
-  // Dates and preferences keep the existing city and camera stable.
 }
 function keepTrip(trip) {
   state.trip = trip;
@@ -440,7 +437,6 @@ const navigation = createPageNavigation({
       };
       void ready();
     } else if (detail) {
-      // A render owns its container so a delayed response cannot overwrite a later page.
       const content = document.createElement("div");
       $("#page-content").replaceChildren(content);
       $("#detail-page").scrollTop = 0;
@@ -654,8 +650,6 @@ async function render() {
       state.end = e.target.value;
       invalidateSession();
     };
-    // Native date fields can emit input before blur/change. That value must
-    // survive closing the browser immediately, just like ordinary text input.
     $('#start').oninput=$('#start').onchange;
     $('#end').oninput=$('#end').onchange;
   } else if (s < 3 + state.cities.length) {
@@ -675,8 +669,6 @@ async function render() {
             reconnects = 0;
           } catch (error) {
             if (error.status !== 503 || reconnects++ >= 2) throw error;
-            // This is an idempotent read-job poll, safe to resume after a brief
-            // proxy/tunnel disconnect without starting another city computation.
             data = { status: "loading", retryAfterMs: 1500 };
           }
           if (
@@ -695,7 +687,6 @@ async function render() {
         state.catalog[city.id] = overlayPendingWishes(data,state.pendingWishes);
         if(state.inspiration&&!state.resumeCatalog){
           const ids=new Set(state.inspiration.placeIds),matches=data.clusters.flatMap(g=>g.members).filter(p=>ids.has(p.id));
-          // Reuse the same validated wish endpoint used by the ordinary questionnaire.
           for(const p of matches.slice(0,60)){if(state.session?.id!==sessionId||state.step!==s||!$('#wizard').open)return;await api(`/api/journey/sessions/${sessionId}/wishes`,{placeId:p.id,wanted:true});p.wanted=true;}
           if(matches.length)toast(`已带入 ${matches.length} 个当前可选地点`);
         }
@@ -927,7 +918,6 @@ function renderClusters(city) {
       const p = group.members
         .flatMap((p) => [p, ...(p.children || [])])
         .find((p) => p.id === v.dataset.wanted);
-      // Save the user's desired value before starting the network request.
       p.ownWanted=!p.ownWanted;
       state.pendingWishes[p.id]=p.ownWanted;
       overlayPendingWishes(data,{[p.id]:p.ownWanted});
@@ -1105,7 +1095,6 @@ function mapPayload() {
     view: state.mapView,
     day: state.day,
     fitKey: `${state.trip?.id || "home"}:${state.fitRevision}`,
-    // The itinerary now sits below the map, so it cannot obscure route bounds.
     viewPadding: [70, 35, 35, 35],
     cities,
     stops,
@@ -1164,7 +1153,6 @@ workspaceHeight();
   function bounds() {
     const height = home.clientHeight;
     const minimum = Math.min(120, height * 0.3);
-    // Keep the questionnaire header, choices and next button reachable.
     const maximum = Math.max(minimum, Math.min(height * 0.78, height - grip.offsetHeight - 220));
     return { height, minimum, maximum };
   }
@@ -1280,7 +1268,6 @@ async function resolveOrigin(trip) {
       trip.request.origin = { label, lat: c.lat, lng: c.lng };
     }
   } catch {
-    /* Keep an unknown origin unknown; never invent a route endpoint. */
   }
 }
 async function showTrip(trip) {
@@ -1393,7 +1380,6 @@ function refreshDistricts(city) {
       if (!data) return;
       data.boundary = r.boundary;
       for (const g of data.clusters) g.districts = r.districts[g.id] || [];
-      // Refresh only the map/filter: leave expanded sights and scroll untouched.
       if (state.cities[state.step - 3]?.id === city.id) {
         const selected = state.selections[city.id] || [];
         publishPlanner();
@@ -1408,7 +1394,6 @@ function refreshDistricts(city) {
       }
       refreshDistricts(city);
     } catch {
-      /* A district detail failure must not hide existing scenic choices. */
     }
   }, 4000);
 }
@@ -1437,8 +1422,6 @@ async function boot() {
         )
           await showTrip(t);
       } catch (error) {
-        // A refresh, offline request or temporary server failure does not mean
-        // the saved trip disappeared. Only an authoritative 404 clears it.
         if (error.status === 404 && localStorage.getItem("seatraces-last-trip") === last)
           localStorage.removeItem("seatraces-last-trip");
       }

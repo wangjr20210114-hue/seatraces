@@ -1,4 +1,5 @@
-// Ephemeral presentation only. Durable results and operation audit remain in PostgreSQL.
+/* 记录 AI 任务的处理阶段和进度。 */
+
 export function createProgress() {
   const runs = new Map();
   return {

@@ -1,3 +1,5 @@
+/* 根据配置创建邮件发送服务。 */
+
 import nodemailer from 'nodemailer';
 import {mailTransportConfiguration,mailOrigin,mailContent} from './mail-config.mjs';
 import {createSesMailer} from './tencent-ses.mjs';

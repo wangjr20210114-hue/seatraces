@@ -1,4 +1,4 @@
-"""Canonical scenic read model; source records remain independently auditable."""
+"""查询合并后的景点实体及其来源和层级资料。"""
 from contextvars import ContextVar
 from copy import deepcopy
 import sys
@@ -30,7 +30,6 @@ def canonical_search_sql(sql,args,build):
     order="""CASE WHEN u.id=ANY(%(ids)s) THEN 0 ELSE osm.name_match_cost(u.name,u.aliases,%(q)s) END,
         CASE WHEN %(q)s='' THEN 0 WHEN category IN ('attraction','heritage','nature','leisure') THEN 0
              WHEN category='settlement' THEN 1 ELSE 2 END,distance_m NULLS LAST,name,id"""
-    # Deduplicate before LIMIT, not after fetching a small candidate sample.
     return prefix+''', numbered AS (SELECT u.*,ROW_NUMBER() OVER (
         PARTITION BY COALESCE(m.canonical_id,u.id) ORDER BY '''+order+''') AS entity_rank
         FROM objects u LEFT JOIN osm.entity_members m ON m.build_id=%(entity_build)s AND m.source_id=u.id)
@@ -66,7 +65,6 @@ def merge_records(main, records, build, evidence):
     result['entityIdentity']=dict(buildId=build['build_id'],canonicalId=main['id'],sourceIds=source_ids,
         status='canonical',method='identity_and_geometry',evidence=evidence)
     result['missingFields']=[k for k,v in result.get('facts',{}).items() if v.get('value') is None]
-    # Legacy convenience fields follow the selected fact, never an invented inheritance.
     for raw,field in [('opening_hours','openingHours'),('fee','fee'),('access','access')]:
         if field in result.get('facts',{}): result[raw]=result['facts'][field]['value']
     return result
@@ -102,8 +100,6 @@ def annotate(gateway,items,build,original,module):
         if oid not in enriched:raise ValueError('Canonical source object is missing')
         members=groups.get(oid,[oid])
         obj=merge_records(enriched[oid],[enriched[m] for m in members],build,proof.get(oid,[]))
-        # Unmerged objects are also marked authoritative so old client heuristics
-        # cannot combine separate canonical IDs again.
         output.append(obj)
     hierarchy=gateway.execute('''SELECT p.id,p.geometry_state,e.parent_id,e.root_id,e.depth,s.child_count,s.children_by_category
         FROM osm.containment_places p LEFT JOIN osm.entity_edges e ON e.build_id=%s AND e.child_id=p.id
@@ -172,8 +168,6 @@ def install_entity_gateway(cls):
         build=CONTEXT.get()
         return annotate(self,items,build,original_annotate,module) if build else original_annotate(self,items)
     def new_get(self,path,params):
-        # Source site membership remains a separate provenance API, not the
-        # product hierarchy. Health/coverage do not depend on this overlay.
         if path not in ('/entity-coverage','/places','/place','/place-batch','/cluster-places','/hierarchy'):
             return original_get(self,path,params)
         build=current(self)

@@ -1,4 +1,5 @@
-// Check the running local prototype with credentials absent. No paid provider calls.
+/* 检查海外服务关闭时的接口和页面状态。 */
+
 import assert from 'node:assert/strict';
 import { writeFile } from 'node:fs/promises';
 const base='http://127.0.0.1:8787';

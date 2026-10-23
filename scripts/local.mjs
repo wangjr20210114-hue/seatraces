@@ -1,3 +1,5 @@
+/* 启动本地 PostgreSQL 与业务服务，管理开发进程。 */
+
 import EmbeddedPostgres from "embedded-postgres";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";

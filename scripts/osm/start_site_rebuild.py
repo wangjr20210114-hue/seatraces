@@ -1,4 +1,4 @@
-"""Start one detached server batch; no recurring job or persistent SSH access."""
+"""启动 OSM site 层级重建任务。"""
 import os
 from pathlib import Path
 import subprocess
@@ -15,7 +15,6 @@ def main():
     env=os.environ.copy()
     env['PYTHONPATH']=os.pathsep.join([str(stage),str(ROOT/'scripts/osm'),str(ROOT/'.deps-site'),str(ROOT/'.deps')])
     env['PYTHONUNBUFFERED']='1'
-    # CPU and IO niceness preserve the existing search service while processing.
     command=['nice','-n','15','ionice','-c','3',sys.executable,str(stage/'run_site_batch.py')]
     with (output/'worker.log').open('ab') as log:
         worker=subprocess.Popen(command,stdin=subprocess.DEVNULL,stdout=log,stderr=log,

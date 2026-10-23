@@ -1,3 +1,5 @@
+/* 验证双塔模型的语义输入。 */
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp, readFile, writeFile, rm } from 'node:fs/promises';

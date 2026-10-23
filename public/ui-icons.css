@@ -1,3 +1,5 @@
+/* 定义统一图标的尺寸、对齐和显示样式。 */
+
 .ui-icon{display:inline-block;width:20px;height:20px;flex:0 0 auto;vertical-align:middle;color:inherit;pointer-events:none}
 button>.ui-icon,a>.ui-icon{margin-inline:5px}
 button>.ui-icon:only-child,a>.ui-icon:only-child,[data-ui-icon]>.ui-icon{margin:0}

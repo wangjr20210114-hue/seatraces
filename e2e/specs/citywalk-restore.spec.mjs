@@ -1,3 +1,5 @@
+/* 验证已保存 CityWalk 的恢复。 */
+
 import {test,expect,signIn,get} from '../fixtures.mjs';
 import {check} from '../cases.mjs';
 

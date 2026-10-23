@@ -1,3 +1,5 @@
+/* 验证地图地点与路线展示。 */
+
 import test from "node:test";
 import assert from "node:assert/strict";
 import vm from "node:vm";

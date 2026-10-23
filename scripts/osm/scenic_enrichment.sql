@@ -1,4 +1,5 @@
--- Official enrichment is versioned separately from immutable OSM imports.
+-- 定义景区事实与层级补充资料的数据表、索引和关联结构。
+
 ALTER TABLE osm.place_facts ALTER COLUMN source_timestamp DROP NOT NULL;
 ALTER TABLE osm.place_facts DROP CONSTRAINT IF EXISTS place_facts_field_check;
 ALTER TABLE osm.place_facts ADD CONSTRAINT place_facts_field_check CHECK(field IN

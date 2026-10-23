@@ -1,3 +1,5 @@
+/* 展示服务诊断结果和健康状态。 */
+
 export async function mountDiagnostics({content,status,api,isCurrent,initial}){
  const add=(p,t,v)=>{const e=document.createElement(t);e.textContent=v;p.append(e);return e;};
  const area=add(content,'section','');let offset=0;

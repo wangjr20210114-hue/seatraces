@@ -1,3 +1,5 @@
+/* 验证景区模型结果展示。 */
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {overlayScenicHierarchy,hierarchyPlaceHash} from '../server/domain/scenic-hierarchy.mjs';

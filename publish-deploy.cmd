@@ -1,3 +1,5 @@
+@rem 启动版本发布工具。
+
 @echo off
 setlocal
 cd /d "%~dp0"

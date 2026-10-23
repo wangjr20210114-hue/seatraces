@@ -1,4 +1,4 @@
-"""Read-only analysis of the frozen offline winner; never tunes or activates."""
+"""分析 UniSRec 离线实验结果和分组指标。"""
 import hashlib
 import json
 import os

@@ -1,3 +1,5 @@
+/* 验证推荐结果随用户行为的变化。 */
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';

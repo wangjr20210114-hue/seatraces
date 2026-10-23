@@ -1,10 +1,11 @@
+/* 验证Google 地图请求与结果转换。 */
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { googleRouteRequest, googleAlternatives, googleDuration, googlePlaceRequest, googlePlaceCandidates, GOOGLE_ROUTE_MASK } from '../server/google-maps.mjs';
 import { departureInstant, placeTimeZone } from '../public/travel-time.js';
 import { walkingGeometry } from '../public/navigation.js';
 
-// Synthetic contract fixtures, not captured provider calls or real itineraries.
 const point=(lat,lng)=>({latLng:{latitude:lat,longitude:lng}});
 const walk=(name='沿样本道路前进',from=[135.76,35.00],to=[135.761,35.001])=>({travelMode:'WALK',distanceMeters:100,staticDuration:'80s',navigationInstruction:{instructions:name},startLocation:point(from[1],from[0]),endLocation:point(to[1],to[0]),polyline:{geoJsonLinestring:{type:'LineString',coordinates:[from,to]}}});
 const ride=(name='样本线',vehicle='SUBWAY')=>({...walk(),travelMode:'TRANSIT',distanceMeters:1000,staticDuration:'300s',transitDetails:{

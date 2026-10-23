@@ -1,3 +1,5 @@
+/* 导入人工分级评分并汇总推荐评审结果。 */
+
 import {readFile,mkdir,writeFile} from 'node:fs/promises';
 import {digest,validateGradedAnswers,summarizeGraded,compareGraded} from './lib/graded-preference-review.mjs';
 const [flag,...files]=process.argv.slice(2);

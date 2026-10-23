@@ -1,3 +1,5 @@
+/* 根据有效期整理地点事实的可用状态。 */
+
 export function factValidity(fact,date=new Date().toISOString().slice(0,10),now=Date.now()){
  const e=fact?.evidence||{},due=e.reviewAfter||fact?.expiresAt,checked=e.retrievedAt||fact?.verifiedAt;
  const expired=Boolean(due&&(!Number.isFinite(Date.parse(due))||Date.parse(due)<=now));
@@ -10,8 +12,6 @@ export function applyFactValidity(place,date,now=Date.now()){
  const facts={},quality={};for(const [field,fact]of Object.entries(place.facts||{})){
   if(!fact||typeof fact!=='object'){facts[field]=fact;continue;}
   const v=factValidity(fact,date,now);quality[field]=v;
-  // Preserve raw OSM tags as attributed reference data; this governs reviewed
-  // editorial facts, not an implicit claim that OSM has been officially checked.
   facts[field]=fact.source==='OpenStreetMap'?fact:v.usable?fact:{...fact,value:null,status:v.status};
  }
  return {...place,facts,factQuality:quality};

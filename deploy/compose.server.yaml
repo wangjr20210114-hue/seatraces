@@ -1,5 +1,5 @@
-# Run in /home/ubuntu/seatraces-app with .env.deploy. All app/database
-# sockets remain private. Existing Caddy is the sole public HTTPS ingress.
+# 配置部署环境中的前端和业务服务容器。
+
 name: seatraces-business
 services:
   backend:
@@ -49,4 +49,3 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
-    # No depends_on: the page must stay available during backend maintenance.

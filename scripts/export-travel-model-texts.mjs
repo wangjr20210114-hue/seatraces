@@ -1,4 +1,5 @@
-// Read-only local synthetic corpus; preserve exact identities of the frozen run.
+/* 导出旅行推荐实验使用的文本语料。 */
+
 import {mkdir,readFile,writeFile} from 'node:fs/promises';
 import {fileURLToPath} from 'node:url';
 import {localDatabase} from './recommendation-local-db.mjs';

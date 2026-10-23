@@ -1,3 +1,5 @@
+/* 将 OSM 和高德地点转换为统一候选地点结构。 */
+
 import { toWgs } from "../../public/coordinates.js";
 
 const text = (value) =>
@@ -123,7 +125,6 @@ export function fromOsm(row, delivery, profile, now) {
       };
       sources.push(origin);
     }
-    // An extract date is not an individual OSM fact update or verification date.
     facts[key] = fact(f?.value ?? null, origin, origin.retrievedAt, {
       source: f?.source || null,
       sourceUrl: f?.sourceUrl || null,
@@ -146,7 +147,6 @@ export function fromOsm(row, delivery, profile, now) {
             }
           : {}),
     });
-    // A cached reader response may age past its review deadline on the app side.
     const deadline = facts[key].reviewAfter;
     if (
       (deadline && Date.parse(deadline) <= Date.parse(now)) ||
@@ -204,7 +204,6 @@ export function fromOsm(row, delivery, profile, now) {
   );
 }
 function amapCategory(type) {
-  // Map supplier-reported types, never infer a scenic spot solely from its name.
   if (/风景名胜|博物馆|美术馆|科技馆|天文馆|展览馆/.test(type))
     return "attraction";
   if (/住宿服务/.test(type)) return "accommodation";
@@ -237,7 +236,6 @@ export function fromAmap(row, profile, now) {
   const facts = Object.fromEntries(
     factFields.map((k) => [k, fact(null, source, now)]),
   );
-  // Supplier cost is per-capita spending, not an admission ticket price.
   const business = row.business || {};
   facts.phone = fact(text(business.tel) || text(row.tel), source, now);
   facts.openingHours = fact(text(business.opentime_week), source, now);

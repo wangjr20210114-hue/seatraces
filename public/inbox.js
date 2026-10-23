@@ -1,3 +1,5 @@
+/* 展示站内信列表和内容，处理阅读状态。 */
+
 import { icon } from './ui-icons.js';
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 export async function renderInbox({route,content,setTitle,api,navigate,isCurrent}) {

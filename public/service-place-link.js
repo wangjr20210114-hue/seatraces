@@ -1,5 +1,6 @@
+/* 根据服务地点信息生成地图详情链接。 */
+
 import { hasPosition } from "./trip-view.js";
-// AMap URI accepts WGS84: do not convert the stored coordinates twice.
 export function servicePlaceUrl(place) {
   if (!hasPosition(place)) return null;
   return (

@@ -1,4 +1,4 @@
-"""Pure local diagnostics. Current outcomes and IDs are never model features."""
+"""提取排序诊断特征，计算效果指标和置信区间。"""
 import ctypes
 import math
 import os
@@ -31,7 +31,6 @@ def row_features(row,data,rich):
             hs,ht=cosine(h[96:],v[96:]),cosine(h[:96],v[:96])
         else:hs=ht=0
         values += [cosine(u[96:],v[96:]),hs,ht,len(row['history'])/20,not bool(row['history'])]
-        # Explicit content interactions; IDs, current dwell and outcomes excluded.
         names += ['product_'+str(i) for i in range(96)]+['difference_'+str(i) for i in range(96)]
         values += (u0*v0).tolist()+np.abs(u0-v0).tolist()
     if not all(math.isfinite(float(v)) for v in values):raise ValueError('Nonfinite feature')
@@ -52,7 +51,6 @@ def metrics(rows,scores,target='label',group_key='userId',k=10):
     return {'ndcgAtK':float(np.mean(values)) if values else None,'groups':len(values),'singletonGroupsExcluded':singleton,'k':k,'gain':'linear '+target,'grouping':group_key}
 
 def grouped_rows(rows):
-    # Stable order within user keeps deterministic tie-breaking aligned.
     ordered=sorted(rows,key=lambda r:r['userId']);groups=[]
     for i,r in enumerate(ordered):
         if i==0 or r['userId']!=ordered[i-1]['userId']:groups.append(1)

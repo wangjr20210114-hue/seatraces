@@ -1,3 +1,5 @@
+/* 提供维护任务的预览、提交和状态查询接口。 */
+
 import { z } from "zod";
 import { requireManagement } from "./permissions.mjs";
 import { alertRules, createHealthMonitor } from "./health-monitor.mjs";

@@ -1,4 +1,4 @@
-"""Bounded bulk read for city clustering, separate from interactive POI lookup."""
+"""批量读取城市地点，为片区划分提供数据。"""
 import math,time
 import re
 

@@ -1,3 +1,5 @@
+/* 验证交通路线选择。 */
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createRouteSelection, amapEndpointParams, routingProvider } from '../server/route-selection.mjs';
@@ -6,7 +8,6 @@ import { chooseRoutingCandidate, selectedRouteTokens } from '../public/route-sel
 import { navigationUrl } from '../public/navigation.js';
 import { toGcj } from '../public/coordinates.js';
 
-// All provider references in this file are synthetic contract fixtures.
 const a={id:'osm:node/1',name:'测试起点',country:'CN',lat:31.21,lng:121.41};
 const b={id:'osm:node/2',name:'测试终点',country:'CN',lat:31.23,lng:121.45};
 const ref={provider:'amap',id:'TEST_ORIGIN',location:'121.420100,31.215100'};

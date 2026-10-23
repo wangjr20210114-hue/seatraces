@@ -1,3 +1,5 @@
+/* 验证业务接口集成流程。 */
+
 import test from "node:test";
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
@@ -181,7 +183,6 @@ test("full API workflow, ownership, concurrency, privacy, community and unavaila
     },
     "PATCH",
   );
-  // Older clients cannot disable the service rule or erase history by sending this field.
   assert.equal((await a("/me/history")).body.length, 1);
   assert.equal((await a('/me')).body.user.preferences.analyticsConsent, undefined);
   await a('/me/history', undefined, 'DELETE');

@@ -1,3 +1,5 @@
+/* 验证AI 对话与操作确认。 */
+
 import { test, expect, signIn, get } from "../fixtures.mjs";
 import { check } from "../cases.mjs";
 test.beforeEach(async ({ context, fixture }) => signIn(context, fixture));

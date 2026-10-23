@@ -1,4 +1,4 @@
-"""Versioned full-catalog scenic identity pass using existing PostGIS geometries."""
+"""根据名称和几何资料重建统一景点实体。"""
 import hashlib
 import json
 import os
@@ -39,7 +39,6 @@ def run(root=ROOT):
                 raise ValueError('A complete containment build is required')
             cb = active['build_id']
             import_snapshot=imports(conn)
-            # Reject a stale geometry snapshot after a source import changed.
             changed = conn.execute('''WITH snapshot AS (SELECT * FROM osm.containment_places WHERE build_id=%s)
                 SELECT count(*) AS n FROM snapshot c FULL JOIN osm.current_poi p ON p.id=c.id
                 WHERE p.id IS NULL OR c.id IS NULL OR c.source_timestamp IS DISTINCT FROM p.pbf_timestamp
@@ -122,8 +121,6 @@ def run(root=ROOT):
                             copy.write_row([build,main,alias,normalize(alias),source])
             conn.execute('ANALYZE osm.entity_members')
             emit('relink_hierarchy', mergedEntities=len(groups), sourceObjects=sum(len(m) for _,m in groups))
-            # Preserve the canonical object's real geometry. Walk its existing
-            # ancestor chain, redirect aliases and recheck full containment.
             conn.execute('''WITH RECURSIVE chain AS (
                 SELECT e.child_id,e.parent_id,1 AS hop FROM osm.containment_edges e
                 LEFT JOIN osm.entity_members m ON m.build_id=%s AND m.source_id=e.child_id

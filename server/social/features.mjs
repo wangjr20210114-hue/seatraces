@@ -1,4 +1,5 @@
-// Versioned, inspectable dimensions. Unobserved dimensions stay unknown, never 0.
+/* 提取路线与问卷特征，汇总旅行风格信号。 */
+
 export const styleAlgorithm='travel-style/1';
 const group=(prefix,labels)=>Object.entries(labels).map(([key,label])=>({key:prefix+'.'+key,label,group:prefix}));
 export const styleDimensions=[
@@ -61,7 +62,5 @@ export function planningStyle(rows,explicit={},current={}){
   const xs=rows.filter(r=>interestMap[tag].includes(r.dimension)&&r.confidence>=.2);
   if(xs.length)scores[tag]=Math.max(-1,Math.min(1,xs.reduce((a,r)=>a+r.value*r.confidence,0)/xs.length));
  }
- // Inferred interests only influence a small ranking term. They never fill hard
- // limits, companions, budget or overwrite current/confirmed questionnaire values.
  return {...explicit,...current,styleWeights:scores,styleVersion:styleAlgorithm};
 }

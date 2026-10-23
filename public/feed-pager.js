@@ -1,5 +1,5 @@
-// One in-flight page per view. New filters invalidate earlier responses, and
-// the rendered IDs are supplied only when starting another recommendation pool.
+/* 管理信息流分页加载、结果追加和加载状态。 */
+
 export function createFeedPager({ api, onChange, context=()=>({}) }) {
   let generation = 0, dead = false,interestRevision=0;
   let state = { scope:'recommended', q:'', items:[], cursor:null, busy:false, error:'', exhausted:false };

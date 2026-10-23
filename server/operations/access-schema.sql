@@ -1,5 +1,5 @@
--- Separate management roles from consumer identities. Existing administrators
--- retain ownership; no existing ordinary account gains access in this migration.
+-- 定义后台成员、角色和会话的数据表、索引和关联结构。
+
 CREATE TABLE IF NOT EXISTS admin_memberships (
  user_id uuid PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
  role text NOT NULL CHECK(role IN ('operator','support','analyst')),

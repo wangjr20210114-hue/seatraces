@@ -1,3 +1,5 @@
+/* 管理账号注册、登录、会话和个人资料。 */
+
 import express from 'express';
 import bcrypt from 'bcryptjs';
 import sharp from 'sharp';
@@ -12,8 +14,6 @@ const password = z.string().min(8).refine(s => Buffer.byteLength(s, 'utf8') <= 7
 const email = z.string().trim().toLowerCase().email().max(254);
 const tokenSchema = z.string().regex(/^[a-f0-9]{64}$/);
 const avatars = ['🌊','🌿','🧭','🌸','🏔️','☀️'];
-// Browsing-based recommendations are a service rule, not a user preference.
-// Zod strips a legacy analyticsConsent field sent by older clients.
 const preferences = z.object({ interests: z.array(z.enum(interests)).max(10), pace: z.enum(['relaxed','balanced','full']) });
 const currentPreferences = value => {
   const { analyticsConsent: legacyChoice, ...rest } = value || {};
@@ -21,7 +21,6 @@ const currentPreferences = value => {
 };
 const failure = (status, message) => Object.assign(Error(message), { status });
 const dummyHash = bcrypt.hash(randomBytes(32).toString('hex'), 12);
-// The removed demo endpoint generated exactly this username/role combination.
 const isLegacyGuest = u => u?.role === 'admin' && /^demo_[a-f0-9]{8}$/.test(u.username);
 export const requireUser = (req, res, next) => req.user ? next() : res.status(401).json({ error: '请先登录', code: 'login_required' });
 export const publicUser = u => ({ id: u.id, username: u.username, nickname: u.nickname, avatar: u.avatar,
@@ -76,7 +75,6 @@ export function createAccounts({ query, transaction, production = false, mailer 
     const candidate = (await query('SELECT user_id FROM account_tokens WHERE token_hash=$1 AND purpose=$2', [digest, purpose])).rows[0];
     if (!candidate) throw failure(400, '链接已过期或已使用，请重新申请');
     return transaction(async c => {
-      // The same account lock serializes login, reset and token consumption.
       await c.query('SELECT id FROM users WHERE id=$1 FOR UPDATE', [candidate.user_id]);
       const t = (await c.query(`SELECT * FROM account_tokens WHERE token_hash=$1 AND purpose=$2 AND used_at IS NULL AND expires_at>now() FOR UPDATE`, [digest, purpose])).rows[0];
       if (!t) throw failure(400, '链接已过期或已使用，请重新申请');
@@ -97,7 +95,6 @@ export function createAccounts({ query, transaction, production = false, mailer 
           const previous = (await c.query('SELECT * FROM users WHERE id=$1 FOR UPDATE', [id])).rows[0];
           const session = await c.query('SELECT 1 FROM sessions WHERE user_id=$1 AND token_hash=$2 AND expires_at>now()', [id, hashToken(req.cookies.st_session)]);
           if (!isLegacyGuest(previous) || !session.rowCount) throw failure(409, '体验记录已被接收，请刷新后重试');
-          // Keep the original UUID and owned records, but never inherit demo admin privileges.
           await c.query("UPDATE users SET username=$1,password_hash=$2,nickname=$3,role='user',password_changed_at=now() WHERE id=$4", [b.username, digest, b.nickname || b.username, id]);
           await c.query('DELETE FROM sessions WHERE user_id=$1', [id]);
         } else {
@@ -127,7 +124,6 @@ export function createAccounts({ query, transaction, production = false, mailer 
     setSession(res, token);
     res.json({ user: publicUser(await userById(u.id)) });
   });
-  // The old anonymous demo/admin endpoint is deliberately no longer installed.
   router.post('/auth/logout', async (req, res) => {
     if (typeof req.cookies?.st_session === 'string') await query('DELETE FROM sessions WHERE token_hash=$1', [hashToken(req.cookies.st_session)]);
     res.clearCookie('st_session', cookieOptions).json({ ok: true });
@@ -137,7 +133,6 @@ export function createAccounts({ query, transaction, production = false, mailer 
     requireMail();
     await throttle('reset:' + b.email, 3, 900);
     res.status(202).json({ message: '若该邮箱已验证绑定，重设密码邮件会发到收件箱。' });
-    // Same response path regardless of account existence; SMTP latency cannot enumerate accounts.
     void (async () => {
       const u = (await query('SELECT user_id FROM user_emails WHERE email=$1', [b.email])).rows[0];
       if (u) await issueToken(u.user_id, 'reset_password', b.email);
@@ -173,7 +168,6 @@ export function createAccounts({ query, transaction, production = false, mailer 
     const b = z.object({ token: tokenSchema }).parse(req.body);
     try {
       await useToken(b.token, 'verify_email', async (c, t) => {
-        // Verification links cannot overwrite an established recovery address.
         await c.query('INSERT INTO user_emails(user_id,email) VALUES($1,$2)', [t.user_id, t.email]);
       });
     } catch (e) { if (e.code === '23505') throw failure(409, '邮箱已绑定或链接已失效'); throw e; }

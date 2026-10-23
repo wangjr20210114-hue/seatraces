@@ -1,4 +1,5 @@
-// Download small OSM extracts from the public Overpass data API, not a tile mirror.
+/* 获取指定区域的 OSM 道路、水系和公园数据。 */
+
 // Output is distributed under ODbL 1.0 with source, date and attribution retained.
 import { mkdir, writeFile } from "node:fs/promises";
 const areas = {

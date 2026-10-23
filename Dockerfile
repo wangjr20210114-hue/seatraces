@@ -1,3 +1,5 @@
+# 构建包含前端资源和业务服务的 Node.js 镜像。
+
 FROM node:24-bookworm-slim
 WORKDIR /app
 COPY package.json package-lock.json ./

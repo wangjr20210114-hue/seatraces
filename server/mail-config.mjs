@@ -1,3 +1,5 @@
+/* 整理邮件模板、发送配置和应用链接。 */
+
 import {z} from 'zod';
 
 export const mailMessage=z.object({
@@ -20,7 +22,6 @@ export function mailOrigin(value){
   return origin;
 }
 
-// Status endpoints expose field names and booleans, never configuration values.
 export function mailTransportConfiguration(env=process.env){
   const provider=env.MAIL_PROVIDER||'smtp',ses=provider==='tencent_ses';
   const required=ses?['APP_ORIGIN','SES_REGION','SES_SECRET_ID','SES_SECRET_KEY','SES_FROM',...Object.values(sesTemplates)]
@@ -40,7 +41,6 @@ export function mailTransportConfiguration(env=process.env){
 export function mailContent(input,origin){
   const value=mailMessage.parse(input),label=value.purpose==='verify_email'?'验证邮箱':value.purpose==='password_changed'?'密码已修改':'重设密码';
   const url=new URL('/login.html',origin);
-  // Fragment tokens do not enter HTTP access logs or Referer headers.
   if(value.token)url.hash=new URLSearchParams({action:value.purpose,token:value.token}).toString();
   return {...value,subject:`SeaTraces · ${label}`,link:url.href,
     text:value.token?`请打开下面的链接${label}，链接 30 分钟内有效，使用后失效。\n\n${url.href}\n\n如果不是你本人操作，请忽略此邮件。`

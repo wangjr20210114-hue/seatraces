@@ -1,3 +1,5 @@
+"""验证PBF 分段传输与合并。"""
+
 import hashlib
 import io
 from pathlib import Path

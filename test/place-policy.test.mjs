@@ -1,3 +1,5 @@
+/* 验证地点名称和事实展示规则。 */
+
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createCandidateService } from "../server/services/place-candidates.mjs";

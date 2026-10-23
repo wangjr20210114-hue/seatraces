@@ -1,4 +1,4 @@
-"""Deactivate a fully covered Shanghai pilot while preserving all snapshot data."""
+"""停用已被完整数据覆盖的试点快照。"""
 import json
 from pathlib import Path
 import sys

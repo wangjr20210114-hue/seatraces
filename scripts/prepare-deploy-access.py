@@ -1,4 +1,4 @@
-"""Prepare a local key and reviewable server installer; this never modifies the server."""
+"""生成发布密钥和配套服务器安装脚本。"""
 from pathlib import Path
 import base64,hashlib,json,os,subprocess,zlib
 
@@ -21,7 +21,6 @@ def main():
         user=subprocess.check_output(['whoami'],text=True).strip()
         subprocess.run(['icacls',str(identity),'/inheritance:r','/grant:r',user+':F'],check=True,stdout=subprocess.DEVNULL)
     else:identity.chmod(0o600)
-    # Reuse a previously verified host key. If absent, keyscan must match the pinned fingerprint.
     known=Path.home()/'.ssh/known_hosts'
     result=subprocess.run(['ssh-keygen','-F',HOST,'-f',str(known)],capture_output=True,text=True)
     lines=result.stdout.splitlines()

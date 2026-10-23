@@ -1,3 +1,5 @@
+/* 验证行程备选方案交互。 */
+
 import {test,expect,signIn} from '../fixtures.mjs';
 test('PLAN-UI-001 比较、核验和确认保存分开，失败不可采用',async({page,context,fixture})=>{
  await signIn(context,fixture);let applied=0;

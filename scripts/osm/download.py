@@ -1,4 +1,4 @@
-"""Download official OSM extracts with resume, checksum and a disk reserve. Stdlib only."""
+"""下载 OSM 地区数据，支持断点续传和校验。"""
 import argparse
 import hashlib
 import json
@@ -60,7 +60,6 @@ def download(region, root, reserve_gib=12, max_file_gib=5):
         modified = response.headers.get("Last-Modified")
     if size <= 0 or size > max_file_gib * 1024**3:
         raise ValueError("Extract exceeds per-file size allowance")
-    # Digest-bound partial names cannot combine bytes from different daily snapshots.
     name = f"{region}-{expected}.osm.pbf"
     destination = root / name
     partial = root / (name + ".part")

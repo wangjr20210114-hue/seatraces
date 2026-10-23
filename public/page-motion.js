@@ -1,4 +1,5 @@
-// Animate the newly visible panel, never clone maps, forms or private content.
+/* 管理页面切换动画和过渡状态。 */
+
 export function createPageMotion({reduced=()=>matchMedia('(prefers-reduced-motion: reduce)').matches}={}) {
   let running;
   return (element,{animate=false,direction='forward'}={}) => {

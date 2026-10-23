@@ -1,3 +1,5 @@
+/* 验证天气预报整理与展示。 */
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {normalizeForecast,weatherForDate,createWeatherService,weatherAdcode} from '../server/services/weather.mjs';

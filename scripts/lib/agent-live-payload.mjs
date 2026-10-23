@@ -1,7 +1,7 @@
+/* 整理 AI 实际服务检查的请求和结果校验。 */
+
 import {knowledge,capabilities} from '../../server/agent/catalog.mjs';
 
-// Fixed synthetic questions only. This acceptance must not send account,
-// itinerary, memory, conversation history, coordinates, or database content.
 export const liveAgentQuestions=Object.freeze([
   '我经常收藏博物馆，会怎样影响下一次旅行问卷？',
   '路线图的平滑曲线就是实际步行道路吗？',

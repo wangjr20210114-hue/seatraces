@@ -1,3 +1,5 @@
+/* 生成推荐偏好盲评题目和页面资源。 */
+
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { localDatabase } from './recommendation-local-db.mjs';
@@ -19,7 +21,6 @@ try {
   if (posts.length > 1000) throw Error('Review corpus bound exceeded');
   const cache = fileURLToPath(new URL('../validation/tower-semantic/cache/', import.meta.url)), vectors = new Map();
   const cached = async text => (await cachedEmbedding(cache, text, async () => { throw Error('Missing approved offline semantic cache; review never creates new model calls'); })).vector;
-  // Match the exact already-encoded corpus; unused original posts have no cache.
   for (const p of posts) { try { vectors.set(p.id, await cached(postText(p))); } catch (e) { if (!e.message.startsWith('Missing approved')) throw e; } }
   const corpus = posts.filter(p => vectors.has(p.id)), byId = new Map(corpus.map(p => [p.id,p]));
   const tasks = [], probes = [], used = new Set(), agreementOnly = [];

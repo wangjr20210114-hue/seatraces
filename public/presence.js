@@ -1,3 +1,5 @@
+/* 记录页面停留和浏览行为，供兴趣分析使用。 */
+
 import { currentPosition } from "./geolocation.js";
 
 export function createPresenceRecorder({ getTrip, api, onState }) {

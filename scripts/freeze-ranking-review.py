@@ -1,4 +1,4 @@
-"""Freeze validation-selected predictions before any new human answers exist."""
+"""固定排序模型预测结果，供后续人工评审使用。"""
 import hashlib
 import json
 import os

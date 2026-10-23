@@ -1,3 +1,5 @@
+/* 验证用户页面的信息展示。 */
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {walkPlace,walkViewportKey} from '../public/walk-place.js';

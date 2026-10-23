@@ -1,3 +1,5 @@
+/* 编排 AI 对话、知识查询、操作预览和确认执行。 */
+
 import { travelTiming, tripPreferences } from "./travel-language.mjs";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
@@ -785,7 +787,6 @@ export function createAgentEngine({
         old = stops.find((p) => p.id === op.placeId);
       if (["remove", "replace", "move", "lock"].includes(op.type) && !old)
         throw fail("修改目标不在这一天的行程中");
-      // New IDs come from the existing assistant endpoint, never this agent model.
       let next;
       if (op.newPlaceId) {
         const candidates = await ctx.api(
@@ -871,7 +872,6 @@ export function createAgentEngine({
         "journey_session",
       );
     for (const city of f.cities) {
-      // Conversations created before automatic selection stored only a few names.
       if (f.catalog?.[city.id]?.some(g => g.members.some(p => typeof p === 'string'))) delete f.catalog[city.id];
       if (!f.catalog?.[city.id]) {
         const result = await ctx.api(
@@ -1357,7 +1357,6 @@ export function createAgentEngine({
         else if (s.flow?.kind === "clarify") {
           delete s.flow;
           delete s.question;
-          // A clarification input is a new request, never a capability ID.
           return message(ctx, { text });
         } else if (
           q.input &&
@@ -1489,7 +1488,6 @@ export function createAgentEngine({
           data = await ctx.api("POST", "/api/journey/sessions", p.request);
           s.flow.sessionId = data.id;
           s.flow.cities = data.cities;
-          // The saved session is the committed effect. Loading candidates is a separate turn.
           reply = waitForPlanning(s, "出行信息已确认，正在按你的偏好安排片区和景点。无需手动选择。");
           break;
         }

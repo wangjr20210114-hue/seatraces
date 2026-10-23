@@ -1,3 +1,5 @@
+/* 验证行程安排与时间预算。 */
+
 import test from "node:test";
 import assert from "node:assert/strict";
 import {

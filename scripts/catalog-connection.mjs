@@ -1,3 +1,5 @@
+/* 建立并维护本地到地点服务的 SSH 转发连接。 */
+
 import { spawn } from 'node:child_process';
 import { readFile, writeFile, access } from 'node:fs/promises';
 import path from 'node:path';

@@ -1,3 +1,5 @@
+/* 管理旅行问卷、地点选择、行程生成和进度恢复。 */
+
 import { journeyPlaceDetail } from "./journey-details.mjs";
 import {officialFacts} from './official-facts-store.mjs';
 import { installPlaceDescriptionRoutes } from './place-descriptions.mjs';
@@ -113,8 +115,6 @@ export async function restoredCitySelection(snapshot,city,wishes,loadBoundary=ci
   let boundary;
   try{boundary=publicBoundary(await loadBoundary(city));}
   catch{
-    // Saved choices remain usable if the independent map-boundary provider is
-    // temporarily down. Do not fabricate an outline or recompute group IDs.
     boundary={status:'unavailable',cityRings:[],districts:[],provider:null,crs:'GCJ02'};
   }
   return {...snapshot,city,boundary,clusters:snapshot.clusters.map(g=>({...g,members:g.members.map(p=>applyWishes(p,wishes))}))};
@@ -186,7 +186,6 @@ export function selectedPools(catalog, selections, cities, wishes) {
           seen.add(p.id);
         }
       }
-    // All wishes survive the planning shortlist; regular candidates stay bounded.
     const limit = points.length + 60;
     const longest = Math.max(...groups.map((g) => g.members.length));
     for (let i = 0; i < longest && points.length < limit; i++)
@@ -243,14 +242,11 @@ export async function saveJourneyWish(db,{userId,place,wanted,recordWish}){
     );
     if(id===place.id)changed=!!saved.rowCount;
   }
-  // A lost response can replay the same set operation without adding a second
-  // interest signal. The write and signal share the caller's transaction.
   if(changed)await recordWish(db,{userId,place,value:wanted?1:0});
 }
 export function installJourneyRoutes(app, { auth, travelHabit, recordWish=async()=>{},onSource=async()=>{},onGenerated=async()=>{} }) {
   installAdaptiveQuestions(app,{auth,query,ownSession,travelHabit});
   installPlaceDescriptionRoutes(app,{auth,query,resolvePlace});
-  // Preview boundaries before the date/session step, using the same shared cache.
   app.get("/api/journey/cities/:cityId/boundary", auth, async (req, res) => {
     const id = z.string().min(1).max(80).parse(req.params.cityId);
     const city = (
@@ -306,8 +302,6 @@ export function installJourneyRoutes(app, { auth, travelHabit, recordWish=async(
       const s = await ownSession(req.params.id, req.user.id),
         city = s.request.cities.find((c) => c.id === req.params.cityId);
       if (!city) throw error("城市不在本次旅行中");
-      // Recovery must reuse the exact saved group IDs rather than reclustering
-      // against a changed catalog. Never load all cities or raw provider data.
       if(req.query.resume==='1'){
         const wishes=await wishesFor(req.user.id);
         if(await sendSavedCitySelection({
@@ -323,8 +317,6 @@ export function installJourneyRoutes(app, { auth, travelHabit, recordWish=async(
             req.user,
             travelHabit,
           );
-          // Save selected candidates and the separate parent overlay. Raw provider
-          // responses and administrative boundary geometry are not stored here.
           await query(
             "UPDATE journey_sessions SET catalog=jsonb_set(catalog,ARRAY[$3],$4::jsonb),updated_at=now() WHERE id=$1 AND user_id=$2",
             [

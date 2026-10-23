@@ -1,3 +1,5 @@
+/* 验证头像上传和显示。 */
+
 import sharp from 'sharp';
 import {test,expect,signIn,get} from '../fixtures.mjs';
 import {check} from '../cases.mjs';

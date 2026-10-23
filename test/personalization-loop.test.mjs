@@ -1,3 +1,5 @@
+/* 验证行为反馈到推荐的完整流程。 */
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
@@ -9,9 +11,6 @@ import {personalizedQuestions} from '../server/services/questions.mjs';
 import {clusterScenicPlaces} from '../server/domain/scenic-clusters.mjs';
 import {createJourneyDraft} from '../server/services/journey-draft.mjs';
 
-// This verifies real HTTP interaction -> PostgreSQL -> profile worker ->
-// questionnaire/candidate order/model input/final draft. The external LLM and
-// opening-hours provider are deterministic substitutes, not live acceptance.
 test('PERS-LOOP-01 saves personalize the next questions and draft; explicit choices win and undo restores baseline',
   {skip:process.env.TEST_RECOMMENDATION!=='1',timeout:60000},async t=>{
   const f=await iterationFixture({schemas:['schema.sql','citywalk-schema.sql','discovery-schema.sql','agent/schema.sql','social/schema.sql','social/style-schema.sql','recommendation/schema.sql']});

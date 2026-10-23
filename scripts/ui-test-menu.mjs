@@ -1,3 +1,5 @@
+/* 提供界面测试命令菜单。 */
+
 import { existsSync } from "node:fs";
 import { spawn, spawnSync } from "node:child_process";
 import { createInterface } from "node:readline";

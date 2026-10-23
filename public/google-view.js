@@ -1,3 +1,5 @@
+/* 绘制 Google 地图上的地点和路线。 */
+
 'use strict';
 let map,payload,overlays=[];
 function paint(){
@@ -5,7 +7,6 @@ function paint(){
   overlays.forEach(line=>line.setMap(null));overlays=[];
   const bounds=new google.maps.LatLngBounds();
   for(const [i,s] of payload.segments.entries()){
-    // Draw individual source steps to avoid inventing a bridge across gaps.
     for(const line of s.steps?.length?s.steps.map(step=>step.polyline):[s.polyline]){
       if(!Array.isArray(line)||line.length<2)continue;
       if(line.some(p=>!Array.isArray(p)||!p.every(Number.isFinite)||Math.abs(p[0])>90||Math.abs(p[1])>180))continue;

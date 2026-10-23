@@ -1,7 +1,8 @@
+/* 检查地点目录快照的内容与一致性。 */
+
 import assert from 'node:assert/strict';
 import { writeFile } from 'node:fs/promises';
 
-// Run only after a live catalog verification and intentional tunnel shutdown.
 const base = process.env.TEST_URL || 'http://127.0.0.1:8787';
 const report = { at: new Date().toISOString(), scope: 'Persisted OSM query cache after app restart with temporary tunnel closed', checks: [] };
 async function check(name, path, verify) {

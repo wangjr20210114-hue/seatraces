@@ -1,3 +1,5 @@
+/* 查询邮件投递状态和失败记录。 */
+
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const time=v=>v?new Date(v).toLocaleString('zh-CN',{timeZone:'Asia/Shanghai',hour12:false}):'—';
 const states={queued:'待发送',sending:'发送中',sent:'已受理',retry:'等待重试',failed:'失败',unknown:'结果待确认',expired:'已过期'};

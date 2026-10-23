@@ -1,3 +1,5 @@
+/* 组织界面测试、用例查询和测试报告命令。 */
+
 import { existsSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";

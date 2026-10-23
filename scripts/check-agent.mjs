@@ -1,4 +1,5 @@
-// One small, disposable local journey. Uses configured providers and their normal budget gates.
+/* 检查 AI 对话、操作预览和确认流程。 */
+
 import { randomBytes, randomUUID } from 'node:crypto';
 import { readFile, mkdir, writeFile } from 'node:fs/promises';
 import pg from 'pg';

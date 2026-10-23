@@ -1,4 +1,5 @@
-// Read-only local export; keep real request identities even when unusable for LTR.
+/* 导出排序诊断需要的样本与特征。 */
+
 import {readFile,writeFile,mkdir} from 'node:fs/promises';
 import {localDatabase} from './recommendation-local-db.mjs';
 import {digest,postText} from './lib/offline-semantic.mjs';
@@ -34,7 +35,6 @@ try {
   const active=new Set((found.outcomes||[]).filter(o=>o.active).map(o=>o.kind));
   const value=active.has('not_interested')||active.has('dissatisfied')?-4:active.has('satisfied')?5:active.has('adopt')?4:active.has('save')?3:active.has('recommend')?2:active.has('like')?1:active.has('follow')?.6:active.has('comment')?.5:0;
   if((value>0?1:0)!==row.label||(value?Math.abs(value):.2)!==row.weight)throw Error('Frozen outcome labels changed');
-  // Grading is a diagnostic secondary target; it does not replace the old gate.
   const grade=value>0?(active.has('satisfied')?4:active.has('adopt')?3:active.has('save')||active.has('recommend')?2:1):0;
   return {...row,requestId:found.request_id,exposureId:found.id,position:found.position,visibleMs:found.visible_ms,
    candidateCount:found.candidate_count,parts:found.parts,grade,outcomes:found.outcomes||[],userVector:found.user_vector,itemVector:found.item_vector};

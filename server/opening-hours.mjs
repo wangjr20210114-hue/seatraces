@@ -1,3 +1,5 @@
+/* 查询指定日期的开放时间，管理解析任务。 */
+
 import { execFile } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { placeTimeZone } from "../public/travel-time.js";
@@ -60,8 +62,6 @@ export async function openingOnDate(place, date) {
       intervals: [],
       message: "开放规则过长，请查看原始来源。",
     };
-  // No authoritative holiday calendar or solar-time engine has been connected.
-  // Exclude tokens inside comments to avoid treating ordinary prose as syntax.
   const selectors = raw.replace(/"(?:[^"\\]|\\.)*"/g, "");
   if (/\b(?:PH|SH|sunrise|sunset|dawn|dusk|easter)\b/i.test(selectors))
     return {
@@ -77,8 +77,6 @@ export async function openingOnDate(place, date) {
   running++;
   try {
     const result = await new Promise((resolve, reject) => {
-      // A bounded process prevents untrusted OSM syntax from blocking HTTP.
-      // Keep credentials out of its environment; no provider/network access.
       const env = {
         TZ: "UTC",
         ...(process.env.SystemRoot

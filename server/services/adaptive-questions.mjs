@@ -1,17 +1,15 @@
+/* 根据已有旅行信息和兴趣信号生成后续问卷题目。 */
+
 import {z} from 'zod';
 import {journeyAnswers} from './journey-draft.mjs';
 import {orderedInterestOptions} from './questions.mjs';
 import {questionBank} from '../planner.mjs';
 
-// Partial deliberately carries no inferred defaults. Only supplied values are
-// evidence of an answer; a saved account preference is a suggestion, not consent.
 export const suppliedAnswers=z.object(Object.fromEntries(Object.entries(journeyAnswers.shape).map(([k,v])=>[k,v.removeDefault?.().optional()||v.optional()]))).strict();
 export const adaptiveInput=z.object({answers:suppliedAnswers.default({})}).strict();
 const one=(id,title,options,reason)=>({id,title,type:'single',options:options.map(([value,label])=>({value,label})),reason});
 export function adaptiveQuestions(preferences={},supplied={},context={}){
   const known=suppliedAnswers.parse(supplied),questions=[];
-  // A limit explicitly requested by the user survives a transport change. A
-  // default/suggestion is never inserted into known in the first place.
   const add=q=>{if(!Object.hasOwn(known,q.id))questions.push(q);};
   add(one('companion','这次和谁一起出发？',[
     ['solo','一个人'],['couple','两个人'],['friends','朋友'],['parents','带父母'],['family','带孩子或家人']], 'trip_context'));
@@ -45,8 +43,6 @@ export function adaptiveQuestions(preferences={},supplied={},context={}){
 export function installAdaptiveQuestions(app,{auth,query,ownSession,travelHabit}){
   app.post('/api/journey/sessions/:id/questions',auth,async(req,res)=>{
     const session=await ownSession(req.params.id,req.user.id),input=adaptiveInput.parse(req.body||{});
-    // Caller sends its current confirmed answers, so going back and changing an
-    // earlier decision cannot accidentally reuse stale inferred branch answers.
     const habit=await travelHabit(req.user),r=adaptiveQuestions(habit,input.answers,{...session.request,completedTrips:habit.completedTrips});
     await query('UPDATE journey_sessions SET questions=$2,updated_at=now() WHERE id=$1',[session.id,JSON.stringify(r)]);
     res.json(r);

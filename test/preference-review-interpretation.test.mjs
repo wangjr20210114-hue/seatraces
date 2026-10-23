@@ -1,3 +1,5 @@
+/* 验证人工偏好选择解释。 */
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {interpretChoice,compareRepeatedChoices,summarizeChoiceSemantics} from '../scripts/lib/preference-review-interpretation.mjs';

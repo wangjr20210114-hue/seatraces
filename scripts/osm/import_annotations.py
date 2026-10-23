@@ -1,4 +1,4 @@
-"""Validate sourced enrichment; --apply appends audited facts without changing OSM."""
+"""校验并导入有来源依据的地点补充资料。"""
 import argparse
 from datetime import datetime, timezone
 import hashlib
@@ -59,7 +59,6 @@ def apply(data):
     import psycopg
     from psycopg.types.json import Jsonb
     with psycopg.connect(**json.loads((ROOT/'database.json').read_text())) as c:
-        # Backup public editorial records only; never include DB configuration or credentials.
         backup=ROOT/'backups'/('editorial-'+datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S%fZ')+'.json')
         backup.parent.mkdir(parents=True,exist_ok=True)
         snapshot={}

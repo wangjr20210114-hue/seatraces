@@ -1,3 +1,5 @@
+/* 验证分享草稿管理。 */
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';

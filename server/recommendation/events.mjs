@@ -1,3 +1,5 @@
+/* 记录推荐曝光、浏览和路线采纳行为。 */
+
 import {requireVisiblePost} from '../services/community-interactions.mjs';
 const fail=(message,status=400)=>Object.assign(Error(message),{status});
 export async function recordExposure(c,{id,userId,postId,requestId}){
@@ -5,8 +7,6 @@ export async function recordExposure(c,{id,userId,postId,requestId}){
  const r=(await c.query(`SELECT candidate_ids,trace FROM recommendation_requests WHERE id=$1 AND user_id=$2 AND created_at>now()-interval '1 day'`,[requestId,userId])).rows[0];
  const position=r?.candidate_ids.indexOf(postId)??-1;if(position<0)throw fail('推荐曝光不属于当前用户或推荐结果',404);
  const item=(await c.query('SELECT vector,revision FROM recommendation_items WHERE post_id=$1',[postId])).rows[0];
- // If the author edited it since recommendation, do not train on a mismatched
- // feature snapshot. Browsing itself still succeeds.
  if(!item||r.trace.items.find(p=>p.id===postId)?.revision!==item.revision)return;
  await c.query(`INSERT INTO recommendation_exposures(id,request_id,user_id,post_id,position,item_vector) VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT DO NOTHING`,[id,requestId,userId,postId,position,item.vector]);
 }

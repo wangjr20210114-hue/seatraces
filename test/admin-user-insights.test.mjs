@@ -1,3 +1,5 @@
+/* 验证用户资料管理查询。 */
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
@@ -21,7 +23,6 @@ test('user overview joins owned data, distinguishes evidence and audits sensitiv
     await f.query(`INSERT INTO inbox_campaigns(id,created_by,title,body,audience,status) VALUES($1,$2,'旅行提醒','PRIVATE_MESSAGE_BODY','all','sent')`,[campaign,f.users.admin.id]);
     await f.query('INSERT INTO inbox_messages(campaign_id,user_id) VALUES($1,$2)',[campaign,owner]);
     await f.events.append({userId:owner,kind:'request',action:'POST /api/journey/sessions/:id/generate',status:503,durationMs:1000,requestId:randomUUID()});
-    // Existing historical records precede the new event collector.
     await f.query(await readFile(new URL('../server/operations/product-schema.sql',import.meta.url),'utf8'));
     await f.start();const base='/api/admin/users/'+owner;
     await t.test('USR01 summary fields exclude credentials, precise origin and conversation content',async()=>{

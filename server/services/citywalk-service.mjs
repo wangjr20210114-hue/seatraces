@@ -1,3 +1,5 @@
+/* 提供 CityWalk 的规划、编辑、保存和读取接口。 */
+
 import { randomUUID, createHash } from "node:crypto";
 import { z } from "zod";
 import { query as dbQuery, transaction as dbTransaction } from "../db.mjs";
@@ -33,7 +35,6 @@ export function selectedWalk(draft, input, previous) {
   const candidates = new Map(
     groups.flatMap((g) => g.members).map((p) => [p.id, p]),
   );
-  // Keep previously saved source snapshots editable when the live catalog has changed.
   if (previous?.city.id === draft.city.id)
     for (const p of previous.stops)
       if (!candidates.has(p.id)) candidates.set(p.id, p);
@@ -302,7 +303,6 @@ export function installCityWalkRoutes(
           JSON.stringify(verifiedRoute),
         ],
       );
-      // A retry after a lost response returns the original, without another route.
       if (!result.rowCount) return res.json(await own(input.id, req.user.id));
     }
     res.json(result.rows[0]);

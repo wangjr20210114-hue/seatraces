@@ -1,3 +1,5 @@
+/* 验证后台维护任务。 */
+
 import test from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";

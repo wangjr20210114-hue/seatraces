@@ -1,3 +1,5 @@
+/* 展示站内信的送达和阅读情况。 */
+
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const time=v=>v?new Date(v).toLocaleString('zh-CN',{timeZone:'Asia/Shanghai',hour12:false}):'—';
 export async function showMessageEffects({id,content,status,api,valid,back}){

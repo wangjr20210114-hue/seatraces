@@ -1,4 +1,6 @@
-﻿param([ValidateSet('smtp','tencent_ses')][string]$Provider = 'smtp')
+﻿# 配置邮件服务所需的环境参数。
+
+param([ValidateSet('smtp','tencent_ses')][string]$Provider = 'smtp')
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
 $envPath = Join-Path $projectRoot '.env'

@@ -1,5 +1,5 @@
-// One reviewed batch, not a general automatic approval workflow.
-// Run only after comparing the 10 values with the saved official excerpts.
+/* 汇总地点资料提取结果，生成核验变更记录。 */
+
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { validateExtractedFacts } from "../server/services/evidence-extraction.mjs";
 const dir = new URL("../.runtime/evidence-20261011/", import.meta.url);

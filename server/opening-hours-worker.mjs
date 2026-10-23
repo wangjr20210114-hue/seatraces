@@ -1,5 +1,5 @@
-// Interpret a local calendar day in a UTC process. These Date values are wall
-// clocks, not real UTC instants. No host timezone or DST may alter their fields.
+/* 在独立线程中解析地点开放时间规则。 */
+
 import OpeningHours from 'opening_hours';
 let input='';
 for await (const chunk of process.stdin){input+=chunk;if(input.length>10000)process.exit(1);}

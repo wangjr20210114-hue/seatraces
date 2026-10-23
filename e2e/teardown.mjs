@@ -1,3 +1,5 @@
+/* 关闭端到端测试服务并清理测试资源。 */
+
 import { readFile, access } from "node:fs/promises";
 export default async function teardown() {
   try {
@@ -26,6 +28,5 @@ export default async function teardown() {
       "Test cleanup timed out; inspect .runtime/ui-test before running again.",
     );
   } catch {
-    /* Playwright also terminates its own webServer process tree. */
   }
 }

@@ -1,3 +1,5 @@
+"""验证地点查询服务。"""
+
 import unittest
 from place_service import parse_search, search_sql, present, Gateway
 

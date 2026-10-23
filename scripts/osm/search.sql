@@ -1,4 +1,5 @@
--- Query candidates before deduplication, so trigram/GiST indexes remain usable.
+-- 定义地点名称和空间范围检索函数。
+
 CREATE OR REPLACE FUNCTION osm.search_places(
  q text, wanted_category text DEFAULT NULL,
  center_lon double precision DEFAULT NULL, center_lat double precision DEFAULT NULL,

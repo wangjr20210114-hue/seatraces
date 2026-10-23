@@ -1,3 +1,5 @@
+"""验证OSM 数据下载和提取。"""
+
 import gzip
 import hashlib
 import importlib.util

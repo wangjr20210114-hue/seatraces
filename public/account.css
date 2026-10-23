@@ -1,3 +1,5 @@
+/* 定义账号资料和头像设置页面样式。 */
+
 .login-page { overflow: auto; min-height: 100dvh; height: auto; padding: max(28px, env(safe-area-inset-top)) 24px max(36px, env(safe-area-inset-bottom)); background: radial-gradient(ellipse at 0 0, #d8f5e7, transparent 55%), #fffdf2; }
 .login-content { width: min(100%, 420px); margin: 0 auto; padding: clamp(12px, 4dvh, 40px) 0; }
 .login-brand { text-decoration: none; font-size: 20px; font-weight: 850; }
@@ -19,7 +21,6 @@
 body.auth-pending > :not(#auth-loading) { visibility: hidden; }
 #auth-loading { position: fixed; inset: 0; z-index: 100; display: grid; place-content: center; gap: 16px; background: #fffdf2; text-align: center; }
 
-/* The account page shares the travel UI's ink outlines and pressed-paper controls. */
 .account-page { --account-ink: #183c40; padding-right: 4px; }
 .account-page .account-icon { width: 21px; height: 21px; flex: 0 0 21px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .account-pass { position: relative; padding: 23px 18px 20px; background: #c4f1df; border: 2px solid var(--account-ink); border-radius: 25px; box-shadow: 2px 2px 0 #183c4040; }

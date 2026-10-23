@@ -1,4 +1,5 @@
-// This is the reviewed 2026-10-12 pilot, not an automatic semantic approval policy.
+/* 审核故宫地点与层级补充结果，生成变更记录。 */
+
 import { readFile,writeFile,mkdir } from 'node:fs/promises';
 import {createHash} from 'node:crypto';
 import {validateScenicEnrichment} from '../server/services/scenic-enrichment.mjs';

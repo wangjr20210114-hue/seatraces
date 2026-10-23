@@ -1,3 +1,5 @@
+/* 验证行程体验反馈。 */
+
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createApiReservation } from "../server/repositories/api-usage.mjs";

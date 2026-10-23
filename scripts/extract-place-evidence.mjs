@@ -1,4 +1,5 @@
-// Exactly 3 calls, all metered; extraction only. Import requires separate evidence review.
+/* 从来源资料包中提取地点事实并保存结果。 */
+
 import { readFile, writeFile } from "node:fs/promises";
 import dotenv from "dotenv";
 import {

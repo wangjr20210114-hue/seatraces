@@ -1,3 +1,5 @@
+-- 定义待发邮件、投递状态和重试记录的数据表、索引和关联结构。
+
 CREATE TABLE IF NOT EXISTS mail_outbox (
  id uuid PRIMARY KEY,dedupe_key text UNIQUE NOT NULL,purpose text NOT NULL,
  state text NOT NULL CHECK(state IN ('queued','sending','retry','sent','failed','expired','unknown')),

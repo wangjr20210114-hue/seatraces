@@ -1,3 +1,5 @@
+/* 编辑分享草稿，处理配图、保存和发布。 */
+
 import {esc,routeCover,mapCover} from './social-ui.js';
 async function smallPhoto(file){
  if(!['image/jpeg','image/png','image/webp'].includes(file.type)||file.size>15*1024*1024)throw Error('请选择 15 MB 内的 JPG、PNG 或 WebP 图片');
@@ -35,7 +37,6 @@ export async function mountComposer({route,content,setTitle,api,navigate,isCurre
   function photos(){const box=$('.composer-photos');box.innerHTML=d.media_ids.length?d.media_ids.map((id,i)=>`<div><img src="/api/social/media/${esc(id)}" alt="照片 ${i+1}"><button data-remove="${esc(id)}" aria-label="移除照片 ${i+1}">×</button>${i?`<button class="photo-left" data-left="${i}" aria-label="照片 ${i+1} 前移">←</button>`:''}</div>`).join(''):(d.source_id?mapCover('draft',d.id,d.title,d.version):routeCover(d.snapshot,d.title));}
   function changed(){localRevision++;clearTimeout(timer);$('[role=status]').textContent='正在保存…';timer=setTimeout(()=>void save().catch(report),700);}
   function report(e){if(live())$('[role=status]').textContent=e.message;}
-  // A single save queue preserves order, and never replaces text with a late response.
   save=()=>{clearTimeout(timer);const revision=localRevision;
    const fields={title:$('#post-title').value,body:$('#post-body').value,tags:$('#post-tags').value.split(/[，,]/).map(s=>s.trim().replace(/^#/,'' )).filter(Boolean),mediaIds:[...d.media_ids]};
    chain=chain.catch(()=>{}).then(async()=>{if(revision===savedRevision)return;const r=await api('/api/social/drafts/'+d.id,{...fields,version:d.version},'PUT');d.version=r.version;savedRevision=revision;if(live()&&savedRevision===localRevision)$('[role=status]').textContent='草稿已保存';});return chain;};
@@ -57,6 +58,5 @@ export async function mountComposer({route,content,setTitle,api,navigate,isCurre
   if(route.params?.write==='1'&&d.version===1&&!d.body&&$('[data-ai]'))void $('[data-ai]').onclick({currentTarget:$('[data-ai]'),automatic:true});
  }catch(e){if(live())content.textContent=e.message;}
  return cleanup;
- // Replaced after loading the editor. Cleanup may run while requests finish.
  function save(){return Promise.resolve();}
 }

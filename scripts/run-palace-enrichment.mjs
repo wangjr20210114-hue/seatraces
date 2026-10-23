@@ -1,4 +1,5 @@
-// Bounded official-evidence pilot, budgeted API calls, resumable by exact input hash.
+/* 根据故宫来源资料生成地点补充建议。 */
+
 import { readFile, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import dotenv from 'dotenv';

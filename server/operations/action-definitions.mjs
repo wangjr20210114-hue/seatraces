@@ -1,9 +1,9 @@
+/* 定义后台操作的参数和接口映射。 */
+
 import {z} from 'zod';
 const slug=z.string().regex(/^[a-z0-9][a-z0-9-]{1,79}$/);
 const source=z.object({title:z.string().trim().min(1).max(120),url:z.url().max(2000).refine(v=>{const u=new URL(v);return u.protocol==='https:'&&!u.username&&!u.password;},'来源必须为不含登录凭据的 HTTPS 链接'),checkedAt:z.iso.date()}).strict();
 const classicInput=z.object({id:slug,title:z.string().trim().min(1).max(80),cityId:z.string().min(1).max(80),stopIds:z.array(z.string().min(1).max(200)).min(2).max(20),sources:z.array(source).min(1).max(5),theme:z.enum(['mint','peach','yellow']).default('mint'),motif:z.enum(['bridge','gate','lake']).default('bridge'),enabled:z.boolean(),version:z.number().int().positive().optional()}).strict();
-// This is the authority for these existing HTTP actions, not an agent tool list.
-// Object ownership, version checks and business invariants remain in each handler.
 export const adminActions=Object.freeze({
  'user.status':{method:'PATCH',path:'/users/:id/status',permission:'users.manage',id: z.uuid(),
    input:z.object({disabled:z.boolean(),reason:z.enum(['support','security','requested'])}).strict(),

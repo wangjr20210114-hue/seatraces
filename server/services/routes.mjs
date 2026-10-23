@@ -1,3 +1,5 @@
+/* 查询交通路线，统一路段、换乘和耗时信息。 */
+
 import { distance } from "../planner.mjs";
 import { toWgs } from "../../public/coordinates.js";
 import {
@@ -115,7 +117,6 @@ export async function route(
     cycling: "bicycling",
   }[mode];
   if (mode === "transit") {
-    // Resolve arbitrary Chinese cities, instead of the previous six-city ceiling.
     params.city1 = await cityCode(a, selections.from?.location);
     params.city2 =
       !selections.from && !selections.to && a.city && a.city === b.city

@@ -1,3 +1,5 @@
+/* 验证自适应旅行问卷。 */
+
 import {test,expect,signIn,home} from '../fixtures.mjs';
 test.beforeEach(async({context,fixture})=>signIn(context,fixture));
 test('ADAPT-UI-001 问题随同行人和交通变化，返回修改不保留失效分支',async({page})=>{

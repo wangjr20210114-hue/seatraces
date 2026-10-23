@@ -1,3 +1,5 @@
+/* 验证经典 CityWalk 查询与管理。 */
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {iterationFixture} from './helpers/iteration-db.mjs';

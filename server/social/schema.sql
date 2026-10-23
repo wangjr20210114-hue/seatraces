@@ -1,5 +1,5 @@
--- New composers use their own source references. Legacy posts.trip_id/citywalk_id
--- and their unique constraints remain intact for old publishing clients.
+-- 定义社区草稿、帖子、图片和互动的数据表、索引和关联结构。
+
 ALTER TABLE posts ADD COLUMN IF NOT EXISTS revision integer NOT NULL DEFAULT 1;
 ALTER TABLE posts ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT now();
 ALTER TABLE posts ADD COLUMN IF NOT EXISTS is_synthetic boolean NOT NULL DEFAULT false;
@@ -17,8 +17,6 @@ CREATE INDEX IF NOT EXISTS post_drafts_owner ON post_drafts(user_id,updated_at D
 CREATE TABLE IF NOT EXISTS post_sources (
  post_id uuid PRIMARY KEY REFERENCES posts(id) ON DELETE CASCADE,
  kind text NOT NULL CHECK(kind IN ('journey','citywalk')), source_id uuid NOT NULL, source_version integer NOT NULL,
- -- References are deliberately not foreign keys: deleting a private trip must
- -- not delete the user's separately published, privacy-filtered snapshot.
  created_at timestamptz NOT NULL DEFAULT now()
 );
 CREATE TABLE IF NOT EXISTS social_media (

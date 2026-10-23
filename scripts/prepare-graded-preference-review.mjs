@@ -1,3 +1,5 @@
+/* 生成推荐分级评审题目和页面资源。 */
+
 import {readFile,writeFile,mkdir} from 'node:fs/promises';
 import {digest,renderGradedReview} from './lib/graded-preference-review.mjs';
 import {cosine} from '../server/recommendation/features.mjs';

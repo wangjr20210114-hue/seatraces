@@ -1,4 +1,4 @@
-"""Frozen validation-selected seed/epoch; no training on human preferences."""
+"""对比已选排序模型在人工盲评数据上的表现。"""
 import hashlib
 import json
 import os

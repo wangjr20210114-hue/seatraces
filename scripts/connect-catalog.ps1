@@ -1,3 +1,5 @@
+# 启动或停止本地地点服务转发连接。
+
 param([switch]$Stop)
 $ErrorActionPreference='Stop'
 $projectRoot=Split-Path -Parent $PSScriptRoot
@@ -14,7 +16,6 @@ if (Test-Path -LiteralPath $connectionState) {
     $sshProcess=Get-CimInstance Win32_Process -Filter "ProcessId = $([int]$state.sshPid)"
     if ($sshProcess) {
       if ($sshProcess.Name -ne 'ssh.exe' -or $sshProcess.CommandLine -notlike '*catalog-access*' -or $sshProcess.CommandLine -notlike '*ubuntu@124.223.110.193*') { throw 'SSH process identity mismatch' }
-      # Stop the supervisor first to prevent an automatic reconnect.
       if ($worker) { Stop-Process -Id $worker.ProcessId; $worker=$null }
       Stop-Process -Id $sshProcess.ProcessId
     }

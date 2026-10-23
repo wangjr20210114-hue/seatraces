@@ -1,5 +1,5 @@
-// Two processes: load generator and constrained Node service. Isolated local
-// schema only; no production requests, user data or paid model/map calls.
+/* 测量推荐任务在批量请求下的性能和资源占用。 */
+
 import {fork} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 import {mkdir,writeFile} from 'node:fs/promises';
@@ -54,8 +54,6 @@ if(process.argv.includes('--worker')){
   out.heapGrowthMiB=out.rounds.at(-1).heapMiB-out.rounds[0].heapMiB;
   out.thresholds={p95Ms:5000,maxAfterGcGrowthMiB:24,maxPeakHeapMiB:240};
   out.functionalPassed=out.rounds.every(r=>r.errors===0);out.performancePassed=out.rounds.every(r=>r.p95Ms<5000&&r.peakHeapMiB<240)&&out.heapGrowthMiB<24;
-  // Performance failures are evidence for a separate proposed optimization,
-  // not permission to silently change indexes/caches/data structures.
   if(!out.performancePassed)process.exitCode=1;
  }catch(e){out.error=e.message;out.stderr=stderr;out.functionalPassed=false;process.exitCode=1;
  }finally{

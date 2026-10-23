@@ -1,3 +1,5 @@
+/* 查询 AI 会话、轮次和操作执行记录。 */
+
 import {z} from 'zod';
 import {eventFilters} from './routes.mjs';
 import {requireManagement} from './permissions.mjs';
@@ -40,8 +42,6 @@ export function installAgentInsights(app,{query,events}){
     const id=z.uuid().parse(req.params.id),{limit,offset}=paging.parse(req.query);
     const c=(await query('SELECT c.id,c.user_id,u.username,c.revision,c.created_at,c.updated_at FROM agent_conversations c JOIN users u ON u.id=c.user_id WHERE c.id=$1',[id])).rows[0];
     if(!c)throw Object.assign(Error('会话不存在'),{status:404});
-    // Never SELECT input, state, action payload/preview or tool request bodies.
-    // Response JSON is reduced to routing/knowledge metadata before returning.
     const rows=(await query(`SELECT id,request_id,server_request_id,response,status,created_at,finished_at,duration_ms FROM agent_turns
       WHERE conversation_id=$1 AND user_id=$2 ORDER BY created_at DESC,id DESC LIMIT $3 OFFSET $4`,[id,c.user_id,limit+1,offset])).rows;
     const turns=rows.slice(0,limit).map(turnSummary),ids=turns.map(t=>t.id);

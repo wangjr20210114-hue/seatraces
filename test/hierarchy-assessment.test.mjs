@@ -1,3 +1,5 @@
+/* 验证景区层级评估。 */
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {buildAssessmentJobs,assessmentJobHash,validateAssessment,modelCostUpper,modelUsageEstimate} from '../server/domain/hierarchy-assessment.mjs';

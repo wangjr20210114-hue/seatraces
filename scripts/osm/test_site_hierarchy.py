@@ -1,3 +1,5 @@
+"""验证OSM site 成员层级。"""
+
 import unittest
 from site_hierarchy import build_graph, cyclic_pairs
 

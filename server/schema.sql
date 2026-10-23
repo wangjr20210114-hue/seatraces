@@ -1,3 +1,5 @@
+-- 定义城市、地点、旅行问卷和行程的数据表、索引和关联结构。
+
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
 CREATE TABLE IF NOT EXISTS users (
  id uuid PRIMARY KEY, username varchar(32) UNIQUE NOT NULL, password_hash text NOT NULL,
@@ -62,13 +64,11 @@ CREATE TABLE IF NOT EXISTS user_place_presence (
  observed_at timestamptz NOT NULL,dwell_seconds integer NOT NULL CHECK(dwell_seconds>=600),
  PRIMARY KEY(user_id,place_id)
 );
--- Separate provider-derived hierarchy overlay; never modifies osm.poi.
 CREATE TABLE IF NOT EXISTS scenic_parent_checks (
  place_id text PRIMARY KEY,input_hash text NOT NULL,result jsonb NOT NULL,
  checked_at timestamptz NOT NULL DEFAULT now(),expires_at timestamptz NOT NULL
 );
 CREATE INDEX IF NOT EXISTS scenic_parent_checks_expiry ON scenic_parent_checks(expires_at);
--- Offline OSM inference and evidence drafts; independent of paid-provider cache.
 CREATE TABLE IF NOT EXISTS scenic_hierarchy_results (
  place_id text PRIMARY KEY,input_hash text NOT NULL,result jsonb NOT NULL,source_hash text NOT NULL,
  checked_at timestamptz NOT NULL DEFAULT now(),review_after timestamptz NOT NULL

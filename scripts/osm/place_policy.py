@@ -1,4 +1,4 @@
-"""Deterministic presentation rules. Source OSM rows are never overwritten."""
+"""整理地点名称、国家和事实有效状态。"""
 import re
 import unicodedata
 from datetime import datetime, timezone
@@ -48,16 +48,10 @@ def fact_status(data,now=None):
     return status
 
 def select_fact(records,now=None):
-    """Applicable reviewed evidence outranks legacy notes; publication, not ingest, wins.
-
-    If the latest reviewed publication has expired, keep it pending review instead
-    of resurrecting an older rule. All source records remain in place_facts.
-    """
     if not records:return None
     now=now or datetime.now(timezone.utc)
     reviewed=[r for r in records if (r.get('evidence') or {}).get('reviewStatus')=='accepted']
     pool=reviewed or records
-    # A future announcement must not hide the currently applicable rule.
     current=[r for r in pool if not stamp((r.get('evidence') or {}).get('validFrom')) or stamp(r['evidence']['validFrom'])<=now]
     floor=datetime.min.replace(tzinfo=timezone.utc)
     return max(current or pool,key=lambda r:(stamp(r.get('source_timestamp')) or floor,stamp(r.get('recorded_at')) or floor,str(r.get('id',''))))

@@ -1,3 +1,5 @@
+/* 为已有社区内容补充推荐特征。 */
+
 import {localDatabase} from './recommendation-local-db.mjs';
 import {backfillItems,buildProfile} from '../server/recommendation/profiles.mjs';
 const db=await localDatabase();

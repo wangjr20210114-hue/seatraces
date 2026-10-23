@@ -1,3 +1,5 @@
+/* 启动端到端测试数据库、前端和业务服务。 */
+
 import EmbeddedPostgres from "embedded-postgres";
 import { mkdir, mkdtemp, writeFile, unlink, rm, cp } from "node:fs/promises";
 import { execFile } from "node:child_process";
@@ -17,7 +19,6 @@ const runtime = path.join(root, ".runtime/ui-test");
 const dbPort=Number(process.env.UI_DB_PORT||55439);
 if(!Number.isInteger(dbPort)||dbPort<1024||dbPort>65535||[19887,19888,54329].includes(dbPort))throw Error('Invalid isolated UI database port');
 await mkdir(runtime, { recursive: true });
-// Fail before starting PostgreSQL if another test/application owns a test port.
 for (const port of [19887, 19888, dbPort])
   await new Promise((resolve, reject) => {
     const s = net.createServer();
@@ -30,9 +31,6 @@ for (const port of [19887, 19888, dbPort])
   });
 const dir = await mkdtemp(path.join(runtime, "db-")),
   password = randomBytes(24).toString("hex");
-// Copy only application sources, never .env, user runtime data or OSM dumps.
-// Relative file caches/media then resolve inside this private test workspace.
-// Express sendFile intentionally rejects paths through dot-directories.
 const appParent = path.join(root, "reports/ui");
 await mkdir(appParent, { recursive: true });
 const appRoot = await mkdtemp(path.join(appParent, "app-"));
@@ -94,7 +92,6 @@ async function stopDatabase() {
       { windowsHide: true, timeout: 20000 },
     );
     db.process = undefined;
-    // This directory was created by mkdtemp for this run; never use a caller path.
     if (path.dirname(dir) !== runtime || !path.basename(dir).startsWith("db-"))
       throw Error("Invalid test cleanup target");
     await rm(dir, { recursive: true, force: true });
@@ -152,7 +149,6 @@ try {
   } finally {
     await setup.end();
   }
-  // Do not inherit real provider keys, database addresses or mail configuration.
   for (const k of Object.keys(process.env))
     if (
       /^(AMAP|DEEPSEEK|GOOGLE|OSM|SMTP|MAIL|JUHE|AMADEUS|TRUST_PROXY|DATABASE_URL|SKIP_MIGRATIONS|REQUIRE_POSTGIS)/.test(
@@ -173,7 +169,6 @@ try {
     AMAP_KEY: "ui-test-no-real-key",
     ...(process.env.UI_PLANNER_MODEL === '1' ? {DEEPSEEK_API_KEY: 'ui-planner-fixture'} : {}),
   });
-  // Catch accidental outbound fetches even if a future provider adds a new key.
   const originalFetch = globalThis.fetch;
   globalThis.fetch = (input, init) => {
     const url = new URL(

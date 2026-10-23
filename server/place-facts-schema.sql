@@ -1,3 +1,5 @@
+-- 定义官方资料来源和地点事实的数据表、索引和关联结构。
+
 CREATE TABLE IF NOT EXISTS official_place_sources (
  id text PRIMARY KEY,place_id text NOT NULL,place_name text NOT NULL,publisher text NOT NULL,url text NOT NULL,
  fields jsonb NOT NULL,enabled boolean NOT NULL DEFAULT true,checked_at timestamptz,refresh_after timestamptz,

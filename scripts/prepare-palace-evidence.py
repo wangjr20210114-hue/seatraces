@@ -1,4 +1,4 @@
-"""Download a small, explicit official-source batch. Never infer publication dates."""
+"""下载故宫相关官方资料，整理来源与正文。"""
 from pathlib import Path
 from datetime import datetime, timezone
 from html.parser import HTMLParser

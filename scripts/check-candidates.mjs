@@ -1,4 +1,5 @@
-// Six public samples, at most one paid Amap request each. No LLM or route calls.
+/* 检查不同地区和类别的候选地点检索结果。 */
+
 import assert from "node:assert/strict";
 import { readFile, writeFile } from "node:fs/promises";
 import { randomBytes } from "node:crypto";
@@ -156,7 +157,6 @@ try {
         if (p.id.startsWith("amap:"))
           assert.equal(p.sources[0].persistence, "request_only");
       }
-      // Persist only one OSM example to document the output, never vendor POIs.
       if (id === "suzhou") {
         const osm = result.items.find((p) => p.id.startsWith("osm:"));
         if (osm)

@@ -1,3 +1,5 @@
+/* 验证候选地点检索与转换。 */
+
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createCandidateService } from "../server/services/place-candidates.mjs";

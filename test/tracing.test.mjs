@@ -1,3 +1,5 @@
+/* 验证请求和数据库调用追踪。 */
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {iterationFixture} from './helpers/iteration-db.mjs';

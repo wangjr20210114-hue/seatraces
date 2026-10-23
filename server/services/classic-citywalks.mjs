@@ -1,3 +1,5 @@
+/* 管理经典 CityWalk 路线并提供公开查询。 */
+
 import {createAdminActionRunner,prepareAdminAction} from '../operations/action-runner.mjs';
 import {readFile} from 'node:fs/promises';
 import {z} from 'zod';
@@ -12,7 +14,6 @@ export async function seedClassicWalks(query=dbQuery){
   const items=JSON.parse(await readFile(new URL('../data/classic-citywalks.json',import.meta.url),'utf8'));
   for(const w of items){
     const params=[w.id,w.title,JSON.stringify(w.city),JSON.stringify(w.stops),JSON.stringify(w.sources),w.theme,w.motif,JSON.stringify(w.route),w.enabled];
-    // Upgrade only the exact untouched legacy seed. Manual edits/visibility changes always win.
     const update=w.replaces?`DO UPDATE SET title=excluded.title,stops=excluded.stops,sources=excluded.sources,route=excluded.route,version=classic_citywalks.version+1,updated_at=now()
       WHERE classic_citywalks.updated_by IS NULL AND classic_citywalks.version=1 AND classic_citywalks.title=$10 AND classic_citywalks.stops=$11::jsonb AND classic_citywalks.sources=$12::jsonb AND classic_citywalks.enabled=$13`:'DO NOTHING';
     if(w.replaces)params.push(w.replaces.title,JSON.stringify(w.replaces.stops),JSON.stringify(w.replaces.sources),w.replaces.enabled);

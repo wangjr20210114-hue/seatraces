@@ -1,9 +1,4 @@
-"""Rebuild ALL active extracts' site memberships on the OSM database host.
-
-No map/LLM requests; no modifications to osm.poi, editorial facts or categories.
-An atomic active-build pointer publishes only a validated complete build.
-Run again to reuse PBF-hash checkpoints. Linux server only for --run.
-"""
+"""重建 OSM site 成员关系，校验后发布新版本。"""
 import argparse
 from collections import Counter
 from datetime import datetime, timezone
@@ -148,8 +143,6 @@ def sources_for(root, rows):
 
 def catalog_objects(conn, ids, emit=None):
     found = {}
-    # Larger bounded batches avoid repeatedly scanning the active-import view
-    # on servers where its composite POI index cannot serve a small id array.
     batch_size = 20000
     for offset in range(0, len(ids), batch_size):
         rows = conn.execute('''SELECT id,name,category,subcategory,tags,lon,lat,extract_region,
@@ -174,8 +167,6 @@ def backup_hierarchy(conn, root, build_id):
     folder.mkdir(parents=True, exist_ok=False)
     prior = conn.execute("SELECT to_regclass('osm.site_active') AS tbl").fetchone()['tbl']
     active = conn.execute('SELECT build_id FROM osm.site_active').fetchone() if prior else None
-    # Each build is immutable and remains in PostgreSQL. Also export the previous
-    # active hierarchy so rollback does not depend solely on its retained tables.
     if active:
         for table in ['site_builds','site_objects','site_members','site_edges','site_object_summary']:
             with gzip.open(folder/(table+'.jsonl.gz'), 'wt', encoding='utf8') as f:
@@ -194,7 +185,6 @@ def rebuild(root):
         raise RuntimeError('Run the full rebuild on the Linux database server')
     import fcntl
     from psycopg.types.json import Jsonb
-    # Reuse precisely the existing category implementation; no new categories.
     from extract import classify, KEYS
     from place_policy import display_name
     output = root/'audits'/'site-hierarchy'
@@ -277,7 +267,6 @@ def rebuild(root):
             valid = [e for e in graph['edges'] if e['status']=='source_reported']
             if cyclic_pairs((e['parent_id'],e['child_id']) for e in valid):
                 raise ValueError('Cycle check failed')
-            # Every original category/subcategory is preserved exactly.
             assert all(objects[k]['category']==v['category'] and objects[k]['subcategory']==v['subcategory']
                        for k,v in catalog.items())
             category_edges = Counter(objects[e['child_id']]['category'] or 'unclassified' for e in valid)
@@ -301,7 +290,6 @@ def rebuild(root):
             backup=backup_hierarchy(conn,root,build_id)
             summary['backup']=str(backup)
             with conn.transaction():
-                # Prevent publishing against a changing source snapshot.
                 conn.execute('LOCK TABLE osm.active_imports IN SHARE MODE')
                 if json.dumps(imports(conn),sort_keys=True,default=str)!=source_identity:
                     raise ValueError('Active imports changed during rebuild')
@@ -322,8 +310,6 @@ def rebuild(root):
                     if got!=count:raise ValueError('Readback count mismatch: '+table)
                 conn.execute("UPDATE osm.site_builds SET status='complete',completed_at=now() WHERE build_id=%s",(build_id,))
                 conn.execute('INSERT INTO osm.site_active(singleton,build_id) VALUES(true,%s) ON CONFLICT(singleton) DO UPDATE SET build_id=excluded.build_id',(build_id,))
-                # This existing account is already authorized to read OSM places.
-                # Grant only SELECT on the newly derived public OSM relationship data.
                 exists=conn.execute("SELECT 1 FROM pg_roles WHERE rolname='seatraces_osm_reader'").fetchone()
                 if exists:
                     conn.execute('GRANT SELECT ON osm.site_builds,osm.site_objects,osm.site_members,osm.site_edges,osm.site_object_summary,osm.site_active,osm.current_site_objects,osm.current_site_members,osm.current_site_edges,osm.current_site_summary,osm.current_poi_hierarchy TO seatraces_osm_reader')

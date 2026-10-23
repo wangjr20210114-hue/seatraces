@@ -1,3 +1,5 @@
+# 启动 DeepSeek 景区层级评估任务。
+
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
 $runtimePath = Join-Path $projectRoot '.runtime/deepseek-hierarchy'

@@ -1,3 +1,5 @@
+"""验证景区几何提取。"""
+
 import unittest
 from shapely.geometry import Point, Polygon
 from scenic_geometry import infer, polygon_from_members, scenic_container

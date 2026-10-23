@@ -1,4 +1,5 @@
-// Additional workbook edges. Only the disposable UI harness may enable this file.
+/* 验证地点目录的边界条件。 */
+
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile, mkdir } from "node:fs/promises";
@@ -637,7 +638,6 @@ run(
       await expect(
         page.locator("#walk-candidates [data-place]").first(),
       ).toBeVisible();
-      // Measure synchronous product handler plus the next two paint frames, excluding Playwright's mouse pacing.
       const times = await page.evaluate(async () => {
         const times = [];
         for (let i = 0; i < 20; i++) {

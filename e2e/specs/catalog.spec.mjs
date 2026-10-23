@@ -1,3 +1,5 @@
+/* 验证地点目录检索与展示。 */
+
 import { test, expect } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 import { allCases, coverage } from "../coverage.mjs";
@@ -5,7 +7,7 @@ import { allCases, coverage } from "../coverage.mjs";
 let native;
 for (const c of allCases) {
   const entry = coverage[c.id];
-  if (!entry) continue; // Existing explicit browser spec owns this ID.
+  if (!entry) continue;
   test(
     `${c.id} ${c.title} @${c.id.split("-")[0]}`,
     {

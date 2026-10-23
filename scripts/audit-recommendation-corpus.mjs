@@ -1,3 +1,5 @@
+/* 检查推荐语料的来源、重复内容和样本组成。 */
+
 import {readFile,mkdir,writeFile} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
 import {localDatabase} from './recommendation-local-db.mjs';

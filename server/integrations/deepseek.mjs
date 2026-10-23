@@ -1,3 +1,5 @@
+/* 调用 DeepSeek 模型并解析结构化回复。 */
+
 import { request } from "./http.mjs";
 
 export function createDeepseekClient({
@@ -45,7 +47,7 @@ export function createDeepseekClient({
       const parsed = JSON.parse(choice.message.content);
       if (!parsed || typeof parsed !== "object" || Array.isArray(parsed))
         throw new Error("expected object");
-      return parsed; // Each business service must validate its own allowed fields/IDs.
+      return parsed;
     } catch {
       throw Object.assign(new Error("模型返回格式不合法，未执行任何修改"), {
         status: 502,

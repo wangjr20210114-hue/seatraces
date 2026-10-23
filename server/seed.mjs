@@ -1,3 +1,5 @@
+/* 写入开发环境使用的城市、地点和示例帖子。 */
+
 import { randomUUID } from "node:crypto";
 import bcrypt from "bcryptjs";
 import { query, savePlace } from "./db.mjs";
@@ -57,7 +59,6 @@ export const citySeeds = [
   ["kyoto", "京都", "JP", "京都府", 35.0116, 135.7681, "Asia/Tokyo", "Kyoto"],
   ["paris", "巴黎", "FR", "法兰西岛", 48.8566, 2.3522, "Europe/Paris", "Paris"],
 ];
-// Original editorial descriptions. Coordinates, hours and prices are demonstration fixtures, not verified travel advice.
 const rows = {
   suzhou: [
     [

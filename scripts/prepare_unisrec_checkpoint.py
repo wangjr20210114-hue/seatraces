@@ -1,4 +1,4 @@
-"""Fetch only the approved public checkpoint; never execute archived code."""
+"""下载并校验 UniSRec 公开模型权重。"""
 import hashlib
 import json
 import os

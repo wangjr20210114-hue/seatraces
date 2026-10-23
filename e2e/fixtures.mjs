@@ -1,3 +1,5 @@
+/* 准备界面测试会话，封装登录和接口访问。 */
+
 import { test as base, expect } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 export { expect };
@@ -73,8 +75,6 @@ export async function write(page, url, data, method = "POST") {
 }
 export async function loginUI(page, fixture, role = "a", admin = false) {
   await page.goto(admin ? "/admin-login.html" : "/login.html");
-  // Real rate limiting stays enabled. A whole suite shares one localhost IP;
-  // only login setup backs off on 429, never business writes/assertions.
   for (let attempt = 0; attempt < 14; attempt++) {
     await page.locator("input[name=username]").fill(fixture[role].username);
     await page.locator("input[name=password]").fill(fixture.password);

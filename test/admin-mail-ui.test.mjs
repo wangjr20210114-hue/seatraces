@@ -1,3 +1,5 @@
+/* 验证后台邮件页面。 */
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import express from 'express';

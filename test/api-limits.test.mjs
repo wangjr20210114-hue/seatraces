@@ -1,3 +1,5 @@
+/* 验证API 本地限额与预算。 */
+
 import test from "node:test";
 import assert from "node:assert/strict";
 import { apiBudgetStatus } from "../server/domain/api-limits.mjs";

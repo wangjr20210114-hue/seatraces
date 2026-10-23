@@ -1,3 +1,5 @@
+// 管理鸿蒙应用生命周期并加载主页面。
+
 import { UIAbility } from '@kit.AbilityKit';
 import { window } from '@kit.ArkUI';
 

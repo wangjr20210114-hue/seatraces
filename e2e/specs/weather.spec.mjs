@@ -1,3 +1,5 @@
+/* 验证天气预报整理与展示。 */
+
 import {test,expect,signIn,home} from '../fixtures.mjs';
 test('WEATHER-UI-001 行程天气显示、文本转义和预警缺项',async({page,context,fixture})=>{
   await signIn(context,fixture);
@@ -21,8 +23,6 @@ test('WEATHER-UI-002 断网后可重新查询，超预报日期不显示虚构�
   const open=page.getByRole('button',{name:'天气与预警 ☀'}),weather=page.locator('.trip-weather');
   await open.click();await expect(weather).toContainText('出行日期尚未进入预报范围');await expect(weather).not.toContainText('℃');
   await expect(weather).toContainText('官方预警服务尚未配置');
-  // Route abort represents loss of the weather connection without taking the
-  // already loaded app shell offline or changing any server process.
   await page.route('**/api/journey/trips/*/weather?*',r=>r.abort('internetdisconnected'));
   await open.click();await expect(open).toBeEnabled();await expect(weather).not.toContainText('正在查看天气');
   await page.unroute('**/api/journey/trips/*/weather?*');mode='available';

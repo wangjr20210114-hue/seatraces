@@ -1,3 +1,5 @@
+/* 验证外部请求间隔控制。 */
+
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createPacedQueue } from "../server/integrations/paced-queue.mjs";

@@ -1,4 +1,4 @@
-"""Create an isolated, loopback-only PostGIS service on the user's server."""
+"""创建地点数据使用的 PostGIS 服务。"""
 import json
 import os
 from pathlib import Path

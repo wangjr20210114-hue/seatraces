@@ -1,1 +1,3 @@
+/* 声明入口模块的包信息与依赖。 */
+
 {"name":"entry","version":"0.1.0","description":"SeaTraces ArkUI and ArkWeb client","main":"","author":"SeaTraces","license":"UNLICENSED","dependencies":{}}

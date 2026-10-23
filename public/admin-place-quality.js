@@ -1,3 +1,5 @@
+/* 展示地点资料的完整度和核验结果。 */
+
 import {mountOfficialFacts} from './admin-official-facts.js';
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const labels={live:'实时返回',snapshot:'历史缓存',not_configured:'未配置',unavailable:'不可用',not_supported:'云端未提供',unknown:'未知',missing_name:'缺少名称',opening_unknown:'开放规则待补',source_unknown:'来源待补',facts_need_review:'资料待复核',boundary_unavailable:'缺少完整边界',imports:'原始导入',site:'site 成员关系',parent:'几何包含 parent',entities:'去重实体',provider_checks:'高德 parent 缓存',provider_checks_expired:'高德缓存过期',inferred_hierarchies:'推断层级缓存',inferred_review_due:'推断层级待复核',expired_signals:'过期评分来源',stored_boundaries:'补充边界'};

@@ -1,3 +1,5 @@
+// 加载旅行 Web 页面，提供连接设置、定位授权和返回导航。
+
 import { webview } from '@kit.ArkWeb';
 import { common, abilityAccessCtrl } from '@kit.AbilityKit';
 import { backendOrigin, sameBackendOrigin } from '../BackendPolicy';
@@ -103,7 +105,6 @@ struct Index {
             .onClick(() => { this.loadError = false; this.controller.loadUrl(this.address); })
         }.padding(24).width('100%').backgroundColor('#FFFDF2')
       }
-      // Keep the map and the native shell in one composited canvas on the emulator.
       Web({ src: this.address, controller: this.controller, renderMode: RenderMode.SYNC_RENDER })
         .javaScriptAccess(true)
         .domStorageAccess(true)

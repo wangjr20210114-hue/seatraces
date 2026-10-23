@@ -1,3 +1,5 @@
+/* 解析用户回复，提取旅行条件和确认意图。 */
+
 import { z } from "zod";
 import { explicitStyle } from "./memory.mjs";
 
@@ -13,7 +15,6 @@ export const bypassConfirmation = (text) =>
     text,
   );
 
-// Only explicit spans are extracted. Dates without a year are deliberately left for clarification.
 export function travelFields(text, questionKey) {
   const fields = {};
   const origins = [
@@ -127,7 +128,6 @@ export async function understandAnswer(
     )
   )
     return { kind: "answer", value: text };
-  // Free form fields are still validated by their business schemas. Long city prose is never sent as a POI query.
   if (
     !q.options.length &&
     !["origin", "originName", "city", "destinationName"].includes(q.key)

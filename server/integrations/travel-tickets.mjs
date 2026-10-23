@@ -1,4 +1,5 @@
-// Existing ticket adapters, isolated from current map/model work; production access remains unverified.
+/* 查询火车和航班信息，整理出行候选项。 */
+
 import { request } from "./http.mjs";
 import { unavailable } from "./unavailable.mjs";
 

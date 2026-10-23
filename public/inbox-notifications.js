@@ -1,3 +1,5 @@
+/* 检查未读站内信，更新红点并在登录后展示通知。 */
+
 import { icon } from './ui-icons.js';
 
 export function createInboxNotifications({ api, navigate, interval = 30000 }) {
@@ -69,14 +71,13 @@ export function createInboxNotifications({ api, navigate, interval = 30000 }) {
           if (!unread || readStorage(shownKey(userId))) loginCheck = false;
           else if (result.items[0] && await showUnread(ticket, result.items[0].id)) loginCheck = false;
         }
-      } catch { /* Keep the last known badge; retry on visibility/connection or the next interval. */ }
+      } catch {   }
       finally { if (ticket === generation) { pending = null; schedule(); } }
     })();
     pending = work;
     return work;
   }
   function changed() {
-    // Wait out an earlier poll so its pre-read count cannot overwrite the update.
     const ticket = generation;
     void Promise.resolve(pending).then(() => { if (ticket === generation) void refresh(); });
     try { localStorage.setItem('seatraces:inbox-changed', String(Date.now())); } catch {}

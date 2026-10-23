@@ -1,3 +1,5 @@
+/* 导入 GeoNames 城市与行政区数据。 */
+
 import "dotenv/config";
 import { readFile } from "node:fs/promises";
 import { createReadStream, existsSync } from "node:fs";

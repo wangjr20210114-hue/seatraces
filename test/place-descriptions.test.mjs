@@ -1,3 +1,5 @@
+/* 验证地点介绍生成与查询。 */
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';

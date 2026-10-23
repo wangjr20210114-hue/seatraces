@@ -1,3 +1,5 @@
+/* 验证多模块业务集成流程。 */
+
 import test from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";

@@ -1,3 +1,5 @@
+/* 验证人工分级评审。 */
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
@@ -40,7 +42,6 @@ test('readonly local server never exposes private evidence or accepts uploads',a
  const server=gradedReviewServer('<!doctype html>fixture');await new Promise(r=>server.listen(0,'127.0.0.1',r));
  const url='http://127.0.0.1:'+server.address().port;
  try{assert.equal((await fetch(url)).status,200);assert.equal((await fetch(url+'/protocol-private.json')).status,404);assert.equal((await fetch(url,{method:'POST',body:'private'})).status,404);
-  // fetch rewrites Host; use an actual custom Host header to test the boundary.
   const status=await new Promise((resolve,reject)=>{const req=request(url,{headers:{host:'attacker.example'}},res=>{res.resume();res.on('end',()=>resolve(res.statusCode));});req.on('error',reject);req.end();});assert.equal(status,403);}
  finally{server.closeAllConnections();await new Promise(r=>server.close(r));}
 });

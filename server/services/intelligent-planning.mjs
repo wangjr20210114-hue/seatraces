@@ -1,3 +1,5 @@
+/* 生成行程调整建议，提供方案预览和应用接口。 */
+
 import {randomUUID} from 'node:crypto';
 import {z} from 'zod';
 import {alternativeInput,makeDayAlternatives,verifyDayAlternative} from '../domain/day-alternatives.mjs';
@@ -94,8 +96,6 @@ export function installIntelligentPlanning(app,{auth,query,transaction,...deps})
  const service=createIntelligentPlanning({query,transaction,...deps});
  app.post('/api/journey/trips/:id/alternatives',auth,async(req,res)=>{const {version,...input}=z.object({version:z.number().int().positive(),...alternativeInput.shape}).strict().parse(req.body);res.json(await service.compare(req.params.id,req.user.id,input,version));});
  app.post('/api/journey/trips/:id/alternatives/:previewId/verify',auth,async(req,res)=>{const b=z.object({version:z.number().int().positive()}).strict().parse(req.body);res.json(await service.verify(req.params.id,req.user.id,req.params.previewId,b.version));});
- // A complex edit uses the same preview and route verification as the page.
- // Ordinary single-point requests continue through the pre-existing handler.
  app.post('/api/trips/:id/assistant',auth,async(req,res,next)=>{
   const b=z.object({text:z.string().trim().min(1).max(500),day:z.number().int().min(0).max(29)}).strict().parse(req.body);
   const t=await service.own(req.params.id,req.user.id),day=t.plan.days[b.day];if(!day)throw fail('旅行日期不存在',404);

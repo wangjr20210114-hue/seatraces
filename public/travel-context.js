@@ -1,4 +1,5 @@
-// Ephemeral page state only. An active destination is not a long-term interest.
+/* 整理当前城市、行程和兴趣，供推荐请求使用。 */
+
 export function recommendationContext({pendingTrip,trip,userId,now=Date.now()}={}){
   const current=pendingTrip||trip?.user_id===userId&&trip?.request;
   if(!current)return {};

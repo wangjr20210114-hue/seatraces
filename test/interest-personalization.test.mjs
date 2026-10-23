@@ -1,3 +1,5 @@
+/* 验证兴趣驱动的个性化规划。 */
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { personalizedQuestions, orderedInterestOptions } from '../server/services/questions.mjs';

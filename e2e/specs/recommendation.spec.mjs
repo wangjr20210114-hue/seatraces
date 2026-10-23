@@ -1,3 +1,5 @@
+/* 验证推荐评分与结果。 */
+
 import {test,expect,signIn} from '../fixtures.mjs';
 test('REC-UI-001 推荐曝光、行程满意度与撤回',async({page,context,fixture})=>{
  await signIn(context,fixture);

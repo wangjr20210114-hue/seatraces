@@ -1,3 +1,5 @@
+/* 验证后台角色权限。 */
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {managementAccess,routePermission,can} from '../server/operations/permissions.mjs';
@@ -53,7 +55,6 @@ test('RBAC role assignments, session revocation, field restrictions and concurre
       version=results.find(r=>r.status===200).data.version;
       assert.equal((await f.query("SELECT count(*)::int n FROM operation_events WHERE action='management.role_changed'")).rows[0].n,before.rows[0].n+1);
       assert.equal((await staff('/api/admin/overview')).status,401);
-      // Consumer login is not revoked when management privileges change.
       assert.equal((await f.request('/api/me',{user:'user'})).data.user.id,f.users.user.id);
     });
     await t.test('RBAC03 operators can list recipients but cannot inspect private activity or grant permissions',async()=>{

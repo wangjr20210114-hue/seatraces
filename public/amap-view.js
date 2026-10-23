@@ -1,3 +1,5 @@
+/* 绘制高德地图上的地点、片区和路线，处理视角与选点交互。 */
+
 "use strict";
 let map,
   mapReady = false,
@@ -48,7 +50,6 @@ function onZoom() {
   if (!payload || payload.lockView || fitting || !userGesture) return;
   userGesture = false;
   const zoom = map.getZoom();
-  // Hysteresis avoids flickering when a pinch ends on the transition boundary.
   const view =
     zoom < detailThreshold - 0.35
       ? "overview"
@@ -385,7 +386,6 @@ function paint() {
     lastFitKey = payload.fitKey;
     manuallyMoved = false;
     if (active.length) {
-      // Fit only the current scene, never the distant origin in a daily view.
       const district = payload.boundary?.districts?.find(
         (d) => d.name === payload.district,
       );
@@ -464,7 +464,6 @@ window.addEventListener("message", (e) => {
       parent.postMessage({ type: "seatraces-map-ready" }, location.origin);
       paint();
     });
-    // A closed details panel has no usable viewport. Fit after it becomes visible.
     let previousSize = '';
     new ResizeObserver(() => {
       const el = document.querySelector('#map'), size = el.clientWidth + ':' + el.clientHeight;

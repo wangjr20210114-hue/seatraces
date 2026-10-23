@@ -1,3 +1,5 @@
+/* 管理数据库连接、事务、表结构迁移和地点写入。 */
+
 import pg from "pg";
 import {traceSpan} from './operations/tracing.mjs';
 import { readFile } from "node:fs/promises";
@@ -8,8 +10,6 @@ export const pool = new pg.Pool({
   connectionTimeoutMillis: 5000,
   statement_timeout: 15000,
 });
-// An idle connection can disappear during local PostgreSQL restart. Never let
-// EventEmitter dump the pg Client (which contains connection credentials).
 pool.on("error", (error) =>
   console.error(
     "Database connection unavailable (" +

@@ -1,4 +1,5 @@
-// Optional, resumable data compaction. Run only after a verified database backup.
+/* 精简已保存的问卷地点资料。 */
+
 import {
   catalogSummarySql,
   scenicSummaryVersion,

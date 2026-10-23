@@ -1,4 +1,4 @@
-"""Download two fixed ONNX conversions; no remote Python/model code executes."""
+"""下载并校验推荐实验使用的 ONNX 模型。"""
 import hashlib
 import json
 import os

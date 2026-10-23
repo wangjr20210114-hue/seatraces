@@ -1,3 +1,5 @@
+/* 读取端到端测试用例目录并提供用例校验。 */
+
 import { readFileSync } from "node:fs";
 import { test } from "./fixtures.mjs";
 export const catalog = JSON.parse(

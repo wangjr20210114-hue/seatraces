@@ -1,3 +1,5 @@
+/* 在独立进程中检查旅行快照读取与内存占用。 */
+
 import pg from "pg";
 import { readFile } from "node:fs/promises";
 import { withSavedCityRows } from "../../server/repositories/journey-snapshot.mjs";

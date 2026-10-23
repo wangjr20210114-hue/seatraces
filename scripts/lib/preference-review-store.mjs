@@ -1,8 +1,8 @@
+/* 保存人工偏好评审答案。 */
+
 import { mkdir, writeFile, readFile } from 'node:fs/promises';
 import { hash, validateAnswers, summarizeReview } from './preference-review.mjs';
 
-// Keep revisions as separate evidence; identical resubmissions are idempotent.
-// A reviewer UUID is one participant, regardless of how often they submit.
 export async function saveReview(directory, study, protocol, input) {
   const answers=validateAnswers(study,input), summary=summarizeReview(study,protocol,answers);
   const name=answers.reviewerId+'-'+hash(answers).slice(0,16), path=new URL(name+'.json',directory);

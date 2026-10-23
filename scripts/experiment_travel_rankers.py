@@ -1,4 +1,4 @@
-"""Fixed CPU experiments; only validation chooses epochs; never activates."""
+"""训练并对比旅行推荐排序模型。"""
 import copy
 import hashlib
 import json
@@ -86,7 +86,6 @@ def main():
                         if best is None or metric['ndcgAtK']>best['validation']['ndcgAtK']:
                             best={'epoch':epoch,'validation':metric,'state':copy.deepcopy(model.state_dict())}
                         print(json.dumps({'model':name,'seed':seed,'epoch':epoch,'validationNdcg':metric['ndcgAtK']}),flush=True)
-                # Freeze before evaluating this seed on the historical test.
                 checkpoint=ROOT/(name+'-'+str(seed)+'.pt')
                 torch.save({'activationAllowed':False,'state_dict':best['state'],'epoch':best['epoch'],'inputSha256':report['inputSha256']},checkpoint)
                 model.load_state_dict(best['state'],strict=True)

@@ -1,3 +1,5 @@
+/* 执行历史问卷地点资料的精简任务。 */
+
 import pg from "pg";
 import {
   compactJourneyCatalogs,

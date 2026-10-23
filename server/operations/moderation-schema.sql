@@ -1,3 +1,5 @@
+-- 定义社区举报和内容审核的数据表、索引和关联结构。
+
 CREATE TABLE IF NOT EXISTS content_reports (
  id uuid PRIMARY KEY, reporter_id uuid REFERENCES users(id) ON DELETE SET NULL,
  post_id uuid REFERENCES posts(id) ON DELETE CASCADE, comment_id uuid REFERENCES comments(id) ON DELETE CASCADE,

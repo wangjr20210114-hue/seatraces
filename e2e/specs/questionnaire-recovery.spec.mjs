@@ -1,3 +1,5 @@
+/* 验证旅行问卷页面恢复。 */
+
 import {test,expect,signIn,home} from '../fixtures.mjs';
 import {chromium} from '@playwright/test';
 import {mkdtemp,rm} from 'node:fs/promises';

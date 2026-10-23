@@ -1,3 +1,5 @@
+/* 定义端到端测试用例和执行环境的覆盖关系。 */
+
 import { readFileSync, readdirSync } from "node:fs";
 const catalog = JSON.parse(
   readFileSync(new URL("./catalog.json", import.meta.url), "utf8"),

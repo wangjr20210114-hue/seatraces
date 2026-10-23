@@ -1,4 +1,5 @@
-/* One map, two docks. Opaque paper stays below the map, including in WebView. */
+/* 定义地图工作区、工具栏和侧栏布局。 */
+
 #home.map-workspace {
   display: flex;
   flex-direction: column;
@@ -204,7 +205,6 @@
   z-index: 3;
 }
 
-/* Drag the panel header without taking over scrolling in the choices. */
 #home.map-workspace #wizard .paper-tools {
   cursor: ns-resize;
   touch-action: none;

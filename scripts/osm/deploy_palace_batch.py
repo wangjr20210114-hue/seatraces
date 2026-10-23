@@ -1,4 +1,4 @@
-"""Install the reviewed public pilot and verify the existing loopback-only reader."""
+"""安装故宫地点资料批次并检查查询服务。"""
 from pathlib import Path
 from datetime import datetime,timezone
 import json,shutil,subprocess,time,urllib.request

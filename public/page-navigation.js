@@ -1,3 +1,5 @@
+/* 解析页面地址，处理导航、返回和页面恢复。 */
+
 const pages = new Set([
   "home",
   "discover",
@@ -25,7 +27,6 @@ function parseRoute(hash) {
     try {
       id = decodeURIComponent(parts[1]);
     } catch {
-      /* Invalid URLs open the list. */
     }
   }
   const params =
@@ -49,7 +50,6 @@ function parseRoute(hash) {
   };
 }
 
-// Same-document history keeps the map and in-progress questionnaire alive.
 export function createPageNavigation({ onChange, onRepeat }) {
   let current, currentDepth = 0,
     started = false;
@@ -90,8 +90,6 @@ export function createPageNavigation({ onChange, onRepeat }) {
       );
       window.addEventListener("popstate", () => render(true));
       window.addEventListener("hashchange", () => render(true));
-      // In-app links must use the same history stack as buttons, otherwise a
-      // native hash entry has no depth and Back skips its parent page.
       document.addEventListener('click', event => {
         if(event.defaultPrevented || event.button!==0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey)return;
         const a=event.target.closest?.('a[href^="#/"]');

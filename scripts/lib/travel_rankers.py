@@ -1,8 +1,4 @@
-"""Small paper-inspired rankers, trained from scratch on cached content features.
-
-DIN-inspired candidate-conditioned attention (softmax adaptation), and the
-matrix cross-layer from DCN-V2. No claim of reproducing industrial systems.
-"""
+"""实现用于离线对比的 DIN 注意力排序和 DCN-V2 交叉网络。"""
 import torch
 from torch import nn
 
@@ -18,8 +14,6 @@ class DINRanker(nn.Module):
         u, c, h = self.project(profile), self.project(candidate), self.project(history)
         query = c[:, None, :].expand_as(h)
         logits = self.attention(torch.cat([query, h, query-h, query*h], dim=-1)).squeeze(-1)
-        # At least one padded slot exists. An all-empty history must give zero,
-        # not NaNs, and changes in masked values must never affect the result.
         attention = torch.softmax(logits.masked_fill(~mask, -1e9), dim=1)*mask
         context = (h*attention[:, :, None]).sum(dim=1)
         return self.head(torch.cat([u, c, context, u*c, context*c], dim=-1)).squeeze(-1)

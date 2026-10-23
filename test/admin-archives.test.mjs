@@ -1,3 +1,5 @@
+/* 验证日志归档与恢复查询。 */
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {randomUUID,createHash} from 'node:crypto';

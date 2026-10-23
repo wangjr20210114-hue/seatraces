@@ -1,7 +1,8 @@
+/* 根据旅行偏好和地点条件选择适合的旅行片区。 */
+
 import { scorePlace } from '../domain/scenic-clusters.mjs';
 import { allowedByCurrentTrip } from '../domain/travel-constraints.mjs';
 
-// Keep only planning evidence in the conversation, not whole provider responses.
 export function areaSummary(groups) {
   const traits = ['tourism','historic','leisure','natural','wikipedia','wikidata','heritage','website'];
   const place = p => ({
@@ -21,8 +22,6 @@ export function eligiblePlace(p, preferences) {
 
 export function preferenceScore(p, preferences) {
   const score = scorePlace(p, preferences, p.signals || {});
-  // The catalog already includes the account's behavioral interest weights.
-  // Explicit interests for this trip take priority over that weak signal.
   return score.total + (preferences.interests?.length ? 0 : Number(p.score?.parts?.inferredPreference || 0));
 }
 

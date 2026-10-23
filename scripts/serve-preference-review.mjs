@@ -1,3 +1,5 @@
+/* 启动推荐偏好盲评页面并保存选择。 */
+
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';

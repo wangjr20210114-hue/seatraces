@@ -1,3 +1,5 @@
+/* 压缩归档历史日志，生成每日统计并读取归档内容。 */
+
 import {randomUUID,createHash} from 'node:crypto';
 import {gzip,gunzip} from 'node:zlib';
 import {promisify} from 'node:util';
@@ -37,7 +39,6 @@ export async function rollupDays(c,{from,to},freeze=false){
     const date=day(d),start=d.toISOString(),end=new Date(d.getTime()+dayMs).toISOString();
     const old=(await c.query('SELECT frozen FROM analytics_daily_rollups WHERE day=$1',[date])).rows[0];
     if(old?.frozen)continue;
-    // Archived raw detail is never reconstructed from incomplete hot rows.
     if((await c.query('SELECT 1 FROM event_archives WHERE restored_at IS NULL AND first_at<$2 AND last_at>=$1 LIMIT 1',[start,end])).rowCount)continue;
     const metrics=(await c.query(`WITH eligible AS (SELECT id,created_at FROM users u WHERE role='user' AND NOT analytics_excluded AND created_at<$2
       AND NOT EXISTS(SELECT 1 FROM admin_memberships m WHERE m.user_id=u.id AND m.enabled)), activity AS (
@@ -55,7 +56,6 @@ export async function rollupDays(c,{from,to},freeze=false){
       ON CONFLICT(day) DO UPDATE SET metrics=excluded.metrics,coverage=excluded.coverage,frozen=excluded.frozen,computed_at=now()
       WHERE NOT analytics_daily_rollups.frozen`,[date,metrics,coverage,freeze]);count++;
   }
-  // Anonymous summaries have a bounded window; compressed source packages remain restorable.
   await c.query("DELETE FROM analytics_daily_rollups WHERE day<(now() AT TIME ZONE 'Asia/Shanghai')::date-($1::int*interval '1 month')",[settings.aggregate_retention_months]);
   return count;
 }
@@ -73,13 +73,11 @@ export function archiveExecutors({query,transaction,events}){
         await lockTask(c,task,workerId);
         const p=(await c.query('SELECT * FROM event_archive_previews WHERE id=$1 FOR UPDATE',[preview.id])).rows[0];
         const ids=p.selected_ids.slice(p.processed_count,p.processed_count+500);
-        // First read sizes only, so one unexpectedly huge event cannot exhaust Node.
         const sizes=(await c.query(`SELECT id::text id,octet_length(to_jsonb(e)::text)::int bytes FROM ${table} e WHERE id=ANY($1::${idTypes[p.stream]}[]) ORDER BY array_position($1::text[],id::text) FOR UPDATE`,[ids])).rows;
         if(sizes.length!==ids.length)throw fail('Preview records changed','ARCHIVE_SOURCE_CHANGED');
         const selected=[];let bytes=100;
         for(const row of sizes){if(bytes+row.bytes+1>archiveMaxBytes)break;selected.push(row.id);bytes+=row.bytes+1;}
         if(!selected.length)throw fail('Single event exceeds limit','ARCHIVE_OVERSIZE');
-        // String IDs retain PostgreSQL bigint precision across JSON decoding/restoration.
         const rows=(await c.query(`SELECT (to_jsonb(e)||jsonb_build_object('id',e.id::text))::text raw,created_at::text at FROM ${table} e WHERE id=ANY($1::${idTypes[p.stream]}[]) ORDER BY created_at,id`,[selected])).rows;
         const first=rows[0].at,last=rows.at(-1).at;
         await rollupDays(c,{from:day(first),to:day(last)},true);

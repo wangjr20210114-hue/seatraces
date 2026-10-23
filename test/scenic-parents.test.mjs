@@ -1,3 +1,5 @@
+/* 验证景区主体核验。 */
+
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createParentEnricher } from "../server/services/scenic-parents.mjs";

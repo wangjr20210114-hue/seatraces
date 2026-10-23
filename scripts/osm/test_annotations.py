@@ -1,3 +1,5 @@
+"""验证地点补充资料导入。"""
+
 import unittest
 from import_annotations import validate
 

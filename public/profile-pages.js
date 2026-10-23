@@ -1,3 +1,5 @@
+/* 展示个人资料和旅行偏好设置页面。 */
+
 import { icon, setIconLabel } from './ui-icons.js';
 import { renderAccountPage } from "./account-page.js";
 import {renderPersonalPage} from './personal-center.js';

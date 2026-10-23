@@ -1,3 +1,5 @@
+@rem 启动本地开发环境配置与运行脚本。
+
 @echo off
 setlocal
 cd /d "%~dp0"

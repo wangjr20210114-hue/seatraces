@@ -1,3 +1,5 @@
+/* 验证CityWalk 候选片区与路线扩展。 */
+
 import test from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";

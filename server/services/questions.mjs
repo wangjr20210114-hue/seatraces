@@ -1,3 +1,5 @@
+/* 根据旅行兴趣组织个性化问卷选项。 */
+
 import { questionBank } from "../planner.mjs";
 import { z } from "zod";
 import { llmJSON } from "../integrations/deepseek.mjs";
@@ -8,8 +10,6 @@ export function orderedInterestOptions(options, preferences = {}) {
     const value = preferences.tagWeights?.[tag] ?? preferences.styleWeights?.[tag];
     return Number.isFinite(value) ? Math.max(0, value) : 0;
   };
-  // Keep every option and its stable tie order. An absent or negative signal
-  // must not become a recommendation merely because its key exists.
   return options.map((tag, index) => ({ tag, index })).sort((a, b) =>
     Number(explicit.has(b.tag)) - Number(explicit.has(a.tag)) ||
     weight(b.tag) - weight(a.tag) || a.index - b.index).map(x => x.tag);

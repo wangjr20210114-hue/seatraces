@@ -1,3 +1,5 @@
+# 配置地图服务所需的环境参数。
+
 param([ValidateSet('amap','google')][string]$Provider='amap')
 $ErrorActionPreference='Stop'
 $projectRoot=Split-Path -Parent $PSScriptRoot

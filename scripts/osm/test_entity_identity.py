@@ -1,3 +1,5 @@
+"""验证景点实体识别。"""
+
 import unittest
 from entity_identity import evidence,group_matches,aliases_for,identity_keys,normalize
 from entity_catalog import merge_records,canonical_search_sql

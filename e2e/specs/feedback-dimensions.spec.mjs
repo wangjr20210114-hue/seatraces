@@ -1,3 +1,5 @@
+/* 验证旅行评价的各体验维度。 */
+
 import {test,expect,signIn} from '../fixtures.mjs';
 test.beforeEach(async({context,fixture})=>signIn(context,fixture));
 test('ADAPT-UI-002 整体差评不自动成为地点差评，各方面可独立保存',async({page,fixture})=>{

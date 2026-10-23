@@ -1,3 +1,5 @@
+-- 定义维护任务及执行步骤的数据表、索引和关联结构。
+
 CREATE TABLE IF NOT EXISTS maintenance_tasks (
  id uuid PRIMARY KEY,
  kind text NOT NULL CHECK(kind IN ('health_check','event_archive','daily_rollup')),

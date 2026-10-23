@@ -1,11 +1,11 @@
+/* 构建训练样本，训练并保存推荐模型。 */
+
 import {randomUUID} from 'node:crypto';
 import {cosine,clamp,validVector} from './features.mjs';
 import {trainTower,trainRanker,towerScore,rankScore,rankInputs,rankingMetrics,encode,artifactDigest} from './model.mjs';
 import {ruleFineScore} from './engine.mjs';
 const groups=rows=>Object.values(Object.groupBy(rows,r=>r.userId));
 export async function trainingSamples(query,scope){
- // Freeze maturity at the database clock; keyset cursors retain PostgreSQL's
- // microseconds (a JavaScript Date would skip rows at a page boundary).
  const asOf=(await query('SELECT now()::text AS as_of')).rows[0].as_of;
  const samples=[];let cursorAt=null,cursorId=null,read=0;
  while(read<20000){
@@ -37,9 +37,6 @@ export async function trainingSamples(query,scope){
  }
  const seen=new Set();
  return samples.sort((a,b)=>a.at-b.at).filter(s=>{
-  // Keep raw browsing events for audit, but let one user/post pair vote only
-  // once in this bounded training dataset, including across time partitions.
-  // Choose its first valid exposure and that exposure's label window.
   const key=s.userId+':'+s.postId;if(seen.has(key))return false;seen.add(key);return true;
  });
 }
@@ -47,8 +44,6 @@ export async function trainRecommendations({query,transaction,scope='synthetic',
  if(!['synthetic','real'].includes(scope))throw Error('Unknown model scope');
  const started=performance.now(),samples=await trainingSamples(query,scope);
  if(samples.length<300) return {status:'insufficient_data',scope,samples:samples.length,required:300,activeChanged:false};
- // Time boundaries, not random splitting. Leave a full label window between
- // train/validation/test so future outcomes cannot label earlier partitions.
  const a=samples[Math.floor(samples.length*.60)].at,b=samples[Math.floor(samples.length*.80)].at,week=7*86400000;
  const train=samples.filter(s=>s.at+week<a),validation=samples.filter(s=>s.at>=a&&s.at+week<b),test=samples.filter(s=>s.at>=b);
  if(train.length<150||validation.length<50||test.length<50||new Set(train.map(s=>s.userId)).size<10||new Set(train.map(s=>s.postId)).size<30)
@@ -60,8 +55,6 @@ export async function trainRecommendations({query,transaction,scope='synthetic',
  const rankSamples=rows=>rows.map(s=>({...s,features:rankInputs({...s.parts,tower:predict(s)})}));
  const ranker=trainRanker(rankSamples(train));
  const rankPredict=s=>rankScore(ranker,rankInputs({...s.parts,tower:predict(s)}));
- // Compare the learned fine ranker with the exact rule it replaces, using the
- // same tower. Coarse retrieval has different weights and is not this baseline.
  const rule=s=>ruleFineScore({...s.parts,tower:predict(s)});
  const rankerMetrics={validation:evaluate(validation,rankPredict),test:evaluate(test,rankPredict),baselineValidation:evaluate(validation,rule),baselineTest:evaluate(test,rule)};
  const common={scope,syntheticData:scope==='synthetic',evaluation:'chronological held-out exposed-candidate pools; 7-day embargo; not real-user quality evidence when synthetic',
@@ -72,7 +65,6 @@ export async function trainRecommendations({query,transaction,scope='synthetic',
  const towerId=randomUUID();ranker.towerId=towerId;
  const passes=m=>m.validation.groups>=5&&m.test.groups>=5&&m.validation.ndcgAtK>m.baselineValidation.ndcgAtK+.005&&m.test.ndcgAtK>m.baselineTest.ndcgAtK+.005;
  for(const [kind,artifact,metrics] of [['two_tower',trained.model,towerMetrics],['ranker',ranker,rankerMetrics]]){
-  // Both validation and untouched test must beat the corresponding baseline.
   const eligible=passes(metrics)&&(kind==='two_tower'||passes(towerMetrics));
   const id=kind==='two_tower'?towerId:randomUUID(),state=eligible?(activate?'active':'evaluated'):'rejected';
   await transaction(async c=>{

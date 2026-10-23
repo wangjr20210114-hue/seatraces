@@ -1,3 +1,5 @@
+/* 展示个人资料、旅行记录、收藏和兴趣概览。 */
+
 import { libraryCard, bindCardActions } from './social-ui.js';
 const esc = (s) =>
   String(s ?? "").replace(

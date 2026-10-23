@@ -1,3 +1,5 @@
+"""验证地点展示规则。"""
+
 import unittest
 from datetime import datetime,timezone
 from place_policy import country_code,display_name,select_fact,fact_status

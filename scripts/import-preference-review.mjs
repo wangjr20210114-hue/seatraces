@@ -1,3 +1,5 @@
+/* 导入人工偏好评审答案并检查完整性。 */
+
 import { readFile, stat } from 'node:fs/promises';
 import { saveReview } from './lib/preference-review-store.mjs';
 

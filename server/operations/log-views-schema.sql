@@ -1,3 +1,5 @@
+-- 定义日志查询视图的数据表、索引和关联结构。
+
 CREATE TABLE IF NOT EXISTS admin_log_views (
  id uuid PRIMARY KEY,
  owner_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,

@@ -1,3 +1,5 @@
+/* 展示发现页和个人帖子，支持从已有路线发起分享。 */
+
 import {icon,setIconLabel} from './ui-icons.js';
 import {createFeedPager} from './feed-pager.js';
 import {esc,socialCard,libraryCard,bindCardActions,trackVisible} from './social-ui.js';
@@ -22,8 +24,6 @@ export function mountDiscovery({content,api,navigate,toast,context=()=>({})}){
   status.textContent=s.busy?'正在找灵感…':s.error||(s.items.length?(s.exhausted?'暂时看到这里':''):s.scope==='following'?'关注喜欢的作者，下一程有新灵感':'还没有帖子，分享第一程吧');
  }});
  const onInterest=()=>pager.interestChanged();window.addEventListener('seatraces-interest-updated',onInterest);
- // React to actual downward scrolling (including an inner page scroller), not
- // merely to a sentinel being visible on an initially short screen.
  const positions=new WeakMap();
  const onScroll=e=>{const target=e.target===document?document.scrollingElement:e.target;
   if(!target||typeof target!=='object')return;const y=Number(target.scrollTop||0),previous=positions.get(target)||0;positions.set(target,y);

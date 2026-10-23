@@ -1,3 +1,5 @@
+/* 验证移动端页面交互。 */
+
 import { test, expect, signIn } from "../fixtures.mjs";
 import { check } from "../cases.mjs";
 check(

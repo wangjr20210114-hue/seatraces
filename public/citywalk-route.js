@@ -1,4 +1,5 @@
-// A short open tour over WGS84 points. This is a geometric ordering, not road routing.
+/* 计算 CityWalk 站点顺序，整理路线名称和距离。 */
+
 export const walkName = place => /[\u3400-\u9fff]/.test(place.name) ? place.name : (place.aliases || []).find(name => /[\u3400-\u9fff]/.test(name)) || place.name;
 export function metres(a, b) {
   const rad = Math.PI / 180, dlat = (b.lat - a.lat) * rad, dlng = (b.lng - a.lng) * rad;
@@ -18,7 +19,6 @@ export function orderWalk(points, startId = points[0]?.id) {
     greedy.push(remaining.splice(best, 1)[0]);
   }
   let result = routeMetres(original) < routeMetres(greedy) ? original : greedy;
-  // 2-opt reverses subpaths (including the open end), leaving the chosen start fixed.
   for (let pass = 0; pass < 12; pass++) {
     let changed = false;
     for (let i = 1; i < result.length - 1; i++) for (let j = i + 1; j < result.length; j++) {

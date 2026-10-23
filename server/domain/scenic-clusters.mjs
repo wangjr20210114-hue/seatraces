@@ -1,3 +1,5 @@
+/* 按地点特征和空间位置划分旅行片区。 */
+
 import { createHash } from "node:crypto";
 import { groupScenicEntities, representedIds } from "./scenic-entities.mjs";
 export { deduplicateVisitPlaces } from "./scenic-entities.mjs";
@@ -130,7 +132,6 @@ export function clusterScenicPlaces(input, preferences = {}, signalsById = {}) {
   const points = [...unique.values()].sort(
     (a, b) => b.score.total - a.score.total || a.id.localeCompare(b.id),
   );
-  // Group duplicate OSM representations only when their labels and positions agree.
   const dedup = groupScenicEntities(points);
   for (const p of dedup) {
     p.score = scorePlace(p, preferences, signalsById[p.id]);
@@ -142,7 +143,6 @@ export function clusterScenicPlaces(input, preferences = {}, signalsById = {}) {
       .sort(
         (a, b) => b.score.total - a.score.total || a.id.localeCompare(b.id),
       );
-    // Distinct child sights contribute once; duplicate records add no extra score.
     const childrenScore = (p.children || []).reduce(
       (n, c) => n + c.score.total,
       0,
@@ -150,15 +150,11 @@ export function clusterScenicPlaces(input, preferences = {}, signalsById = {}) {
     p.score = {
       ...p.score,
       total: Math.round((p.score.total + childrenScore) * 10) / 10,
-      // A large number of children must not drown out the visitor's interest.
-      // A relevant child can help its containing site, but contributes once.
       personalInterest: Math.round((p.score.personalInterest + .25 * Math.max(0, ...p.children.map(c => c.score.personalInterest))) * 100) / 100,
       childrenScore,
     };
   }
   if (!dedup.length) return [];
-  // Geographic bisecting k-means. Membership depends on position, not popularity.
-  // These are city selection areas; daily itineraries still select nearby stops.
   const target = Math.min(
     dedup.length,
     clusterRules.maxClusters,
@@ -217,7 +213,6 @@ export function clusterScenicPlaces(input, preferences = {}, signalsById = {}) {
       .map((ps, index) => ({ index, score: ps.length > 1 ? spread(ps) : -1 }))
       .sort((a, b) => b.score - a.score || a.index - b.index);
     const chosen = choices[0];
-    // Co-located sights should not create artificial selection areas.
     if (chosen.score <= 0.000001) break;
     partitions.splice(chosen.index, 1, ...split(partitions[chosen.index]));
   }

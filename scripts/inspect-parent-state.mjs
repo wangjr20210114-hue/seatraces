@@ -1,3 +1,5 @@
+/* 查询景区主体处理任务和缓存状态。 */
+
 import {readFile} from 'node:fs/promises';
 import dotenv from 'dotenv';
 const root=new URL('../',import.meta.url);dotenv.config({path:new URL('.env',root),quiet:true});

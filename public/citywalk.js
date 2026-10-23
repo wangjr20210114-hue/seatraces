@@ -1,3 +1,5 @@
+/* 展示 CityWalk 首页，连接路线推荐与编辑页面。 */
+
 import { icon } from './ui-icons.js';
 import {renderWalkEditor} from './citywalk-editor.js';
 import {renderClassicWalk} from './classic-walk-view.js';

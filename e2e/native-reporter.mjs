@@ -1,3 +1,5 @@
+/* 汇总模拟器测试结果。 */
+
 import path from "node:path";
 export default async function* reporter(events) {
   for await (const event of events) {

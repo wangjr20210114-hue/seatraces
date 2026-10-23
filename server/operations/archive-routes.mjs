@@ -1,3 +1,5 @@
+/* 提供日志归档查询和归档任务管理接口。 */
+
 import {z} from 'zod';
 import {requireManagement} from './permissions.mjs';
 import {archiveWindow,archiveTables,archiveMaxBytes,decodeArchive} from './event-archive.mjs';
@@ -15,7 +17,6 @@ export function installArchiveRoutes(app,{query,transaction,events}){
     await c.query("SELECT pg_advisory_xact_lock(hashtextextended('seatraces.maintenance-create',0))");
     const old=(await c.query('SELECT id,kind,requested_by,parameters FROM maintenance_tasks WHERE id=$1',[id])).rows[0];
     if(old){if(old.kind!==kind||old.requested_by!==req.user.id||JSON.stringify(old.parameters)!==JSON.stringify(parameters)){
-      // jsonb orders object keys, so use a database comparison for replay equivalence.
       const same=(await c.query('SELECT kind=$2 AND requested_by=$3 AND parameters=$4::jsonb same FROM maintenance_tasks WHERE id=$1',[id,kind,req.user.id,parameters])).rows[0];
       if(!same?.same)throw fail('任务编号已使用',409);
     }return {id:old.id};}

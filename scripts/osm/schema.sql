@@ -1,3 +1,5 @@
+-- 定义OSM 原始来源、地点快照和检索索引的数据表、索引和关联结构。
+
 CREATE SCHEMA IF NOT EXISTS osm;
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
 CREATE TABLE IF NOT EXISTS osm.imports (
@@ -22,8 +24,6 @@ CREATE INDEX IF NOT EXISTS osm_poi_search ON osm.poi USING gin(search_text gin_t
 CREATE INDEX IF NOT EXISTS osm_poi_category ON osm.poi(category,subcategory);
 CREATE INDEX IF NOT EXISTS osm_poi_coordinates ON osm.poi(lat,lon);
 CREATE INDEX IF NOT EXISTS osm_poi_city ON osm.poi(city);
--- pg_trgm cannot prune an unanchored two-character query such as 外滩.
--- Exact two-character candidates use GIN pairs, followed by the original ILIKE.
 CREATE OR REPLACE FUNCTION osm.search_pairs(value text) RETURNS text[]
  LANGUAGE sql IMMUTABLE PARALLEL SAFE AS $$
  SELECT coalesce(array_agg(DISTINCT substr(lower(value),n,2)),ARRAY[]::text[])

@@ -1,3 +1,5 @@
+/* 验证官方地点资料管理。 */
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {factValidity,applyFactValidity} from '../server/domain/fact-validity.mjs';

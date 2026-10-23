@@ -1,3 +1,5 @@
+/* 导出 UniSRec 实验的序列和特征数据。 */
+
 import {mkdir,readFile,writeFile} from 'node:fs/promises';
 import {fileURLToPath} from 'node:url';
 import {localDatabase} from './recommendation-local-db.mjs';

@@ -1,3 +1,5 @@
+/* 根据偏好生成单日行程备选方案并校验方案内容。 */
+
 import {z} from 'zod';
 import {distance} from '../planner.mjs';
 import {scorePlace,placeTags} from './scenic-clusters.mjs';

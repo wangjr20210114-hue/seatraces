@@ -1,4 +1,5 @@
--- Separate cached road geometry from user-selected routes; anonymous reads never create personal records.
+-- 定义CityWalk 候选目录和道路缓存的数据表、索引和关联结构。
+
 CREATE TABLE IF NOT EXISTS citywalk_route_legs (
  key char(64) PRIMARY KEY, payload jsonb NOT NULL,
  expires_at timestamptz NOT NULL DEFAULT now()+interval '1 day'

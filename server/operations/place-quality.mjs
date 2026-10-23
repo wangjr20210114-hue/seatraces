@@ -1,3 +1,5 @@
+/* 汇总地点资料覆盖率和核验状态。 */
+
 import {z} from 'zod';
 import {requireManagement} from './permissions.mjs';
 const str=(v,n=180)=>typeof v==='string'?v.slice(0,n):null;
@@ -32,7 +34,6 @@ export function installPlaceQuality(app,{query,events,catalogRequest,overlay=asy
   app.get('/api/admin/places/quality',requireManagement,async(req,res)=>res.json(await localQuality(query)));
   let pending,last;
   app.get('/api/admin/places/coverage',requireManagement,async(req,res)=>{
-    // Coalesce simultaneous refreshes and reuse the report for 60 seconds.
     if(!last||Date.now()-last.at>60000){if(!pending)pending=(async()=>{
       const result=await Promise.allSettled(['/coverage','/site-coverage','/hierarchy-coverage','/entity-coverage'].map(path=>catalogRequest(path)));
       last={at:Date.now(),reports:result.map((r,i)=>({kind:['imports','site','parent','entities'][i],...(r.status==='fulfilled'?coverageSummary(r.value):{status:r.reason?.status===404?'not_supported':'unavailable',code:['catalog_busy','catalog_query_timeout','catalog_unavailable'].includes(r.reason?.code)?r.reason.code:'catalog_unavailable'})}))};

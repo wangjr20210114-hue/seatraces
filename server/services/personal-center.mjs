@@ -1,3 +1,5 @@
+/* 提供个人概览、旅行记录、收藏和资料查询接口。 */
+
 import { z } from "zod";
 import {
   readMemory,
@@ -96,7 +98,6 @@ export function installPersonalCenter(app, { auth, query, transaction }) {
   app.get("/api/me/library/:kind/:id", auth, async (req, res) => {
     const type = kind.parse(req.params.kind),
       id = z.uuid().parse(req.params.id);
-    // Details are accessible only through the current user's own record, never by arbitrary ID.
     const row = (
       await query(
         `SELECT p.id,p.title,p.body,p.tags,p.snapshot ${from[type]} AND p.id=$2 LIMIT 1`,
@@ -114,7 +115,6 @@ export function installPersonalCenter(app, { auth, query, transaction }) {
     res.json({ ok: true });
   });
   app.get("/api/me/report", auth, async (req, res) => {
-    // Aggregate in PostgreSQL: never pull every historical plan into Node memory.
     const totals = (
       await query(
         `SELECT count(*) FILTER(WHERE status='completed')::int completed,

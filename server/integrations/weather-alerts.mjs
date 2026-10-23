@@ -1,3 +1,5 @@
+/* 查询天气预警并转换为统一结构。 */
+
 import {request} from './http.mjs';
 export function normalizeAlerts(raw,now=Date.now()){
   if(!Array.isArray(raw?.alerts)||typeof raw?.metadata?.zeroResult!=='boolean')throw Object.assign(Error('天气预警响应无法核验'),{status:502});

@@ -1,4 +1,6 @@
-﻿param([ValidateSet('all','amap','deepseek')][string]$Provider='all')
+﻿# 配置本地前端连接的业务服务地址。
+
+param([ValidateSet('all','amap','deepseek')][string]$Provider='all')
 $ErrorActionPreference='Stop'
 $projectRoot=Split-Path -Parent $PSScriptRoot
 $envPath=Join-Path $projectRoot '.env'

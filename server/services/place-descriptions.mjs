@@ -1,3 +1,5 @@
+/* 根据地点资料生成介绍并提供查询接口。 */
+
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import { catalogMember } from '../repositories/journey-candidates.mjs';
@@ -43,7 +45,7 @@ export async function generateDescription(place, { model=llmJSON, enabled=Boolea
     const valid=parsed.short.quote.length<=75 && all.every(s=>evidence.some(e=>e.id===s.evidenceId&&e.text.includes(s.quote)));
     const full=parsed.full.map(s=>s.quote).join('\n');
     if (valid && full.length<=800 && !all.some(s=>/开放时间|票价|免费|每日|营业时间/.test(s.quote))) return {shortText:parsed.short.quote,fullText:full,evidence,method:'llm_extract'};
-  } catch { /* Missing key, budget, upstream failure or unsupported claims retain sourced facts. */ }
+  } catch {   }
   return result;
 }
 
@@ -52,8 +54,6 @@ export function installPlaceDescriptionRoutes(app, { auth,query,resolvePlace,mod
   app.post('/api/journey/sessions/:id/places/:placeId/description',auth,async(req,res)=>{
     const sessionId=z.uuid().parse(req.params.id),placeId=z.string().min(1).max(80).parse(req.params.placeId);
     z.object({}).strict().parse(req.body);
-    // Access must be checked before a global cache hit; child records and other
-    // users' sessions are not valid targets for this parent-card operation.
     const member=await catalogMember({query,sessionId,userId:req.user.id,placeId});
     if(!member) return res.status(404).json({error:'地点不在本人的顶层候选范围内'});
     const cached=(await query('SELECT short_text,full_text,evidence,method,generated_at,refresh_after FROM place_descriptions WHERE place_id=$1 AND refresh_after>now()',[member.id])).rows[0];

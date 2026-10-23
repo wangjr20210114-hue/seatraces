@@ -1,3 +1,5 @@
+/* 检查已部署服务中的地点证据资料。 */
+
 import assert from "node:assert/strict";
 import { readFile, writeFile } from "node:fs/promises";
 import dotenv from "dotenv";

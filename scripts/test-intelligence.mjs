@@ -1,3 +1,5 @@
+/* 执行智能功能检查并保存测试结果。 */
+
 import {spawn} from 'node:child_process';
 import {mkdir,writeFile} from 'node:fs/promises';
 const files=['adaptive-questions','agent-compound','agent','feedback-dimensions','weather','weather-http','feed-pager','recommendation-adaptation','place-descriptions','day-alternatives','intelligent-planning-http','official-facts','tracing','mail-outbox','tencent-ses'].map(x=>'test/'+x+'.test.mjs');

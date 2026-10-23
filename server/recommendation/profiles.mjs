@@ -1,3 +1,5 @@
+/* 汇总行为信号，生成用户兴趣画像和推荐偏好。 */
+
 import {algorithm,contentFeatures,vectorize,profileVector,weights,clamp} from './features.mjs';
 import {answerFeatures,interestMap} from '../social/features.mjs';
 import {styleForPlanning} from '../social/style-store.mjs';
@@ -60,7 +62,6 @@ export async function buildProfile(c,userId){
  ORDER BY coalesce(f.created_at,s.at,cm.at) DESC,p.id LIMIT 300`,[userId])).rows;
  for(const p of posts){const vals=p.features.values,w=p.negative?weights.not_interested:p.w,sign=p.negative?-1:1;
   if(w){add('content','post:'+p.id,vals,w,p.at,p.negative?'not_interested':'interaction',sign);
-   // Browsing is useful for content, but alone must not redefine travel habits.
    if(p.negative||p.w>=1)add('travel','post:'+p.id,vals,w,p.at,p.negative?'not_interested':'interaction',sign);}
   if(p.comment_at&&!p.negative)add('content','comment:'+p.id,vals,weights.comment,p.comment_at,'topic_participation');
  }

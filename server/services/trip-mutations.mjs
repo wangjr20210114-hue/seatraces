@@ -1,3 +1,5 @@
+/* 校验行程修改请求，执行站点增删、替换和移动。 */
+
 import {z} from 'zod';
 import {applyEdit} from '../planner.mjs';
 export const operationSchema=z.object({type:z.enum(['lock','remove','replace','add','move','apply_preview']),day:z.number().int().min(0).max(29),
@@ -19,7 +21,6 @@ export function tripMutationHandler({transaction,ownTrip,recordPlaceChoice=async
      for(const[id,p]of before)if(!after.has(id))await recordPlaceChoice(c,{userId:req.user.id,place:p,kind:'edit',value:-1,tripId:t.id});
      for(const[id,p]of after)if(!before.has(id))await recordPlaceChoice(c,{userId:req.user.id,place:p,kind:'edit',value:1,tripId:t.id});
     }
-    // A schedule adjustment is not evidence of disliking the removed places.
     reason=b.operation.type==='apply_preview'?'采用已核验的局部方案':b.operation.type;
    }
    if(b.restoreVersion){

@@ -1,3 +1,5 @@
+"""验证旅行排序模型。"""
+
 import sys
 from pathlib import Path
 import unittest

@@ -1,4 +1,5 @@
-// Small acceptance check using the actual reviewed batch; no commercial API calls.
+/* 检查故宫资料补充后的地点与分组结果。 */
+
 import assert from 'node:assert/strict';
 import {readFile,writeFile} from 'node:fs/promises';
 import {groupScenicEntities} from '../server/domain/scenic-entities.mjs';

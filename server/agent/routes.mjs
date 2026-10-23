@@ -1,3 +1,5 @@
+/* 提供 AI 会话、确认操作和进度查询接口。 */
+
 import { z } from "zod";
 import { createAgentStore, fail } from "./store.mjs";
 import { createAgentEngine, cleanContext, publicState } from "./engine.mjs";
@@ -27,7 +29,6 @@ const decisionInput = z
     decision: z.enum(["confirm", "cancel"]),
   })
   .strict();
-// Credentials never enter chat storage or model prompts. Sensitive account forms remain in the account page.
 const containsSecret = (s) =>
   /-----BEGIN [^-]*PRIVATE KEY-----|(?:sk-[a-zA-Z0-9]{20,})|(?:密码|password|token|api[_ ]?key|authorization)\s*[:：=]\s*\S{4,}/i.test(
     s,
@@ -209,7 +210,6 @@ export function installAgentRoutes(
       let claimed = false;
       const report = progress.start(id, b.requestId);
       try {
-        // An old confirmation cannot replace the state of a newer conversation flow.
         if (state.pendingAction !== actionId)
           throw fail("当前待确认操作已变化，请重新预览", 409);
         const action = await store.claim(actionId, c, req.user.id, b.decision);
@@ -221,7 +221,6 @@ export function installAgentRoutes(
               action,
               b.decision,
             );
-        // Persist outcome before replying. Retrying a completed action never calls a business endpoint again.
         await query(
           "UPDATE agent_actions SET status=$2,result=$3,finished_at=now() WHERE id=$1 AND user_id=$4",
           [

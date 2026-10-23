@@ -1,3 +1,5 @@
+/* 读取外部服务配置并汇总可用状态。 */
+
 export function providerStatus() {
   return {
     maps: process.env.AMAP_KEY ? "configured_unverified" : "not_configured",

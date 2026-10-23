@@ -1,3 +1,5 @@
+/* 加载行程周边服务，处理服务选择和缓存。 */
+
 import { serviceIcons as icons } from "./service-order.js";
 const esc = (s) =>
   String(s ?? "").replace(
@@ -43,7 +45,6 @@ const pathFor = (id, day, slot = "", place = "", radius, rec = "") =>
   });
 export function mountTripServices({ element, trip, day, api, navigate }) {
   element.className = "trip-services-widget";
-  // Read saved choices only; search starts when the user opens a category.
   const choices = trip.plan.services || {};
   const dining =
     choices["dining:" + day] ||

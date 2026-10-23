@@ -1,3 +1,5 @@
+-- 定义后台操作日志的数据表、索引和关联结构。
+
 CREATE TABLE IF NOT EXISTS operation_events (
  id bigserial PRIMARY KEY,
  user_id uuid REFERENCES users(id) ON DELETE SET NULL,

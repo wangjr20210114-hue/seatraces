@@ -1,4 +1,4 @@
-"""Receive hash-checked PBF ranges; assemble only after all ranges verify."""
+"""校验分段上传的 PBF 数据并合并文件。"""
 import argparse
 import hashlib
 import json
@@ -105,7 +105,6 @@ def run(root, manifest, mode, index=None, stream=None, offset=0):
     if assembled.stat().st_size != manifest['bytes'] or digest.hexdigest() != manifest['sha256']:
         raise ValueError('Assembled PBF checksum mismatch')
     assembled.replace(target)
-    # Remove only this manifest's verified, reconstructable chunk files.
     for n, spec in enumerate(parts):
         (folder / str(n)).unlink()
     folder.rmdir()

@@ -1,3 +1,5 @@
+/* 下载并校验地点匹配使用的嵌入模型文件。 */
+
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { embeddingModel } from "../server/integrations/embedding.mjs";

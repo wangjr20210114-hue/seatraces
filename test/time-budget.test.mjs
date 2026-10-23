@@ -1,3 +1,5 @@
+/* 验证每日游览和交通时间预算。 */
+
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createJourneyDraft } from "../server/services/journey-draft.mjs";

@@ -1,4 +1,6 @@
 #!/bin/sh
+# 导出业务数据库备份并检查备份文件。
+
 set -eu
 umask 077
 mkdir -p backups

@@ -1,3 +1,5 @@
+/* 展示用户资料、偏好及相关业务记录。 */
+
 import {stylePanel,recommendationPanel,bindRecommendationPreview} from './admin-style.js';
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const time=v=>v?new Date(v).toLocaleString('zh-CN',{timeZone:'Asia/Shanghai',hour12:false}):'暂无记录';

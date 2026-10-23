@@ -1,3 +1,5 @@
+/* 检查地点开放时间的查询结果。 */
+
 import assert from 'node:assert/strict';
 import { writeFile } from 'node:fs/promises';
 const base='http://127.0.0.1:8787/api',records=[];

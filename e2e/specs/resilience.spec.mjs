@@ -1,3 +1,5 @@
+/* 验证页面在服务异常时的恢复。 */
+
 import { test, expect, signIn, get } from "../fixtures.mjs";
 import { check } from "../cases.mjs";
 test.beforeEach(async ({ context, fixture }) => signIn(context, fixture));
@@ -21,8 +23,6 @@ check(
       {'X-Seatraces':'1',Origin:'null'},
       {'X-Seatraces':'1',Origin:'http://127.0.0.1:19888','Sec-Fetch-Site':'cross-site'},
     ]){
-      // Browser fetch cannot forge Origin. APIRequestContext exercises the
-      // server's raw-header boundary without contacting another site.
       const response=await page.request.patch('/api/me',{headers,data:{nickname:'不应保存'}});
       expect(response.status()).toBe(403);
       expect((await get(page,'/api/me')).user.nickname).toBe(before);
@@ -59,8 +59,6 @@ check(
     await expect(
       page.locator("#classic-walks [data-classic]").first(),
     ).toBeVisible();
-    // A failure limited to the public classics endpoint is recoverable too,
-    // without reloading the page or signing in again.
     await page.route("**/api/citywalk/classics", (r) => r.fulfill({
       status: 503, contentType: "application/json",
       body: JSON.stringify({ error: "UI测试：经典路线不可用" }),

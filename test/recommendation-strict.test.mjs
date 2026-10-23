@@ -1,3 +1,5 @@
+/* 验证推荐排序与样本约束。 */
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
@@ -83,7 +85,6 @@ test('strict recommendation HTTP and temporal data contracts',{skip:process.env.
    const r=await recommend(f.query,{id:uid,preferences:{}}),id=r.rows[0].id;
    const responses=await Promise.all(Array.from({length:8},()=>f.request('/api/social/posts/'+id+'/impressions',{user:'user',body:{id:randomUUID(),context:'feed',requestId:r.requestId}})));
    assert.ok(responses.every(r=>r.status===200));
-   // Separate browser appearances may be logged, but may not inflate training.
    await f.query("UPDATE recommendation_exposures SET created_at=now()-interval '10 days',visible_ms=5000 WHERE request_id=$1 AND post_id=$2",[r.requestId,id]);
    assert.equal((await trainingSamples(f.query,'real')).filter(s=>s.postId===id).length,1);
   });

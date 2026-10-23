@@ -1,11 +1,11 @@
+/* 识别推荐语料中的重复路线和生成内容。 */
+
 import {createHash} from 'node:crypto';
 import {featuresFromPlaces,interestMap} from '../../server/social/features.mjs';
 
 const fingerprint=value=>createHash('sha256').update(JSON.stringify(value)).digest('hex');
 const stopsOf=post=>(post.snapshot?.days||[]).flatMap(day=>day.stops||[]);
 const routeIdentity=post=>stopsOf(post).map(p=>[p.id,p.name,p.category]);
-// The seed's wall clock only changes the opening date and timestamps. Compare
-// the remaining presentation, route and topic data before attributing its rules.
 export function matchesGeneratedPost(post,generated){
   return post.id===generated.id&&post.title===generated.title&&
     JSON.stringify(post.tags)===JSON.stringify(generated.tags)&&

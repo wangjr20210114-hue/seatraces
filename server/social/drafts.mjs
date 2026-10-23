@@ -1,3 +1,5 @@
+/* 管理分享草稿、来源路线和草稿版本。 */
+
 import {randomUUID} from 'node:crypto';
 import {z} from 'zod';
 import {publicRoute} from '../services/discovery.mjs';
@@ -17,7 +19,6 @@ async function ownedSource(c,ref,userId){
  const row=(await c.query(`SELECT * FROM ${ref.kind==='journey'?'trips':'citywalks'} WHERE id=$1 AND user_id=$2`,[ref.id,userId])).rows[0];
  if(!row)throw failure('路线不存在',404);
  const snapshot=publicRoute(ref.kind,row);
- // Only allowlisted public fields; no origin, private dates, answers, notes or raw POI trees.
  if(Buffer.byteLength(JSON.stringify(snapshot))>180000)throw failure('路线较大，请选择较短的行程分享');
  return {snapshot,version:row.version||1,title:row.title};
 }
@@ -25,7 +26,6 @@ export function installDraftRoutes(app,{auth,query,transaction,onPublish=async()
  app.post('/api/social/drafts',auth,async(req,res)=>{
   const b=create.parse(req.body);
   const d=await transaction(async c=>{
-   // Serialize the owner's quota and idempotency checks, including simultaneous retries.
    await c.query('SELECT id FROM users WHERE id=$1 FOR UPDATE',[req.user.id]);
    const existing=(await c.query('SELECT * FROM post_drafts WHERE id=$1',[b.id])).rows[0];
    if(existing){if(existing.user_id!==req.user.id)throw failure('草稿不存在',404);return existing;}

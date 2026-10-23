@@ -1,3 +1,5 @@
+/* 验证业务事件记录。 */
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';

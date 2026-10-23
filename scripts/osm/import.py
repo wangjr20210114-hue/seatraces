@@ -1,4 +1,4 @@
-"""Import a complete POI snapshot atomically into a separate PostgreSQL schema."""
+"""在事务中导入完整的 OSM 地点快照。"""
 import argparse
 import gzip
 import json
@@ -26,8 +26,6 @@ def load(snapshot, region, conn, spatial=False):
         conn.execute(sql_dir.joinpath("relevance.sql").read_text(encoding="utf8"))
         if spatial:
             conn.execute(sql_dir.joinpath("spatial.sql").read_text(encoding="utf8"))
-    # End schema locks before the potentially long COPY transaction. Existing
-    # active snapshots can remain readable while a new snapshot is staged.
     with conn.transaction():
         conn.execute("SELECT pg_advisory_xact_lock(hashtext(%s))", ("seatraces-osm:" + region,))
         existing = conn.execute("SELECT id,rows_count,manifest->>'output_sha256' FROM osm.imports WHERE region=%s AND pbf_sha256=%s", (region, metadata["pbf_sha256"])).fetchone()

@@ -1,4 +1,4 @@
-"""Root-owned deployment gateway. Only a main commit can be deployed; no remote shell."""
+"""从指定 Git 版本构建并部署服务，处理健康检查和回退。"""
 from pathlib import Path,PurePosixPath
 import argparse,fcntl,hashlib,io,json,os,re,subprocess,sys,tarfile,time,urllib.request,urllib.error
 
@@ -17,7 +17,6 @@ def git_failure(operation,stderr,code):
     lower=detail.lower()
     transient=any(value in lower for value in ('could not resolve host','failed to connect','timed out','too slow',
                   'gnutls_handshake','tls connection','ssl_connect','connection reset','rpc failed','early eof','remote end hung up'))
-    # Git uses this fixed public remote; still strip credentials if a user's Git configuration rewrites URLs.
     detail=re.sub(r'(https?://)[^\s/@]+:[^\s/@]+@',r'\1[redacted]@',detail)
     detail=re.sub(r'\b(?:gh[pousr]_[A-Za-z0-9]+|github_pat_[A-Za-z0-9_]+)\b','[redacted]',detail)
     detail=re.sub(r'-----BEGIN [\s\S]*?-----END [^\n]+-----','[redacted]',detail)
@@ -31,7 +30,6 @@ def command(argv,**kwargs):
 def git(*args,binary=False):
     env={k:v for k,v in os.environ.items() if not k.startswith('GIT_')}
     env.update(HOME='/home/seatraces_dev',XDG_CONFIG_HOME='/home/seatraces_dev/.config',GIT_TERMINAL_PROMPT='0')
-    # Shared Git metadata is writable by the team. Never run its hooks/filters as an administrator.
     try:
         return command(['runuser','-u','seatraces_dev','--','git','-c','core.hooksPath=/dev/null',
                         '-c','core.fsmonitor=false','-c','credential.helper=','-c','protocol.ext.allow=never','-C',str(SOURCE),*args],
@@ -39,7 +37,6 @@ def git(*args,binary=False):
     except subprocess.CalledProcessError as error:
         raise git_failure(args[0],error.stderr,error.returncode) from None
     except subprocess.TimeoutExpired:
-        # Do not automatically retry a timed-out subprocess whose descendants may still be exiting.
         raise GitFailure(args[0],'exceeded 180 seconds; inspect server Git/network state before retrying') from None
 
 def save(path,data):
@@ -60,7 +57,6 @@ def unpack(raw,destination):
                 raise RuntimeError('Release archive contains unsupported paths or links')
             if member.name.startswith(('.git/','.runtime/','node_modules/')) or member.name in ('.env','backend.env','.env.deploy'):
                 raise RuntimeError('Release archive contains private runtime files')
-        # Explicit validation above supports the server Python 3.10 runtime.
         archive.extractall(destination)
 
 def deploy(commit):
@@ -108,7 +104,6 @@ def deploy(commit):
             content=git('show',commit+':'+name,binary=True)
             if hashlib.sha256(content).hexdigest()!=expected:raise RuntimeError('Build policy changed; administrator must review '+name)
         report('updating_source')
-        # Fetch has already verified this exact commit. Merge locally instead of downloading again.
         git('merge','--ff-only',commit)
         if git('rev-parse','HEAD').strip()!=commit:raise RuntimeError('main moved during pull; deployment stopped')
         stage=ROOT/'incoming'/('git-'+commit[:12]+'-'+str(time.time_ns()))
@@ -221,7 +216,6 @@ def queue_deploy(commit,record):
         child=subprocess.Popen([sys.executable,str(Path(__file__).resolve()),'--run',commit],stdin=subprocess.DEVNULL,stdout=log,stderr=log,start_new_session=True)
     value={'phase':'queued','commit':commit,'pid':child.pid}
     save(current,value)
-    # Worker owns status writes; avoid overwriting a fast worker's completed record.
     print(json.dumps(value))
 
 if __name__=='__main__':

@@ -1,7 +1,4 @@
-"""One-time administrator installation, executed only after deployment-key approval.
-
-The prepared launcher provides PAYLOAD containing reviewed gateway code and public key.
-"""
+"""安装 Git 发布入口及其访问配置。"""
 from pathlib import Path
 import base64,hashlib,json,os,pwd,re,subprocess,time
 
@@ -51,7 +48,6 @@ def main(payload):
     put(STATE/'policy.json',json.dumps({'source':str(source),'buildFiles':build_files},indent=2).encode(),0o600)
     wrapper=b'#!/bin/sh\nexec /usr/bin/sudo -n /usr/bin/python3 /usr/local/lib/seatraces/deploy-from-git.py --request "$SSH_ORIGINAL_COMMAND"\n'
     put(Path('/usr/local/bin/seatraces-deploy-gateway'),wrapper,0o555)
-    # Verify the account's existing sudo permission. Never add a sudoers or Docker grant.
     result=subprocess.check_output(['runuser','-u','ubuntu','--','env','SSH_ORIGINAL_COMMAND=check','/usr/local/bin/seatraces-deploy-gateway'],text=True)
     check=json.loads(result)
     if not check.get('ok'):raise RuntimeError('Gateway self-check failed')

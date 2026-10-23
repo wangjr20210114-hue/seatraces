@@ -1,3 +1,5 @@
+/* 验证自动片区规划与站内信提醒。 */
+
 import { test, expect, signIn, get, write, loginUI } from '../fixtures.mjs';
 import { randomUUID } from 'node:crypto';
 
@@ -19,7 +21,6 @@ test.beforeEach(async ({ context, page, fixture }) => {
 
 test('login displays the newest unread body, dismiss retains unread and reading clears both badges', async ({ browser, context, page, fixture }, info) => {
   await deliver(browser, fixture, '<script>literal text</script>\n明天慢慢逛。');
-  // A newer read message must not hide an older unread one.
   await deliver(browser, fixture, '这封已读');
   const latest = (await get(page, '/api/me/messages?limit=1')).items[0];
   await write(page, `/api/me/messages/${latest.id}/read`, {});

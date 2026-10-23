@@ -1,3 +1,5 @@
+/* 按城市组织旅行片区及其候选地点。 */
+
 import { boundedJsonBytes } from "../repositories/bounded-json.mjs";
 import {
   scenicSummary,
@@ -36,7 +38,6 @@ export async function readCityPlaces(bounds, request = catalogRequest) {
         r = await request("/cluster-places", box);
         break;
       } catch (e) {
-        // Retry only transient reads on our own OSM service; never paid APIs.
         if (attempt >= 1 || ![429, 503, 504].includes(e.status)) throw e;
         await new Promise((resolve) => setTimeout(resolve, 600));
       }
@@ -51,8 +52,6 @@ export async function readCityPlaces(bounds, request = catalogRequest) {
     if (r.coverageStatus === "bounded_sample") {
       const w = box.east - box.west,
         h = box.north - box.south;
-      // Split any truncated box instead of pretending its first 8,000 rows are
-      // the full city. Only an extremely dense sub-100 m box remains flagged.
       if (Math.max(w, h) > 0.0005) {
         if (w >= h) {
           const mid = (box.east + box.west) / 2;
@@ -147,7 +146,6 @@ export async function cityCatalog(city) {
       };
     }
   }
-  // District polygons may have arrived after the first city response.
   const boundary = await cityBoundaries(city);
   return {
     ...base,

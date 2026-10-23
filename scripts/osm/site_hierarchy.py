@@ -1,9 +1,4 @@
-"""OSM site membership, independent of POI category and spatial inference.
-
-The relation is the parent. Geometry/label members remain in the source table
-but do not become child places. Membership does not imply shared tickets,
-ownership, opening hours or navigability. Never convert multipolygon rings.
-"""
+"""根据 OSM site 关系构建成员层级并识别循环关系。"""
 from collections import Counter, defaultdict
 
 VERSION = 'osm-site-hierarchy/1'
@@ -15,7 +10,6 @@ def osm_id(kind, ref):
 
 
 def cyclic_pairs(pairs):
-    """Iterative Kosaraju: quarantine only edges within cyclic components."""
     pairs = set(pairs)
     graph, reverse = defaultdict(set), defaultdict(set)
     for parent, child in pairs:
@@ -56,12 +50,6 @@ def cyclic_pairs(pairs):
 
 
 def build_graph(sites, objects):
-    """sites must be a deduplicated, version-selected map of site relations.
-
-    All members are retained, including unavailable objects and technical roles.
-    Existing catalog categories are inputs, never inferred from their parent.
-    Multiple parents are legitimate source facts; no arbitrary single-parent pick.
-    """
     members, grouped = [], defaultdict(list)
     for parent_id, site in sorted(sites.items()):
         if site['tags'].get('type') != 'site':

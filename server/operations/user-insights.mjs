@@ -1,3 +1,5 @@
+/* 查询用户资料、偏好和相关业务记录。 */
+
 import {z} from 'zod';
 import {eventFilters} from './routes.mjs';
 import {requireManagement} from './permissions.mjs';
@@ -46,7 +48,6 @@ export function installUserInsights(app,{query,events,readInferred=async()=>({in
     const [from,to]=eventFilters(req.query);
     const source=z.enum(['all','operation','business','product']).default('all').parse(req.query.source);
     const type=z.enum(['all','navigation','request','admin','trip','citywalk','journey','memory','agent']).default('all').parse(req.query.type);
-    // Historical business timestamps are labeled as records, never invented clicks.
     const rows=(await query(`WITH timeline AS (
       SELECT 'operation:'||id id,created_at,'operation' source,kind type,action,resource_id,request_id,status,duration_ms,
         jsonb_build_object('metadata',metadata) detail FROM operation_events WHERE user_id=$1 AND kind<>'system' AND created_at >= $2 AND created_at < $3

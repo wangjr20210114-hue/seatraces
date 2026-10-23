@@ -1,3 +1,5 @@
+/* 检查待发布文件，提交版本并调用发布入口。 */
+
 import {spawnSync} from 'node:child_process';
 import {readFileSync,existsSync,statSync} from 'node:fs';
 import path from 'node:path';
@@ -88,7 +90,6 @@ async function main(){
     if(files.length){
       if(!message.trim())throw Error('请提供 --message 提交说明。');
       for(let i=0;i<files.length;i+=80)run(git,['add','--',...files.slice(i,i+80)]);
-      // Scan the exact staged blobs as well, including files edited during checks.
       for(const file of split(run(git,['diff','--cached','--name-only','--diff-filter=ACMR','-z'])))scanForSecrets(file,Buffer.from(run(git,['show',':'+file])),known);
       run(git,['commit','-m',message],{inherit:true});
     }

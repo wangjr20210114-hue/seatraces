@@ -1,3 +1,5 @@
+/* 验证页面导航与返回。 */
+
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createPageNavigation } from "../public/page-navigation.js";

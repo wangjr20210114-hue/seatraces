@@ -1,4 +1,5 @@
-// Standalone offline review. No production APIs, remote assets, or model names.
+/* 处理人工偏好盲评页面的选择与提交。 */
+
 (() => {
   const study = JSON.parse(document.getElementById('study-data').textContent), storageKey = 'seatraces-review-' + study.protocolId;
   const $ = id => document.getElementById(id), random = n => crypto.getRandomValues(new Uint32Array(1))[0] % n;
@@ -18,7 +19,6 @@
   }
   if (!validState(state)) {
     if (state) $('status').textContent = '本机旧进度不完整，已重新开始本轮评审。';
-    // Repeated judgments are placed later, apart from their original question.
     state = { protocolId: study.protocolId, reviewerId: crypto.randomUUID(), order: [...shuffle(study.tasks.slice(0, study.primaryCount).map(t => t.id)), ...shuffle(study.tasks.slice(study.primaryCount).map(t => t.id))], optionOrders: {}, responses: {}, index: 0 };
     for (const task of study.tasks) state.optionOrders[task.id] = shuffle(task.options.map(p => p.key));
   }

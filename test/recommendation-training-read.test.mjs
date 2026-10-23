@@ -1,3 +1,5 @@
+/* 验证推荐训练数据读取。 */
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {iterationFixture} from './helpers/iteration-db.mjs';
@@ -24,8 +26,6 @@ test('REC-M02 empty data finishes; a page error rejects the batch rather than tr
  },'real'),/interrupted page/);
 });
 
-// Independent reference for the pre-fix single-query behavior. Only this small
-// disposable fixture may read complete traces; production code never uses it.
 async function legacySamples(query,scope){
  const rows=(await query(`SELECT e.user_id,e.post_id,e.created_at,e.item_vector,r.user_vector,u.synthetic_batch_id,r.trace->'items' trace_items,
   (SELECT jsonb_agg(jsonb_build_object('kind',s.kind,'active',s.active)) FROM (
@@ -52,8 +52,6 @@ test('REC-M03 paginated SQL matches legacy samples and model weights across tied
   const ids=(await f.query('SELECT id FROM posts ORDER BY id')).rows.map(r=>r.id),vector=profileVector({}, {interests:['人文']});
   const trace={items:ids.map((id,i)=>({id,parts:i===0?null:{coarse:.4,affinity:i/50,author:0,city:0,quality:.4,fresh:.3,seen:0,tower:0},unused:'omitted detail '.repeat(100)}))};
   await f.query("INSERT INTO recommendation_requests(id,user_id,profile_version,user_vector,context,candidate_ids,trace,algorithm) SELECT gen_random_uuid(),id,0,$1,'{}',$2,$3,'pagination-test' FROM users WHERE username LIKE 'read_case_%'",[vector,ids,trace]);
-  // Some timestamps are identical; the remainder differ by microseconds but
-  // all become the same millisecond in JS. Both cases cross 500-row boundaries.
   await f.query(`INSERT INTO social_impressions(id,user_id,post_id,context,visible_ms,created_at)
    SELECT gen_random_uuid(),u.id,p.id,'feed',5000,date_trunc('milliseconds',now()-interval '20 days')+floor((row_number() OVER(ORDER BY u.id,p.id)-1)/3)*interval '1 microsecond'
    FROM users u CROSS JOIN posts p WHERE u.username LIKE 'read_case_%'`);

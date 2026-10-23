@@ -1,4 +1,5 @@
-// Frozen pretrained text encoders, CPU-only. No database or serving imports.
+/* 对比不同嵌入模型的旅行语义排序效果。 */
+
 import {readFile,writeFile,mkdir} from 'node:fs/promises';
 import {fileURLToPath,pathToFileURL} from 'node:url';
 import {resolve} from 'node:path';
@@ -20,7 +21,6 @@ export function historyVector(row,posts,profiles){
   if(row.historyWindowEnds.some(end=>end>=row.at))throw Error('Future feedback in history');
   const sum=Array(initial.length).fill(0);
   for(let h=0;h<row.history.length;h++){
-    // Fixed seven-day half-life; no current label or current feedback weight.
     const age=row.at-(row.historyWindowEnds[h]-7*86400000),w=2**(-age/(7*86400000));
     for(let j=0;j<sum.length;j++)sum[j]+=posts[row.history[h]][j]*w;
   }
@@ -43,7 +43,6 @@ async function main(){
   if(!installed||installed.revision!==spec.revision)throw Error('Pinned model is not installed');
   for(const file of installed.files){
     const raw=await readFile(new URL('models/'+alias+'/'+file.name,root));
-    // digest() accepts strings, so hash binary directly.
     const {createHash}=await import('node:crypto');
     if(raw.length!==file.bytes||createHash('sha256').update(raw).digest('hex')!==file.sha256)throw Error('Installed model checksum mismatch');
   }

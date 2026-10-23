@@ -1,3 +1,5 @@
+/* 查询城市边界，整理地图展示范围。 */
+
 import { amap } from "../integrations/amap.mjs";
 import { toGcj, toWgs } from "../../public/coordinates.js";
 import { distance } from "../planner.mjs";
@@ -138,8 +140,6 @@ export async function cityBoundaries(city) {
     };
     cache.set(city.id, { value, expires: Date.now() + 6 * 3600_000 });
     if (cache.size > 20) cache.delete(cache.keys().next().value);
-    // The city outline is sufficient to fetch candidates. District enrichment
-    // continues off the critical path and reuses the provider's paced queue.
     void (async () => {
       let failed = 0;
       const failures = [];

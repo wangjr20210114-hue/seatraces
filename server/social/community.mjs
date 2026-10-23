@@ -1,3 +1,5 @@
+/* 提供社区信息流、帖子详情和互动通知。 */
+
 import {randomUUID} from 'node:crypto';
 import {z} from 'zod';
 import {failure,paging} from './drafts.mjs';
@@ -23,8 +25,6 @@ export function installSocialCommunity(app,{auth,query,transaction,rank=async ro
    session=(await query('SELECT * FROM social_feed_sessions WHERE id=$1 AND user_id=$2 AND expires_at>now()',[id,req.user.id])).rows[0];
    if(!session)throw failure('这一页已过期，请刷新',410);if(session.scope!==b.scope)throw failure('分页范围不一致');
   }else{
-   // A bounded, frozen list of IDs prevents duplicate or skipped cards when a
-   // new post or a preference change arrives between page requests.
    const recommendation=b.scope==='recommended'&&recommend?await recommend(req.user,{q:b.q,city:b.city,exclude:b.exclude||[],explore:req.method==='POST'}):null;
    let rows=recommendation?.rows||(await query(`SELECT p.id,p.user_id,p.tags,p.created_at,ps.kind source_kind FROM posts p JOIN users u ON u.id=p.user_id LEFT JOIN post_sources ps ON ps.post_id=p.id
      WHERE ${visiblePost()} AND u.disabled_at IS NULL

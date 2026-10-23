@@ -1,3 +1,5 @@
+/* 展示指定日期的地点开放时间和查询状态。 */
+
 import { setIconLabel } from './ui-icons.js';
 import { placeTimeZone } from "./travel-time.js";
 import { safeSourceUrl, knownFact } from "./place-information.js";

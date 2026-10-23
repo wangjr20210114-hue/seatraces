@@ -1,4 +1,5 @@
-// This registry is code-owned. Neither user text nor retrieved documents can add tools.
+/* 定义 AI 可用功能、页面入口和产品知识。 */
+
 export const pages = {
   home: {
     title: "旅行",

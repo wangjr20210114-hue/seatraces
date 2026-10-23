@@ -1,8 +1,4 @@
-"""One-shot activation of existing bounded place semantics and Amap forecast.
-
-No credentials, schema changes, downloads, model training or arbitrary commands.
-The application image remains the reviewed mail/intelligence release.
-"""
+"""启用地点语义匹配和天气功能，检查配置与运行结果。"""
 from pathlib import Path
 import concurrent.futures,hashlib,json,os,re,subprocess,sys,threading,time,urllib.request,urllib.error,uuid
 
@@ -86,7 +82,6 @@ def provision():
         today=time.strftime('%Y-%m-%d',time.gmtime(time.time()+8*3600))
         plan={'schemaVersion':'journey/2','cities':[city],'days':[{'cityId':city['id'],'date':today,'stops':[]},{'cityId':city['id'],'date':'2099-01-01','stops':[]}],'releaseTestData':True}
         db.execute("INSERT INTO trips(id,user_id,title,request,plan) VALUES(%s,%s,'功能验收临时行程','{}',%s)",(fixtures['trip'],users[0]['id'],json.dumps(plan)))
-    # Independent cleanup after expiry also covers a worker crash.
     directory=Path('/var/lib/seatraces/place-weather');file=directory/('fixture-'+batch+'.json')
     save(file,json.dumps(fixtures).encode())
     subprocess.Popen([sys.executable,str(Path(__file__).resolve()),'--cleanup',str(file)],stdin=subprocess.DEVNULL,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,start_new_session=True)
@@ -120,8 +115,6 @@ def acceptance():
           'elapsedMs':round((time.monotonic()-started)*1000),'cachedRequests':12},'officialAlerts':warnings.get('status'),
           'permissions':'anonymous 401, other owner 404, invalid parameters 400','modelDownloads':0,'llmCalls':0,'maxWeatherProviderCalls':1}
     finally:
-        # Allow the normal one-second audit buffer to flush before deleting only
-        # these two temporary identities. No formal-user rows are touched.
         time.sleep(2);cleanup(fixtures)
 
 def backend_state():
@@ -138,7 +131,6 @@ def activate():
         for name,sha in MODEL_FILES.items():
             path=ROOT/'cache/models/bge-small-zh-v1.5'/name
             if path.is_symlink() or not path.is_file() or hashlib.sha256(path.read_bytes()).hexdigest()!=sha:raise RuntimeError('PINNED_MODEL_CHECK_FAILED')
-        # Inspect booleans only, never print keys or the server environment.
         config=json.loads(run(['docker','exec','seatraces-business-backend-1','node','-e',"console.log(JSON.stringify({amap:!!process.env.AMAP_KEY,semantic:process.env.EMBEDDING_ENABLED==='true'}))"]))
         if not config.get('amap'):raise RuntimeError('EXISTING_AMAP_KEY_MISSING')
         with connection() as db:

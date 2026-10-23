@@ -1,3 +1,5 @@
+// 向 Web 页面提供原生定位能力并校验调用权限。
+
 import { geoLocationManager } from '@kit.LocationKit';
 import { abilityAccessCtrl, common } from '@kit.AbilityKit';
 import { BusinessError } from '@kit.BasicServicesKit';

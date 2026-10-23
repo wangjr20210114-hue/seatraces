@@ -1,3 +1,5 @@
+/* 管理后台成员、角色和访问权限。 */
+
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const labels={administrator:'管理员',operator:'运营',support:'客服',analyst:'只读分析'};
 export async function mountAdminAccess({content,status,api,isCurrent}) {

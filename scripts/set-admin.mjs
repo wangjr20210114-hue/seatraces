@@ -1,4 +1,5 @@
-// Run by an operator who already has local database access. No default admin or password.
+/* 设置指定账号的后台管理员身份。 */
+
 import 'dotenv/config';
 import pg from 'pg';
 import {readFile} from 'node:fs/promises';

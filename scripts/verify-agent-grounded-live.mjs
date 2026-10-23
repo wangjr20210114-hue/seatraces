@@ -1,5 +1,5 @@
-// Explicit, bounded acceptance: local disposable accounts/schema, actual BGE
-// and DeepSeek, existing local budget ledger. Never uses production accounts.
+/* 检查 AI 回答的资料依据和实际服务结果。 */
+
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
 import {readFile,mkdir,writeFile} from 'node:fs/promises';

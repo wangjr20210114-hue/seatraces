@@ -1,4 +1,5 @@
-// This preload applies to the isolated native test process and its child workers.
+/* 为模拟器测试配置网络请求行为。 */
+
 const originalFetch = globalThis.fetch;
 globalThis.fetch = (input, init) => {
   const url = new URL(

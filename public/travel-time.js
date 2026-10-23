@@ -1,5 +1,5 @@
-// Interpret itinerary wall-clock times in the departure location, never the
-// browser/server's own zone. Ambiguous DST times require a different selection.
+/* 处理旅行地点时区，将出发日期和时间转换为时间点。 */
+
 export function placeTimeZone(place) {
   if(place?.timezone)return place.timezone;
   const countries={CN:'Asia/Shanghai',HK:'Asia/Hong_Kong',MO:'Asia/Macau',TW:'Asia/Taipei',JP:'Asia/Tokyo',KR:'Asia/Seoul',TH:'Asia/Bangkok',VN:'Asia/Ho_Chi_Minh',MY:'Asia/Kuala_Lumpur',SG:'Asia/Singapore',BN:'Asia/Brunei',MV:'Indian/Maldives'};

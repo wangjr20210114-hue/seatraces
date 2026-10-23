@@ -1,3 +1,5 @@
+/* 在独立数据库中恢复备份并核对业务数据。 */
+
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { randomBytes, createHash } from "node:crypto";
 import path from "node:path";
@@ -5,7 +7,6 @@ import { fileURLToPath } from "node:url";
 import assert from "node:assert/strict";
 import pg from "pg";
 
-// Local prototype only. Never accepts a remote database or overwrites an existing DB.
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const config = JSON.parse(await readFile(path.join(root, ".runtime/local.json"), "utf8"));
 const connection = { host: "127.0.0.1", port: config.port, user: "seatraces", password: config.password };
@@ -28,7 +29,6 @@ try {
   await mkdir(directory, { recursive: true });
   const filename = "rows-" + backup.createdAt.replace(/[:.]/g, "-") + ".json";
   await writeFile(path.join(directory, filename), JSON.stringify(backup), { mode: 0o600 });
-  // Re-read the saved artifact: verification must exercise the backup on disk.
   const saved = JSON.parse(await readFile(path.join(directory, filename), "utf8"));
   await admin.connect();
   await admin.query(`CREATE DATABASE "${temporaryName}"`);
@@ -54,7 +54,6 @@ try {
 } finally {
   await source.end().catch(() => {});
   if (restored) await restored.end().catch(() => {});
-  // Only this invocation's randomly named scratch database is removed.
   if (created) await admin.query(`DROP DATABASE "${temporaryName}"`);
   await admin.end().catch(() => {});
 }

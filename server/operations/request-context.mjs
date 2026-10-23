@@ -1,11 +1,11 @@
+/* 传递请求上下文，关联业务修改与事件记录。 */
+
 import {AsyncLocalStorage} from 'node:async_hooks';
 const storage=new AsyncLocalStorage();
 const uuid=/^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/i;
 export const requestContext=()=>storage.getStore();
 export function withRequestContext(req,res,next) {
   if(!req.user||!uuid.test(req.operationRequestId||''))return next();
-  // These are correlation hints, not authorization; handlers still validate
-  // resource ownership before any write. Never store cookies, bodies or URLs.
   const path=req.originalUrl.split('?')[0];
   const session=path.match(/^\/api\/journey\/sessions\/([\da-f-]{36})(?:\/|$)/)?.[1];
   const draft=/^\/api\/citywalks(?:\/|$)/.test(path)?req.body?.draftId:null;

@@ -1,6 +1,5 @@
-// Questionnaires retain presentation/planning data, not full provenance copies.
-// Complete OSM records stay behind /api/catalog/place and /place-batch; inference
-// evidence stays in scenic_hierarchy_results and is loaded by the detail route.
+/* 提取地点和景区摘要，生成对应数据库投影。 */
+
 export const scenicSummaryVersion = "scenic-summary/1";
 export const summaryFields = [
   "id",
@@ -90,9 +89,6 @@ export function scenicSummary(place, depth = 0) {
 const literals = (keys) => keys.map((k) => "'" + k + "'").join(",");
 const projection = (expr, keys) =>
   `(SELECT coalesce(jsonb_object_agg(f.key,f.value),'{}'::jsonb) FROM jsonb_each(${expr}) f WHERE f.key IN (${literals(keys)}))`;
-// Generated from trusted constants; no user string is interpolated into SQL.
-// Eight nested child arrays cover the supported hierarchy. Deeper legacy data
-// is retained for validation rather than silently truncated.
 export function scenicSummarySql(expr, depth = 0) {
   const item = "child" + depth;
   const children =

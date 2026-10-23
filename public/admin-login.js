@@ -1,3 +1,5 @@
+/* 提交后台登录信息，展示登录结果。 */
+
 const form=document.querySelector('#admin-login-form'),button=document.querySelector('#admin-sign-in'),error=document.querySelector('#admin-login-error');
 let busy=false;
 form.onsubmit=async event=>{
@@ -12,7 +14,6 @@ form.onsubmit=async event=>{
   }catch(e){error.textContent=e instanceof TypeError?'暂时连不上服务，请稍后重试':e.message;form.elements.password.value='';form.elements.password.focus();}
   finally{busy=false;button.disabled=false;button.textContent='登录后台';}
 };
-// Only an existing management session can skip this form, never an app login.
 void fetch('/api/auth/admin/me',{cache:'no-store'}).then(async response=>{
   if(response.ok&&(await response.json()).access&&!busy)location.replace('/admin.html');
 }).catch(()=>{});

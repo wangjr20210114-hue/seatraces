@@ -1,3 +1,5 @@
+/* 验证站内信发送与阅读。 */
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';

@@ -1,4 +1,4 @@
-"""Focused gateway checks; Windows stubs flock only, no server effects."""
+"""验证Git 发布入口。"""
 import importlib.util,io,json,sys,tarfile,tempfile,unittest
 from contextlib import redirect_stdout
 from pathlib import Path

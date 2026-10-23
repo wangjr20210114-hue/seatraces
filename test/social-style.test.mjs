@@ -1,3 +1,5 @@
+/* 验证旅行风格特征与画像。 */
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';

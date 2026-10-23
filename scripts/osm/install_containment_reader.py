@@ -1,4 +1,4 @@
-"""Add the new hierarchy to the existing reader after a validated build. Roll back on errors."""
+"""安装几何层级查询接口并验证结果。"""
 from datetime import datetime,timezone
 import json
 from pathlib import Path

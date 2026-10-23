@@ -1,3 +1,5 @@
+/* 提供行程周边服务推荐、选择和移除接口。 */
+
 import { z } from "zod";
 import { randomUUID } from "node:crypto";
 import { query as dbQuery, transaction as dbTransaction } from "../db.mjs";
@@ -142,7 +144,6 @@ export function installTripServiceRoutes(
             JSON.stringify(payload),
           ],
         );
-        // Old scopes never grow indefinitely; saved selections live in trip versions.
         await query(
           "DELETE FROM trip_service_recommendations WHERE trip_id=$1 AND expires_at<now()",
           [trip.id],
@@ -168,7 +169,6 @@ export function installTripServiceRoutes(
       const body = recommendationInput.parse(req.body),
         trip = await own(req.params.id, req.user.id),
         slots = [];
-      // The read gateway permits two queries. Sequential reads avoid a burst per user.
       for (const slot of serviceSlots(trip.plan, body.day, {
         groupMeals: body.groupMeals,
       })) {

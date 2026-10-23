@@ -1,3 +1,5 @@
+/* 处理注册、登录、邮件验证和密码找回。 */
+
 import { setIconLabel, mountStaticIcons } from './ui-icons.js';
 mountStaticIcons();
 const $ = s => document.querySelector(s);

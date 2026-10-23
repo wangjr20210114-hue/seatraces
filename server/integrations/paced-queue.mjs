@@ -1,4 +1,5 @@
-// Space requests instead of retrying rejected, potentially billable calls.
+/* 按设定间隔依次执行外部服务请求。 */
+
 export function createPacedQueue({
   intervalMs = 1200,
   now = Date.now,

@@ -1,4 +1,4 @@
-"""Bounded live checks using the existing reader; no database data/schema changes."""
+"""检查实际运行的地点查询服务。"""
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 import json
@@ -27,7 +27,6 @@ def run():
                                      'elapsed_ms': round((time.perf_counter()-started)*1000, 2),
                                      'detail': detail})
         except Exception as error:
-            # Never serialize connection settings or credentials.
             report['checks'].append({'name': label, 'passed': False,
                                      'error_type': type(error).__name__,
                                      'sqlstate': getattr(error, 'sqlstate', None),

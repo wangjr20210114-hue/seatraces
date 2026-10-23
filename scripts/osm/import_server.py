@@ -1,4 +1,4 @@
-"""Run the importer with server-local credentials; no passwords in process arguments."""
+"""使用服务器配置执行地点数据导入。"""
 import argparse
 import importlib.util
 import json

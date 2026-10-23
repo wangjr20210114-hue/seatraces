@@ -1,3 +1,5 @@
+/* 验证信息流分页加载。 */
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createFeedPager } from '../public/feed-pager.js';

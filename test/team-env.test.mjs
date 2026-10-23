@@ -1,3 +1,5 @@
+/* 验证团队环境文件加解密。 */
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';

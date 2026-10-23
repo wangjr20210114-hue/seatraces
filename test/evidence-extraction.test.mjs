@@ -1,3 +1,5 @@
+/* 验证地点事实提取。 */
+
 import test from "node:test";
 import assert from "node:assert/strict";
 import { validateExtractedFacts } from "../server/services/evidence-extraction.mjs";

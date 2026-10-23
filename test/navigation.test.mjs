@@ -1,3 +1,5 @@
+/* 验证路线导航与步行进度。 */
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { walkingGeometry, walkingProgress, navigationUrl } from '../public/navigation.js';

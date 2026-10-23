@@ -1,8 +1,4 @@
-"""Bounded, loopback-only HTTP gateway for the existing read-only OSM account.
-
-No provider content is written into OSM. No database owner credential is read.
-Run on the database host, then use the application backend or an SSH tunnel.
-"""
+"""提供 OSM 地点检索接口，整理名称、分类、位置和来源资料。"""
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -81,9 +77,6 @@ def search_sql(b, alias_ids=None):
             args['pair'] = [b['q'].lower()]
             condition += ' AND p.name_pairs @> %(pair)s'
     distance = 'NULL::double precision' if b['lon'] is None else 'ST_Distance(p.location,ST_SetSRID(ST_MakePoint(%(lon)s,%(lat)s),4326)::geography)'
-    # Retrieve source-name and editorial-alias candidates independently. A broad
-    # OR across the text and primary-key predicates scanned millions of rows in
-    # acceptance; UNION ALL preserves each branch's existing index access.
     projection = '''SELECT p.id,p.name,p.aliases,p.category,p.subcategory,
       p.lon,p.lat,p.city,p.province,p.country_code,p.opening_hours,p.fee,p.access,p.tags,p.coordinate_role,
       i.region AS extract_region,i.pbf_timestamp AS source_timestamp,i.loaded_at AS source_loaded_at,''' + distance + ''' AS distance_m
@@ -93,9 +86,6 @@ def search_sql(b, alias_ids=None):
     if condition and args['ids']:
         branches.append(projection + ' AND p.id=ANY(%(ids)s)')
     if not b['q']:
-        # GiST KNN reads a bounded nearby pool before expensive projection and
-        # deduplication. Final ordering uses ellipsoidal distance within this pool;
-        # this is candidate retrieval, not a globally optimal road route.
         args['pool_limit']=max(120,b['limit']*8)
         branches=[projection+' ORDER BY p.location <-> ST_SetSRID(ST_MakePoint(%(lon)s,%(lat)s),4326)::geography LIMIT %(pool_limit)s']
     sql = 'WITH candidates AS MATERIALIZED (' + ' UNION ALL '.join(branches) + '''),
@@ -125,7 +115,6 @@ def present(row):
        'sourcePreserved':True}
     if not country and r['extract_region'] in COUNTRIES:
         country, country_source = COUNTRIES[r['extract_region']], 'extract_region_hint'
-    # China includes Hong Kong/Macao; do not infer mainland routing eligibility.
     r.update(lng=r.pop('lon'),country=country,countrySource=country_source,coord_system='WGS84',
              source='OpenStreetMap',license='ODbL-1.0',source_url='https://www.openstreetmap.org/'+r['id'][4:],
              data_status='reference',verified_at=None)
@@ -145,9 +134,6 @@ def present(row):
     for key,val in fields.items():
         original=val
         if isinstance(val,str):val=clean_text(val)
-        # fee is a flag, not a price. Historic numeric tags lack a reliable
-        # currency/scope, so retain them as source values without displaying a
-        # guessed ticket price or the nonsensical flag "是否收费: 90".
         if key=='fee' and val not in ('yes','no','donation'):val=None
         r['facts'][key] = {'value':val or None,'rawValue':original,'status':'source_reported' if val else 'unknown',
                            'source':'OpenStreetMap' if val else None,'sourceTimestamp':r['source_timestamp'] if val else None,'verifiedAt':None}
@@ -168,10 +154,6 @@ class Gateway:
             with psycopg.connect(**self.config,connect_timeout=3,row_factory=dict_row) as conn:
                 conn.execute("SELECT set_config('statement_timeout',%s,true)",(str(timeout_seconds*1000),))
                 conn.execute('SET LOCAL transaction_read_only=on')
-                # Radius estimates can be several thousand times too low here,
-                # causing bitmap+sort despite LIMIT. Only the bounded KNN query
-                # uses this transaction-local plan setting; named searches retain
-                # their GIN bitmap plans. No global database setting is changed.
                 if isinstance(args,dict) and 'pool_limit' in args:
                     conn.execute('SET LOCAL enable_bitmapscan=off')
                 return conn.execute(sql,args).fetchall()
@@ -275,7 +257,6 @@ def handler(gateway):
                 self.reply(429,{'error':'地点查询繁忙，请稍后重试','code':'catalog_busy'})
             except Exception as e:
                 code='catalog_query_timeout' if getattr(e,'sqlstate',None)=='57014' else 'catalog_unavailable'
-                # No SQL, query names, coordinates, configuration or secrets in logs.
                 print(json.dumps({'event':'catalog_error','code':code,'type':type(e).__name__}),file=sys.stderr,flush=True)
                 self.reply(504 if code=='catalog_query_timeout' else 503,{'error':'地点查询超时，请缩小范围重试' if code=='catalog_query_timeout' else '地点服务暂时不可用','code':code})
         def reply(self,status,value):
@@ -287,7 +268,7 @@ def handler(gateway):
             self.end_headers()
             self.wfile.write(data)
         def log_message(self,*args):
-            pass  # No locations, names or credentials in routine access logs.
+            pass
     return Handler
 
 if __name__=='__main__':

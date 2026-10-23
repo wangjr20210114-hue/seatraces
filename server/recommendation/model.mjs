@@ -1,5 +1,5 @@
-// A trainable dual encoder, not a renamed cosine rule. Small CPU SGD model;
-// training runs in a CLI/worker, never in the feed HTTP handler.
+/* 定义推荐模型的编码、评分、训练和评估方法。 */
+
 import {dot,validVector,clamp} from './features.mjs';
 import {createHash} from 'node:crypto';
 const canonical=v=>Array.isArray(v)?v.map(canonical):v&&typeof v==='object'?Object.fromEntries(Object.keys(v).sort().map(k=>[k,canonical(v[k])])):v;
@@ -29,8 +29,6 @@ export function trainTower(samples,{seed=7,epochs=18,rate=.025}={}){
  if(!validateTower(m))throw Error('Training produced invalid weights');
  return {model:m,loss:history};
 }
-// A separately learned fine ranker uses crossed features, not the retrieval
-// score alone. The rule score remains available for missing/rejected models.
 export function rankInputs({coarse=0,affinity=0,author=0,fresh=0,quality=0,city=0,seen=0,tower=0}){
  return [clamp(coarse/5),affinity,clamp(author/3),fresh,quality,city,seen,tower,affinity*city,quality*affinity,1];
 }

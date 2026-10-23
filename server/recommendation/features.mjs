@@ -1,3 +1,5 @@
+/* 提取内容特征，将地点与用户兴趣转换为向量。 */
+
 import {createHash} from 'node:crypto';
 import {styleDimensions,featuresFromPlaces,interestMap} from '../social/features.mjs';
 export const algorithm='recommendation/2';
@@ -39,7 +41,7 @@ export function vectorize(values={},cities=[],facts={}){
  if(Number.isFinite(facts.dayCount))v[78]=Math.min(1,facts.dayCount/14);
  if(Number.isFinite(facts.stopCount))v[79]=Math.min(1,facts.stopCount/30);
  if(Number.isFinite(facts.distanceM))v[80]=Math.min(1,facts.distanceM/15000);
- v[95]=.1; // Constant feature; no invented missing values in the stored profile.
+ v[95]=.1;
  return v;
 }
 export function profileVector(profile,explicit={},context={}){

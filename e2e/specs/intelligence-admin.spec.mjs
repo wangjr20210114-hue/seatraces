@@ -1,3 +1,5 @@
+/* 验证智能功能的后台管理。 */
+
 import {test,expect,signIn} from '../fixtures.mjs';
 test('INTEL-ADM-001 官方资料入口与请求链路、邮件缺配置状态',async({page,context,fixture})=>{
  await signIn(context,fixture,'admin',true);await page.goto('/admin.html#quality');

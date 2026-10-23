@@ -1,5 +1,6 @@
+/* 配置界面测试环境、执行项目和结果输出。 */
+
 import { defineConfig, devices } from "@playwright/test";
-// This suite deliberately cannot target production via BASE_URL/TEST_URL.
 export default defineConfig({
   testDir: "./e2e/specs",
   timeout: 90000,

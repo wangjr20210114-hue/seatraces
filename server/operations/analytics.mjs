@@ -1,3 +1,5 @@
+/* 汇总活跃数据、业务漏斗和趋势指标。 */
+
 import {z} from 'zod';
 import {requireManagement} from './permissions.mjs';
 import {requireRawCoverage} from './archive-coverage.mjs';
@@ -12,8 +14,6 @@ export function analyticsWindow(input,now=new Date()){
   if(to>today||end<=start||end-start>31*dayMs)throw fail('请选择截至今天、不超过 31 天的日期范围');
   return {from,to,start:new Date(start).toISOString(),end:new Date(Math.min(end,now.getTime())).toISOString(),asOf:now.toISOString(),days:Math.round((end-start)/dayMs),timezone:'Asia/Shanghai'};
 }
-// Staff are excluded using current role assignments, never name guesses. A
-// separate audited flag identifies genuine test accounts without deleting them.
 const eligible=`eligible AS (SELECT id,created_at FROM users u WHERE u.role='user' AND NOT u.analytics_excluded AND u.created_at < $2::timestamptz
   AND NOT EXISTS(SELECT 1 FROM admin_memberships m WHERE m.user_id=u.id AND m.enabled))`;
 const activity=`activity AS (
@@ -54,8 +54,6 @@ export function installAnalytics(app,{query,transaction,events,now=()=>new Date(
   });
   app.get('/api/admin/analytics/funnels',requireManagement,async(req,res)=>{
     const w=window(req),kind=z.enum(['journey','citywalk','agent']).default('journey').parse(req.query.kind),spec=funnelSpecs[kind];
-    // Ordered, same-user, same-flow steps; out-of-order and replay events cannot
-    // inflate conversion. Late completions are allowed for seven days per start.
     let sql=`WITH ${eligible}, e AS NOT MATERIALIZED (SELECT p.* FROM product_events p JOIN eligible u ON u.id=p.user_id
       WHERE p.created_at >= $1 AND p.created_at <= $3 AND p.event_type=ANY($4::text[]) AND p.resource_type='${kind}'),
       step0 AS (SELECT user_id,${spec.key} flow,min(created_at) started,min(created_at) t0 FROM e

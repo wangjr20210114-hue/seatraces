@@ -1,3 +1,5 @@
+/* 连接推荐实验使用的本地数据库。 */
+
 import pg from 'pg';
 import {readFile} from 'node:fs/promises';
 export async function localDatabase(){

@@ -1,4 +1,4 @@
-"""One resumable, detached batch. No credentials, schedules or provider calls."""
+"""启动景点实体去重任务。"""
 import argparse
 import json
 import os

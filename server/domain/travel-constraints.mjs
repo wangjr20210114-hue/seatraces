@@ -1,3 +1,5 @@
+/* 按当前旅行要求筛选地点并计算游览预算。 */
+
 import {dayBudget,visitAllowance} from './day-budget.mjs';
 import {distance} from '../planner.mjs';
 const canonical=s=>String(s||'').normalize('NFKC').replace(/[\s·•（）()]/g,'').toLowerCase();
@@ -18,7 +20,6 @@ export function visitDuration(place,prefs={}){
 }
 export function walkingEstimate(previous,place,prefs={}){
   if(!previous)return 0;
-  // Explicitly an allowance, never actual road or in-attraction walking distance.
   const km=distance(previous,place);
   return km<=1.2&&prefs.transport!=='fewWalking'?km*1.3:.6;
 }

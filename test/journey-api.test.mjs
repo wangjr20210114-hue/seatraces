@@ -1,3 +1,5 @@
+/* 验证旅行问卷与行程接口。 */
+
 import test from "node:test";
 import assert from "node:assert/strict";
 import { randomBytes, randomUUID } from "node:crypto";

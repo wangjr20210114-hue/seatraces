@@ -1,5 +1,5 @@
-// Small, explicit grammar for the reviewed official records we currently hold.
-// Unrecognised prose stays unparsed; no model guesses enter scheduling.
+/* 从已核验的地点资料中计算开放时间。 */
+
 export function reviewedFact(fact, date, now = new Date()) {
   if (
     !fact ||

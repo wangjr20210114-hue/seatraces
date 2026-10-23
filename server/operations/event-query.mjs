@@ -1,3 +1,5 @@
+/* 校验日志筛选条件并构建查询语句。 */
+
 import {z} from 'zod';
 const fail=message=>Object.assign(Error(message),{status:400});
 export const logColumns=['created_at','username','kind','action','status','duration_ms','request_id','resource_id'];

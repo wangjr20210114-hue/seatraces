@@ -1,3 +1,5 @@
+/* 获取官方页面，管理地点事实来源和更新记录。 */
+
 import {readFile} from 'node:fs/promises';
 import {createHash,randomUUID} from 'node:crypto';
 import {z} from 'zod';

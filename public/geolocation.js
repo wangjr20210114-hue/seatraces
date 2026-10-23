@@ -1,3 +1,5 @@
+/* 获取设备位置，统一原生定位与浏览器定位结果。 */
+
 export function locationMessage(code, harmony = false) {
   if (code === 1 || code === "permission")
     return "未获得定位权限，可在系统设置允许，或手动选出发城市";

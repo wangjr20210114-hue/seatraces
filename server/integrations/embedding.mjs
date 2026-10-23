@@ -1,3 +1,5 @@
+/* 加载嵌入模型，将地点名称转换为语义向量。 */
+
 import { fileURLToPath } from "node:url";
 
 export const embeddingModel = {

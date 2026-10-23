@@ -1,7 +1,8 @@
+/* 定义 AI 操作步骤，校验当前步骤允许执行的动作。 */
+
 import { isDeepStrictEqual } from "node:util";
 import { fail } from "./store.mjs";
 
-// These are application workflows, never model-provided tools or URLs.
 export const workflows = {
   navigate: ["确定页面", "打开页面"],
   create_trip: [
@@ -279,7 +280,6 @@ export function guardWorkflow(ctx, action) {
                     ? "正在保存已确认的内容…"
                     : "正在核对权限与候选…",
       );
-      // The normal endpoint still checks session, ownership, candidate membership and versions.
       const result = await original(method, path, body);
       executed++;
       ctx.progress?.("正在整理结果…");

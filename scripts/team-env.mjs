@@ -1,3 +1,5 @@
+/* 加密和解密团队环境配置文件。 */
+
 import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from 'node:crypto';
 import { mkdir, readFile, writeFile, rename, unlink } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
@@ -66,7 +68,6 @@ export function decryptEnv(envelope, password) {
 export async function saveDecrypted(envelope, password, target) {
   const plaintext = decryptEnv(envelope, password);
   try {
-    // Exclusive creation protects an existing local configuration, including symlinks.
     await writeFile(target, plaintext, { flag: 'wx', mode: 0o600 });
   } finally { plaintext.fill(0); }
 }

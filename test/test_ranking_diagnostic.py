@@ -1,3 +1,5 @@
+"""验证推荐排序诊断。"""
+
 import copy
 import sys
 import unittest

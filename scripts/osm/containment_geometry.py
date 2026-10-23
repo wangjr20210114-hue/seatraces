@@ -1,4 +1,4 @@
-"""Streaming full geometries from existing PBFs; no network and no synthetic boundaries."""
+"""从 OSM PBF 文件中提取地点完整几何数据。"""
 from collections import Counter
 import gzip
 import json
@@ -18,7 +18,6 @@ def extract_geometries(source, cache, fingerprint, emit, *, disk_index=True):
         return target, json.loads(receipt.read_text(encoding='utf8'))
     partial = target.with_suffix('.partial')
     locations = cache / ('locations-' + source['region'] + '.idx')
-    # Index is a disposable node-coordinate cache, never a source or result file.
     if locations.exists():
         locations.unlink()
     counts, issues = Counter(), Counter()
@@ -39,7 +38,6 @@ def extract_geometries(source, cache, fingerprint, emit, *, disk_index=True):
                         coords = [(n.lon,n.lat) for n in obj.nodes if n.location.valid()]
                         if len(coords)!=len(obj.nodes) or len(coords)<2:
                             issues['incomplete_way']+=1;continue
-                        # area=no remains a line, never an enclosing scenic polygon.
                         geom = Polygon(coords) if obj.is_closed() and len(coords)>=4 and tags.get('area')!='no' else LineString(coords)
                         oid = 'osm:way/'+str(obj.id)
                     else:
@@ -63,7 +61,6 @@ def extract_geometries(source, cache, fingerprint, emit, *, disk_index=True):
         receipt.write_text(json.dumps(result,indent=2),encoding='utf8')
         return target,result
     finally:
-        # Closing the processor releases disk-backed indexes on Windows too.
         processor.with_locations(None)
         del processor
         import gc

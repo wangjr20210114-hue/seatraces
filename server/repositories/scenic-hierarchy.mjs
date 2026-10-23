@@ -1,3 +1,5 @@
+/* 读取和保存景区层级评估结果。 */
+
 import { query } from '../db.mjs';
 import { hierarchyPlaceHash } from '../domain/scenic-hierarchy.mjs';
 

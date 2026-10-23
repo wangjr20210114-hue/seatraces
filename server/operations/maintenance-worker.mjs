@@ -1,3 +1,5 @@
+/* 执行后台维护任务，记录步骤进度和结果。 */
+
 import { randomUUID } from "node:crypto";
 
 const interrupted = () =>
@@ -18,7 +20,6 @@ export function createMaintenanceWorker({
       await c.query(
         "SELECT pg_advisory_xact_lock(hashtextextended('seatraces.maintenance-claim',0))",
       );
-      // Expired tasks are visible for review, never silently replayed.
       await c.query(`UPDATE maintenance_tasks SET state='interrupted',error_code='WORKER_INTERRUPTED',
         finished_at=now(),lease_until=NULL,version=version+1 WHERE state='running' AND lease_until<now()`);
       if (

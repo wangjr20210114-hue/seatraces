@@ -1,3 +1,5 @@
+/* 计算地点名称的相似度。 */
+
 export function nameSimilarity(a, b) {
   const norm = (s) =>
     s

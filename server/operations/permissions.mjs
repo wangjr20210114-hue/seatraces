@@ -1,6 +1,6 @@
+/* 定义后台角色权限，校验接口访问资格。 */
+
 import {adminActionRoutes} from './action-definitions.mjs';
-// Every management route must be registered here. Unknown routes fail closed,
-// including for owners, so a new endpoint cannot accidentally bypass review.
 export const roles = Object.freeze({
   administrator: {name:'管理员', permissions:['*']},
   operator: {name:'运营', permissions:['overview.read','analytics.read','users.list','messages.manage','classics.manage','places.read','content.manage']},

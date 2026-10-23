@@ -1,3 +1,5 @@
+/* 保存 AI 会话状态、轮次和待确认操作。 */
+
 import { randomUUID } from "node:crypto";
 import {requestContext} from '../operations/request-context.mjs';
 export const fail = (message, status = 400) =>

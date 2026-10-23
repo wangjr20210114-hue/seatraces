@@ -1,3 +1,5 @@
+"""验证地点包含层级查询。"""
+
 import unittest
 from containment_catalog import annotate_containment
 

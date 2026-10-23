@@ -1,3 +1,5 @@
+/* 展示城市片区和候选地点，处理旅行地点选择。 */
+
 import { toGcj, mainlandEligible } from "./coordinates.js";
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;", "'":"&#39;"}[c]));
 export function uniqueCities(result, limit = 18) {
@@ -47,7 +49,6 @@ export function boundarySvg(data, groups, selected, district = "") {
         )
         .join(""),
     colors = ["#ffdf8e", "#bfe7b5", "#c7dbf5", "#ffc8ac", "#e4d6f5", "#c7ece1"];
-  // Anchors are actual representative POIs. Never displace them to avoid overlap.
   const symbols = groups.map((g) => {
     const anchor = xy(clusterPoint(g, data.city));
     return { g, anchor, x: anchor[0], y: anchor[1] };

@@ -1,9 +1,4 @@
-"""Bounded offline adapter for the official UniSRec FHCKM checkpoint.
-
-Architecture and checkpoint key compatibility follow RUCAIBox UniSRec and
-RecBole (MIT; notices in UNISREC_LICENSE.txt). This is not an online loader.
-The new 608->768 bridge is trained; it is not part of the pretrained model.
-"""
+"""适配 UniSRec 权重，提供序列编码与推荐评分。结构与权重兼容实现参考 RUCAIBox UniSRec 和 RecBole（MIT，见 UNISREC_LICENSE.txt）。"""
 import hashlib
 import math
 from pathlib import Path
@@ -19,7 +14,6 @@ METADATA_GLOBALS = ['config.Config', 'unisrec.UniSRec', 'yaml.loader.FullLoader'
 
 
 class InertMetadata:
-    """Data holder replacing legacy Config/enum/class references. No imports."""
     def __init__(self, *values):
         self.values = values
 
@@ -33,7 +27,6 @@ def read_checkpoint(path):
     unknown = set(torch.serialization.get_unsafe_globals_in_checkpoint(path)) - set(METADATA_GLOBALS)
     if unknown:
         raise ValueError('Unexpected checkpoint globals: ' + str(sorted(unknown)))
-    # Only inert local placeholders are allowed, never the archived Python classes.
     with torch.serialization.safe_globals([(InertMetadata, name) for name in METADATA_GLOBALS]):
         archive = torch.load(path, map_location='cpu', weights_only=True)
     state = archive['state_dict']
@@ -42,7 +35,6 @@ def read_checkpoint(path):
     core = UniSRecCore()
     core.load_state_dict(state, strict=True)
     config = getattr(archive.get('config'), 'final_config_dict', {})
-    # This archive specifies the input dimension in adaptor_layers, not plm_size.
     description = {k: config.get(k) for k in ['hidden_size','inner_size','n_layers','n_heads','MAX_ITEM_LIST_LENGTH','hidden_dropout_prob','attn_dropout_prob','adaptor_dropout_prob','layer_norm_eps','n_exps','adaptor_layers','hidden_act','initializer_range']}
     expected = {'hidden_size':300,'inner_size':256,'n_layers':2,'n_heads':2,'MAX_ITEM_LIST_LENGTH':50,
                 'hidden_dropout_prob':0.5,'attn_dropout_prob':0.5,'adaptor_dropout_prob':0.2,'layer_norm_eps':1e-12,'n_exps':8,'adaptor_layers':[768,300],'hidden_act':'gelu','initializer_range':0.02}

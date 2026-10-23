@@ -1,6 +1,7 @@
+/* 汇总旅行和社区行为，更新兴趣画像并参与规划排序。 */
+
 import {styleAlgorithm,styleDimensions,featuresFromPlaces,routeFeatures,aggregateEvidence,planningStyle,answerFeatures} from './features.mjs';
 import {memoryPreferences} from '../agent/memory.mjs';
-// Project small facts in SQL. Never load questionnaire catalogs or raw POI trees.
 const compactStops=expression=>`(SELECT coalesce(jsonb_agg(jsonb_build_object('name',s->'name','category',s->'category')),'[]') FROM (SELECT s FROM jsonb_path_query(${expression},'$.days[*].stops[*]') s LIMIT 200) x)`;
 export async function enqueueStyle(query,userId){
  await query(`INSERT INTO style_dirty_users(user_id) SELECT id FROM users WHERE id=$1 ON CONFLICT DO NOTHING`,[userId]);
@@ -40,8 +41,6 @@ export async function rebuildStyle(c,userId){
  const featureTrips=[];
  for(const p of trips){const features=routeFeatures({cities:p.cities||[],days:[{stops:p.stops}]});features.facts.dayCount=p.day_count;
   featureTrips.push({source_kind:'journey',source_id:p.id,source_version:p.version,features});
-  // Generated plan facts are not new preferences. Learn from deliberate answers
-  // and edits, avoiding reinforcement of our own recommendations.
   add('trip:'+p.id,answerFeatures(p.answers),1,'trip_answers',p.updated_at);
  }
  const walks=(await c.query(`SELECT id,version,updated_at,city,distance_m,
@@ -52,8 +51,6 @@ export async function rebuildStyle(c,userId){
  }
  const choices=(await c.query('SELECT * FROM user_place_style_choices WHERE user_id=$1 ORDER BY updated_at DESC LIMIT 300',[userId])).rows;
  for(const p of choices)add('choice:'+p.place_id,p.features,p.value<0?.5:2,p.kind==='wish'?'place_wish':'manual_edit',p.updated_at,p.value);
- // Several edits within the same place are a single current choice. Also merge
- // duplicate dimensions from overlapping fact sources rather than accumulating.
  const unique=new Map();for(const r of evidence){const key=r.origin+':'+r.dimension,old=unique.get(key);if(!old||r.weight>old.weight)unique.set(key,r);}
  const rows=[...unique.values()];
  await c.query('DELETE FROM user_style_evidence WHERE user_id=$1',[userId]);
@@ -95,7 +92,6 @@ export async function rankSocial(query,posts,user){
   for(const t of profile.interests||[])if(p.tags.includes(t))p.score+=2;
  }
  ranked.sort((a,b)=>b.score-a.score||a.rank-b.rank);const result=[];
- // Keep some fresh/unseen authors and avoid long runs by a single author.
  while(ranked.length){let index=result.length&&result.length%5===4?ranked.reduce((best,p,i)=>p.rank<ranked[best].rank?i:best,0):0;
   if(result.length>=2&&result.at(-1).user_id===result.at(-2).user_id&&ranked[index].user_id===result.at(-1).user_id){const other=ranked.findIndex(p=>p.user_id!==result.at(-1).user_id);if(other>=0)index=other;}
   result.push(ranked.splice(index,1)[0]);

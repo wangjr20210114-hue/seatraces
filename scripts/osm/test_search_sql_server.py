@@ -1,8 +1,4 @@
-"""Exercise the production search SQL against SELECT-only PostgreSQL fixtures.
-
-Run on the OSM host using its existing read-only reader.json. All fixture rows
-are CTE values: no tables, aliases or source records are created or modified.
-"""
+"""验证地点检索 SQL。"""
 import json
 import unittest
 from pathlib import Path

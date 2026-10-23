@@ -1,3 +1,5 @@
+/* 检查邮件发送配置和连接状态。 */
+
 import 'dotenv/config';
 import {mailConfiguration} from '../server/services/mail-outbox.mjs';
 import {createMailer} from '../server/mail.mjs';

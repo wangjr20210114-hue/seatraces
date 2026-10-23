@@ -1,3 +1,5 @@
+/* 组织景区层级评估任务，校验模型结论并估算用量。 */
+
 import { distance } from '../planner.mjs';
 import { hashJSON } from './scenic-hierarchy.mjs';
 
@@ -64,7 +66,6 @@ export function buildAssessmentJobs(data, confirmed, officialEvidence=[], batchS
     if(!cityRows.has(p.cityId))cityRows.set(p.cityId,[]);
     cityRows.get(p.cityId).push({...brief(p),district:p.district || null,parentOptions:options,evidence});
   }
-  // Round-robin cities so a partial run still covers all five.
   const lists=[...cityRows.entries()].map(([cityId,places])=>{
     const jobs=[];for(let i=0;i<places.length;i+=batchSize)jobs.push({cityId,city:byId.get(places[i].id).city,places:places.slice(i,i+batchSize)});return jobs;
   });
@@ -100,7 +101,6 @@ export function validateAssessment(output,input) {
 }
 
 export function modelCostUpper(body) {
-  // UTF-8 bytes upper-bound input token count, with message framing headroom.
   return Math.ceil(((Buffer.byteLength(JSON.stringify(body))+1000)*2+1800*8)/100)/10000;
 }
 export function modelUsageEstimate(usage) {

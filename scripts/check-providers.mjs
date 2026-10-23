@@ -1,4 +1,5 @@
-// Status is offline. --live performs at most four Amap + one DeepSeek calls.
+/* 检查外部服务配置和实际接口可用性。 */
+
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { performance } from "node:perf_hooks";
@@ -55,8 +56,6 @@ for (const p of requested.filter((p) => !ready.includes(p)))
 let pool;
 try {
   if (ready.length) {
-    // This diagnostic deliberately targets the existing LOCAL application DB,
-    // so it shares the same budget ledger and never invents an unmetered path.
     const local = JSON.parse(
       await readFile(
         new URL("../.runtime/local.json", import.meta.url),
@@ -123,7 +122,6 @@ try {
       });
       for (const mode of ["walking", "transit"])
         await check("amap", mode, async () => {
-          // Public, fixed Suzhou test points in GCJ-02, not device/user locations.
           const r = await amap(
             mode === "walking"
               ? "v5/direction/walking"

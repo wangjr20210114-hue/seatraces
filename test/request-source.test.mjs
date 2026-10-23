@@ -1,3 +1,5 @@
+/* 验证修改请求的来源校验。 */
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import express from 'express';

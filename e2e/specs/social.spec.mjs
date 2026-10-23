@@ -1,8 +1,9 @@
+/* 验证发帖、读帖和社区互动。 */
+
 import { test, expect, signIn, get, write } from "../fixtures.mjs";
 import { check } from "../cases.mjs";
 test.beforeEach(async ({ context, fixture }) => {
   await signIn(context, fixture);
-  // Make individual UI-panel reruns independent of previous reaction/follow state.
   const client = { request: context.request };
   for (const kind of ["like", "save", "recommend"])
     await write(client, "/api/posts/" + fixture.post + "/reactions", {

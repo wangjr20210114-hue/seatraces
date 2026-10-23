@@ -1,3 +1,5 @@
+/* 启动业务服务，注册接口、中间件和后台任务。 */
+
 import {createRequestTracer,createDatabaseTraceSink,installTraceRoutes} from './operations/tracing.mjs';
 import {createSourceCheck} from './request-source.mjs';
 import {apiBudgetStatus} from './domain/api-limits.mjs';
@@ -82,8 +84,6 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const app = express(),
   production = process.env.NODE_ENV === "production";
 app.disable("x-powered-by");
-// Only a configured, private reverse proxy may supply the client address.
-// Never use `true`: direct clients could then spoof rate-limit identities.
 app.set("trust proxy", process.env.TRUST_PROXY || false);
 app.use(
   helmet({
@@ -221,14 +221,11 @@ app.get('/api/maps/google/config',auth,(req,res)=>res.json({
   enabled:process.env.OVERSEAS_MAP_PROVIDER==='google'&&Boolean(process.env.GOOGLE_MAPS_JS_KEY),
   jsKey:process.env.OVERSEAS_MAP_PROVIDER==='google'?(process.env.GOOGLE_MAPS_JS_KEY||null):null,
 }));
-// Only map style requests are forwarded; this is not an open REST proxy.
 app.get(['/_AMapService/v4/map/styles','/api/_AMapService/v4/map/styles'], async(req,res)=>{
   if(!process.env.AMAP_JS_KEY||!process.env.AMAP_JS_SECURITY_CODE)return res.status(503).json({error:'地图显示未配置'});
   const url=new URL('https://webapi.amap.com/v4/map/styles');
   for(const [k,v] of Object.entries(req.query))if(typeof v==='string'&&v.length<2000&&!['key','jscode'].includes(k))url.searchParams.set(k,v);
   url.searchParams.set('key',process.env.AMAP_JS_KEY);url.searchParams.set('jscode',process.env.AMAP_JS_SECURITY_CODE);
-  // Amap checks the browser origin against the JS Key's domain whitelist.
-  // Forward only that origin, never page paths, queries, cookies or credentials.
   let referer;
   try { const source=new URL(req.get('referer')); if(['http:','https:'].includes(source.protocol))referer=source.origin+'/'; } catch {}
   const response=await fetch(url,{signal:AbortSignal.timeout(10000),headers:referer?{Referer:referer}:{}});
@@ -236,7 +233,6 @@ app.get(['/_AMapService/v4/map/styles','/api/_AMapService/v4/map/styles'], async
 });
 app.get('/api/catalog/search', async (req,res)=>res.json(await catalogRequest('/places',catalogQuery.parse(req.query))));
 app.get('/api/catalog/nearby', async (req,res)=>res.json(await nearbyRecommendations(req.query)));
-// Explicit authenticated POST because insufficient local results may incur one paid call.
 app.post('/api/catalog/candidates', auth, async (req,res)=>res.json(await searchCandidates(req.body)));
 app.get('/api/catalog/place', async (req,res)=>{
   const id=z.string().regex(/^osm:(node|way|relation)\/\d{1,20}$/).parse(req.query.id);
@@ -529,7 +525,7 @@ app.post("/api/places/:id/match", auth, async (req, res) => {
   res.json({...result,items:result.items.map(({routing,...item})=>{
     if(!routing)return item;
     try{return {...item,...routeSelections.issue(req.user.id,p.id,routing)};}
-    catch{return item;} // An incomplete provider reference remains view-only.
+    catch{return item;}
   })});
 });
 app.post("/api/transport", auth, async (req, res) => {

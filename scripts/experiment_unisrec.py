@@ -1,4 +1,4 @@
-"""CPU-only offline comparison; no database, network or activation commands."""
+"""运行 UniSRec 离线对比实验并记录效果与资源占用。"""
 import copy
 import ctypes
 import hashlib
@@ -179,7 +179,6 @@ def main():
             if selected is None or best['validation']['ndcgAtK']>selected['validation']['ndcgAtK']:
                 selected={**best,'configuration':config}
             save()
-        # The model and epoch are frozen using validation before test scores.
         torch.save({'algorithm':'offline-unisrec-adapter/1','activationAllowed':False,'configuration':selected['configuration'],'epoch':selected['epoch'],
                     'state_dict':selected['state'],'inputSha256':report['inputSha256'],'checkpointSha256':loaded['sha256']},ROOT/'selected.pt')
         (ROOT/'selection.json').write_text(json.dumps({'configuration':selected['configuration'],'epoch':selected['epoch'],'validation':selected['validation'],'activationAllowed':False},indent=2))

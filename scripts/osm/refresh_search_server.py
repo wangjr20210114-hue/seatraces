@@ -1,4 +1,4 @@
-"""Atomically refresh search functions without changing any place records."""
+"""更新地点检索函数。"""
 import json
 from pathlib import Path
 import sys

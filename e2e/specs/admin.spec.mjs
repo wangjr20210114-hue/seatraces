@@ -1,3 +1,5 @@
+/* 验证后台主要管理流程。 */
+
 import { test, expect, signIn, loginUI, get } from "../fixtures.mjs";
 import { check } from "../cases.mjs";
 import { readFile } from "node:fs/promises";

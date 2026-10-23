@@ -1,9 +1,10 @@
+/* 查询、匹配和缓存周边服务价格。 */
+
 import { createHash } from "node:crypto";
 import { searchAmapAround } from "../integrations/amap.mjs";
 import { toGcj, mainlandEligible } from "../../public/coordinates.js";
 import { matchServicePrice } from "../domain/service-pricing.mjs";
 
-// Share across users/trips. Negative results also persist to avoid repeated billing.
 export function createServicePrices({ query, search = searchAmapAround }) {
   const flights = new Map();
   let retryAfter = 0;

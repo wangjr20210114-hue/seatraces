@@ -1,3 +1,5 @@
+/* 创建问 AI 入口，传递当前页面的旅行上下文。 */
+
 export function mountAgentLauncher(button) {
   const storageKey = "seatraces:ai-position:v1";
   button.innerHTML =
@@ -104,7 +106,6 @@ export function mountAgentLauncher(button) {
   addEventListener("resize", restore);
   addEventListener("hashchange", () => requestAnimationFrame(restore));
   requestAnimationFrame(restore);
-  // Authentication can reveal the launcher after initial layout.
   const observer = new MutationObserver(() => requestAnimationFrame(restore));
   observer.observe(document.body, {
     attributes: true,

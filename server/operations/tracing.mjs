@@ -1,3 +1,5 @@
+/* 记录请求与数据库调用链，提供追踪查询。 */
+
 import {AsyncLocalStorage} from 'node:async_hooks';
 import {randomBytes,randomUUID} from 'node:crypto';
 import {z} from 'zod';
@@ -21,8 +23,6 @@ export function createRequestTracer({write,maximumQueue=128,intervalMs=2000}={})
   const finish=()=>{
    if(finished)return;finished=true;trace.closed=true;
    const end=sampledMemory(),duration=Number((performance.now()-clock).toFixed(2)),route=typeof req.route?.path==='string'?req.route.path:'unresolved';
-   // Only framework route templates, never concrete paths, query strings,
-   // authentication headers, SQL text, parameters or dialogue bodies.
    const record={requestId:req.operationRequestId||randomUUID(),traceId:trace.traceId,method:['GET','POST','PATCH','PUT','DELETE','HEAD','OPTIONS'].includes(req.method)?req.method:'OTHER',route:route.slice(0,160),status:res.writableFinished?res.statusCode:499,durationMs:duration,startedAt:trace.startedAt,
     payload:{rootId:root,spans:trace.spans,droppedSpans:trace.droppedSpans,incompleteSpans:trace.startedSpans-trace.spans.length,
      memory:{rssStart:memory.rss,rssEnd:end.rss,maxSampledRss:Math.max(trace.maxSampledRss,end.rss),heapStart:memory.heap,heapEnd:end.heap,scope:'process_sampled_at_span_boundaries_not_per_request_allocation'}}};
@@ -40,7 +40,6 @@ export function createDatabaseTraceSink(rawQuery){return async batch=>{
   SELECT x.request_id,x.trace_id,x.method,x.route,x.status,x.duration_ms,x.started_at,x.payload FROM jsonb_to_recordset($1::jsonb)
   AS x(request_id uuid,trace_id char(32),method varchar(8),route varchar(160),status integer,duration_ms double precision,started_at timestamptz,payload jsonb)
   ON CONFLICT(request_id) DO NOTHING`,[JSON.stringify(batch.map(x=>({request_id:x.requestId,trace_id:x.traceId,method:x.method,route:x.route,status:x.status,duration_ms:x.durationMs,started_at:x.startedAt,payload:x.payload})))]);
- // Bounded pruning also caps accidental storage growth on busy installations.
  await rawQuery("DELETE FROM request_traces WHERE request_id IN (SELECT request_id FROM request_traces WHERE started_at<now()-interval '7 days' ORDER BY started_at LIMIT 500)");
 };}
 export function installTraceRoutes(app,{query,tracer}){

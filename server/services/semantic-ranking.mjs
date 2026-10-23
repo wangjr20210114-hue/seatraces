@@ -1,3 +1,5 @@
+/* 根据语义向量对候选地点排序。 */
+
 import { embedNames, embeddingModel } from "../integrations/embedding.mjs";
 let busy = false;
 export async function semanticRanking(query, items) {

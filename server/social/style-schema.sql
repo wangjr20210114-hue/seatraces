@@ -1,3 +1,5 @@
+-- 定义旅行风格、行为证据和画像任务的数据表、索引和关联结构。
+
 CREATE TABLE IF NOT EXISTS post_features (
  post_id uuid PRIMARY KEY REFERENCES posts(id) ON DELETE CASCADE, revision integer NOT NULL,
  features jsonb NOT NULL, algorithm text NOT NULL, updated_at timestamptz NOT NULL DEFAULT now()

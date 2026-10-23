@@ -1,3 +1,5 @@
+-- 定义周边服务价格缓存的数据表、索引和关联结构。
+
 CREATE TABLE IF NOT EXISTS place_service_prices (
  place_id text PRIMARY KEY, fingerprint text NOT NULL, payload jsonb NOT NULL,
  checked_at timestamptz NOT NULL DEFAULT now(), expires_at timestamptz NOT NULL

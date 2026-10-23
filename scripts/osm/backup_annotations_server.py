@@ -1,4 +1,4 @@
-"""Back up new enrichment tables and compare a real isolated restore."""
+"""备份地点补充资料，并通过独立恢复核对结果。"""
 from datetime import datetime,timezone
 import hashlib,json,os,subprocess,sys,uuid
 from pathlib import Path

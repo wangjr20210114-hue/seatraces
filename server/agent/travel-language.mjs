@@ -1,3 +1,5 @@
+/* 从自然语言中提取旅行日期、时长和偏好。 */
+
 import { explicitStyle } from "./memory.mjs";
 const dayMs = 86400000;
 const plus = (date, days) =>
@@ -158,8 +160,6 @@ export function travelTiming(
   return result;
 }
 export function tripPreferences(text) {
-  // These conditions affect this trip only. Long-term memory still requires its
-  // existing explicit preview/confirmation workflow.
   const result = {},
     choices = {};
   for (const clause of text
@@ -185,7 +185,6 @@ export function tripPreferences(text) {
       }
     }
   }
-  // Two objectives in the same sentence need a priority, not last-match wins.
   if (/少走路/.test(text) && /少换乘/.test(text))
     choices.transport = ["fewWalking", "fewTransfers"];
   if(!/如果|假如|例如|比如/.test(text)){

@@ -1,4 +1,4 @@
-"""Sequential batch: rebuild/validate/publish, then install and verify reader."""
+"""依次重建 site 层级、安装接口并验证结果。"""
 from pathlib import Path
 import subprocess
 import sys

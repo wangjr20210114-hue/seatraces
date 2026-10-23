@@ -1,5 +1,5 @@
-// Full pending-place assessment. All model decisions are explicitly unverified.
-// Existing provider/official hierarchy remains authoritative and untouched.
+/* 调用 DeepSeek 评估五座城市的景区层级并保存结果。 */
+
 import {readdir,mkdir,unlink} from 'node:fs/promises';
 import dotenv from 'dotenv';
 import {localApiLimitsEnabled} from '../server/domain/api-limits.mjs';
@@ -88,7 +88,7 @@ try {
             job.status='failed_no_automatic_retry';job.errorCode=error.code||'model_request_failed';
           }
           job.usage=usage||null;job.elapsedMs=Date.now()-Date.parse(job.startedAt);
-          await atomicJSON(path,job); // Preserve a paid response even if settlement loses DB access.
+          await atomicJSON(path,job);
           job.estimatedCny=await settleHierarchyAssessment(reservation,usage);
           await atomicJSON(path,job);
         }

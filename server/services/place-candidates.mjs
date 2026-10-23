@@ -1,3 +1,5 @@
+/* 汇总本地和外部地点，按条件检索并筛选候选项。 */
+
 import { candidateQuery } from "../contracts/candidates.mjs";
 import {
   fromOsm,
@@ -28,7 +30,6 @@ const regions = {
   VN: "vietnam",
   MV: "maldives",
 };
-// A floor for automatic substitution, not a calibrated identity probability.
 const SEMANTIC_FLOOR = 0.65;
 function select(items, query) {
   const ranked = items
@@ -155,7 +156,6 @@ export function createCandidateService({
       ),
       query,
     );
-    // Different names need a recall step before embedding can compare them.
     const spatialRecall = { attempted: false, received: 0 };
     if (
       query.intent === "named" &&
@@ -209,7 +209,6 @@ export function createCandidateService({
       else if (!env.AMAP_KEY) fallback.status = "not_configured";
       else {
         fallback.attempted = true;
-        // One bounded page. No crawl, paid retry, second geocoding, or LLM call.
         fallback.requests = 1;
         try {
           const response = await amapSearch({
@@ -240,7 +239,6 @@ export function createCandidateService({
         }
       }
     }
-    // Source facts are never merged or persisted. Near-name duplicate grouping is only for this candidate list.
     const items = select([...localItems, ...supplied], query).slice(
       0,
       query.intent === "named" ? 1 : query.limit,

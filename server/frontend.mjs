@@ -1,3 +1,5 @@
+/* 提供前端静态资源，将 API 请求转发到业务服务。 */
+
 import express from "express";
 import helmet from "helmet";
 import http from "node:http";
@@ -12,8 +14,6 @@ function endToEndHeaders(headers) {
   return Object.fromEntries(Object.entries(headers).filter(([key]) => !blocked.has(key.toLowerCase())));
 }
 
-// Static UI has no PostgreSQL, seed, OSM, or credential dependency. Only explicit
-// API/map-proxy paths go to one configured backend; this is not an open proxy.
 export function createFrontend({ backendOrigin = "http://127.0.0.1:8787", proxyTimeoutMs = 120000, trustProxy = false } = {}) {
   const backend = new URL(backendOrigin);
   if (!["http:", "https:"].includes(backend.protocol) || backend.username || backend.password || backend.pathname !== "/" || backend.search || backend.hash)
@@ -27,15 +27,11 @@ export function createFrontend({ backendOrigin = "http://127.0.0.1:8787", proxyT
   } }, crossOriginEmbedderPolicy: false }));
   app.get("/frontend-health", (req, res) => res.json({ ok: true, service: "seatraces-frontend" }));
   app.use((req, res, next) => {
-    // The admin document is private and only the authenticated backend serves it.
-    // It is deliberately absent from public/, including encoded/case variants.
     if (!/^\/(?:api|_AMapService)(?:\/|\?|$)/.test(req.originalUrl) && !/^\/admin(?:\.html)?\/?(?:\?|$)/i.test(req.originalUrl)) return next();
     const request = (backend.protocol === "https:" ? https : http).request({
       protocol: backend.protocol, hostname: backend.hostname, port: backend.port,
       method: req.method, path: req.originalUrl,
       headers: { ...endToEndHeaders(req.headers), host: backend.host,
-        // Forward only the client address resolved through the explicitly trusted
-        // ingress. Do not pass arbitrary browser-supplied forwarding headers.
         "x-forwarded-for": req.ip, "x-forwarded-proto": req.protocol,
         "x-forwarded-host": req.get("host") || backend.host,
       },

@@ -1,4 +1,4 @@
-"""Isolated activation safety tests; no production or provider access."""
+"""验证地点与天气功能启用流程。"""
 from pathlib import Path
 from unittest.mock import patch
 import hashlib,io,json,sys,tempfile,types,unittest

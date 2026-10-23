@@ -1,5 +1,5 @@
-// Explicit synthetic UI contract harness. No credentials, database, or outbound calls.
-// Run: node test/catalog-selection-ui-server.mjs ; open the printed loopback URL.
+/* 启动地点选择页面测试所需的模拟服务。 */
+
 import http from 'node:http';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';

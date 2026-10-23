@@ -1,1 +1,3 @@
+/* 配置 Hvigor 构建工具参数。 */
+
 {"modelVersion":"6.0.2","dependencies":{},"execution":{"daemon":false},"logging":{"level":"info"},"nodeOptions":{"maxOldSpaceSize":2048}}

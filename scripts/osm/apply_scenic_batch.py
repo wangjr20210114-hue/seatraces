@@ -1,4 +1,4 @@
-"""Append one reviewed public batch transactionally, backing up affected editorial data."""
+"""校验景区资料批次，在事务中写入事实和层级关系。"""
 from pathlib import Path
 from datetime import datetime,timezone
 from uuid import uuid5,NAMESPACE_URL

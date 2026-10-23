@@ -1,3 +1,5 @@
+/* 预留和结算景区层级评估的模型预算。 */
+
 import { transaction, query } from "../db.mjs";
 import {
   modelCostUpper,
@@ -66,8 +68,6 @@ export async function reserveHierarchyAssessment(
 export async function settleHierarchyAssessment(reservation, usage) {
   const estimate = modelUsageEstimate(usage);
   if (!reservation || estimate === null) return null;
-  // Settle to a conservative token estimate, not a claimed vendor invoice.
-  // Missing usage retains the original reservation; reported usage replaces it.
   const amount = Math.max(estimate, 0.0001);
   await query(
     "UPDATE api_usage SET reserved_cny=$2 WHERE id=$1 AND provider LIKE $3",

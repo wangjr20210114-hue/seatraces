@@ -1,5 +1,5 @@
--- Execute with psql variable app_password supplied securely by the deployer.
--- Run schema.sql and postgis.sql as database owner BEFORE granting privileges.
+-- 配置业务数据库账号的表和序列访问权限。
+
 CREATE ROLE seatraces_app LOGIN PASSWORD :'app_password';
 GRANT CONNECT ON DATABASE seatraces TO seatraces_app;
 GRANT USAGE ON SCHEMA public TO seatraces_app;

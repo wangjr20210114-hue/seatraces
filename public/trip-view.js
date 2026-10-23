@@ -1,3 +1,5 @@
+/* 整理行程概览、地图站点和导航入口。 */
+
 import { toGcj } from "./coordinates.js";
 
 export const hasPosition = (p) =>
@@ -44,8 +46,6 @@ export function recentPlans(trips) {
       String(b.id).localeCompare(String(a.id)),
   );
 }
-// Amap URI accepts only one driving waypoint. Open an explicitly selected leg
-// instead of silently dropping the intermediate sights of a whole-day route.
 export function amapLegUrl(from, to, transport = "balanced") {
   if (!hasPosition(to)) return null;
   const endpoint = (p) =>

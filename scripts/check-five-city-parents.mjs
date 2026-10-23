@@ -1,4 +1,5 @@
-// Read-only acceptance: current persisted results, full source-ID preservation, no APIs.
+/* 检查五座城市的景区主体核验结果。 */
+
 import {readFile,writeFile} from 'node:fs/promises';
 import assert from 'node:assert/strict';
 const root=new URL('../',import.meta.url);

@@ -1,5 +1,6 @@
+/* 调用 OSM 地点服务并整理响应。 */
+
 import {traceSpan} from '../operations/tracing.mjs';
-// Read-only gateway transport. Cache decisions belong to services/catalog.
 export function createOsmClient({
   env = process.env,
   fetchImpl = (...args) => fetch(...args),
@@ -25,7 +26,6 @@ export function createOsmClient({
       if (value !== undefined) url.searchParams.set(key, String(value));
     return traceSpan('http','catalog.request',async()=>{
     const response = await fetchImpl(url, {
-      // A city query also annotates hierarchy/entity records after the SQL read.
       signal: AbortSignal.timeout(path === "/cluster-places" ? 40000 : 8000),
       redirect: "error",
     });

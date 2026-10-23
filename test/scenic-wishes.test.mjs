@@ -1,3 +1,5 @@
+/* 验证景区地点选择。 */
+
 import test from "node:test";
 import assert from "node:assert/strict";
 import {

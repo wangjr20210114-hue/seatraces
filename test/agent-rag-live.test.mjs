@@ -1,3 +1,5 @@
+/* 验证AI 回答的实际资料依据。 */
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';

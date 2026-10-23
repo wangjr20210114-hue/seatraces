@@ -1,3 +1,5 @@
+/* 校验后台操作并执行已确认的管理动作。 */
+
 import {adminActions} from './action-definitions.mjs';
 import {can,managementAccess} from './permissions.mjs';
 const forbidden=()=>Object.assign(Error('没有此后台操作权限'),{status:403});
@@ -12,8 +14,6 @@ export function createAdminActionRunner({transaction,events}){
  return async(req,key,handler)=>{
   const {d,b,id}=prepareAdminAction(req,key);
   return transaction(async c=>{
-   // Recheck authorization at the write boundary, including changes while a map
-   // verification was in flight. Locking prevents permission changes mid-write.
    const user=(await c.query('SELECT * FROM users WHERE id=$1 FOR SHARE',[req.user.id])).rows[0];
    const member=(await c.query('SELECT role management_role,enabled management_enabled,version management_version FROM admin_memberships WHERE user_id=$1 FOR SHARE',[req.user.id])).rows[0];
    const access=managementAccess(user?{...user,...member}:null);

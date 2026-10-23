@@ -1,3 +1,5 @@
+/* 验证OSM site 目录查询。 */
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {siteQuery} from '../server/contracts/catalog.mjs';

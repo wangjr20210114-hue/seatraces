@@ -1,3 +1,5 @@
+/* 创建日志导出任务，展示进度和下载入口。 */
+
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const states={queued:'排队中',running:'正在导出',completed:'已完成',failed:'失败',interrupted:'已中断',cancelled:'已取消'};
 const errors={EXPORT_SOURCE_CHANGED:'所选日志已变化，请重新导出',EXPORT_ACCESS_REVOKED:'导出权限已失效',EXPORT_OVERSIZE:'日志体积超限，请缩小范围',EXPORT_EXPIRED:'文件已过期',TASK_FAILED:'导出失败，请按任务编号排查',WORKER_INTERRUPTED:'服务执行中断，请重新导出'};

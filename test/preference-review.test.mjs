@@ -1,3 +1,5 @@
+/* 验证人工偏好评审。 */
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
@@ -55,7 +57,7 @@ test('HTML cannot break out of the embedded data script and never includes priva
   const html=renderReview(evil,client);
   assert.equal(html.includes('<script>evil()'),false);assert.equal(html.includes('preferredKeys'),false);assert.equal(html.includes('firstMethodWins'),false);
   assert.match(html,/\\u003c\/script>/);assert.match(client,/el\.textContent = text/);
-  assert.equal(html.includes('https://'),false); // Portable artifact has no external requests or tracking.
+  assert.equal(html.includes('https://'),false);
 });
 
 test('local evidence storage is idempotent, strips unknown data, keeps revisions and one reviewer ID',async()=>{

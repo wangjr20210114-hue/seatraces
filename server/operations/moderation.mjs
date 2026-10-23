@@ -1,3 +1,5 @@
+/* 管理社区举报、内容审核和屏蔽状态。 */
+
 import {z} from 'zod';
 import {requireManagement} from './permissions.mjs';
 import {requireVisiblePost} from '../services/community-interactions.mjs';
@@ -29,7 +31,6 @@ export function installModeration(app,{query,transaction,events,auth}){
   app.post('/api/content/reports',auth,async(req,res)=>{
     const b=z.object({id:z.uuid(),kind:z.enum(['posts','comments']),targetId:z.uuid(),reason:reasons}).strict().parse(req.body);
     const r=await transaction(async c=>{
-      // Serialize this user's report submissions to make simultaneous duplicates deterministic.
       await c.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',[req.user.id]);
       const old=(await c.query('SELECT * FROM content_reports WHERE id=$1',[b.id])).rows[0];
       const column=b.kind==='posts'?'post_id':'comment_id';

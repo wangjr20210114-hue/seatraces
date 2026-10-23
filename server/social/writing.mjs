@@ -1,3 +1,5 @@
+/* 根据路线事实生成分享文案建议。 */
+
 import {z} from 'zod';
 import {llmJSON} from '../integrations/deepseek.mjs';
 import {failure,ownedDraft,assertDraftVersion} from './drafts.mjs';
@@ -7,9 +9,6 @@ export function writingFacts(draft){
  return days.slice(0,31).map((day,i)=>({id:'day-'+i,city:String(day.city||'目的地').slice(0,80),
   stops:(day.stops||[]).slice(0,30).map(p=>String(p.name||'').slice(0,100)).filter(Boolean)})).filter(d=>d.stops.length);
 }
-// The model chooses an editorial arrangement of verified facts, not new facts.
-// Free-form facts supplied by the model (prices, visits, opening hours) cannot
-// reach the published draft. The user remains free to write their own prose.
 export function composeSuggestion(draft,decision){
  const facts=writingFacts(draft);
  const b=z.object({tone:z.enum(['lively','concise','guide']),highlightIds:z.array(z.string()).max(8),ending:z.enum(['save','question','none'])}).strict().parse(decision);

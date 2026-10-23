@@ -1,4 +1,5 @@
-// Keep the end-to-end documentation inventory tied to installed HTTP routes.
+/* 对照接口实现检查 API 文档的路径覆盖情况。 */
+
 import { readFile, readdir, writeFile } from "node:fs/promises";
 const files = [
   "server/index.mjs",
@@ -15,8 +16,6 @@ const files = [
   ...(await readdir('server/operations')).filter(name=>name.endsWith('.mjs')).sort().map(name=>'server/operations/'+name),
   "server/frontend.mjs",
 ];
-// Expand the documented method/prefix in table headers so compact tables are
-// checked against full routes without duplicating interface specifications.
 function referenceText(text) {
   const lines=text.replaceAll('`','').split(/\r?\n/);
   let method='',prefix='';const expanded=[];

@@ -1,5 +1,5 @@
-// Post-hoc diagnostic supplement. It does not replace the frozen method counts
-// or exact-repeat metric, and is deliberately not a training-label exporter.
+/* 解释偏好选择和重复题结果，汇总选择含义。 */
+
 export function interpretChoice(response) {
   const keys=[...response.order];
   if(response.choice==='both')return {acceptedKeys:keys,rejectedKeys:[],unratedKeys:[],preference:null};
@@ -7,8 +7,6 @@ export function interpretChoice(response) {
   if(response.choice==='unsure')return {acceptedKeys:[],rejectedKeys:[],unratedKeys:keys,preference:null};
   if(!['first','second'].includes(response.choice))throw Error('Unknown choice');
   const first=response.choice==='first'?0:1;
-  // A relative choice does not say that the other item is unacceptable, or
-  // establish an absolute suitability rating for either item.
   return {acceptedKeys:[],rejectedKeys:[],unratedKeys:keys,preference:{preferred:keys[first],over:keys[1-first]}};
 }
 
@@ -21,7 +19,6 @@ export function compareRepeatedChoices(original, repeated) {
   return 'compatible';
 }
 
-// Inputs must already have passed validateAnswers and protocol validation.
 export function summarizeChoiceSemantics(protocol, answers) {
   const byId=new Map(answers.responses.map(r=>[r.taskId,r]));
   const primary={bothSuitableAnswers:0,neitherSuitableAnswers:0,relativePreferenceAnswers:0,unsureAnswers:0,

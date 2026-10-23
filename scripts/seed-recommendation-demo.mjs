@@ -1,3 +1,5 @@
+/* 写入推荐演示使用的示例数据。 */
+
 import {readFile} from 'node:fs/promises';
 import {localDatabase} from './recommendation-local-db.mjs';
 import {seedDemo,removeDemo} from '../server/recommendation/demo.mjs';

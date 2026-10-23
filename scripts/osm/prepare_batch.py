@@ -1,4 +1,4 @@
-"""Sequential, resumable country preparation with verified artifacts and bounded disk use."""
+"""按地区下载和准备 OSM 数据，记录可恢复的处理进度。"""
 import argparse
 import json
 from pathlib import Path
@@ -38,13 +38,10 @@ def prepare(region, root, reserve_gib):
             cache.unlink()
         emit('prepared_already', region=region, rows=manifest['total'])
         return manifest
-    # pyosmium can retain a mapped location file until process exit on Windows.
-    # A dedicated worker closes it before the coordinator removes its own cache.
     subprocess.run([sys.executable, str(Path(__file__).with_name('extract.py')),
                     str(raw / source['path']), str(output), '--cache', str(cache),
                     '--reserve-gib', str(reserve_gib)], check=True)
     manifest = json.loads(manifest_path.read_text(encoding='utf8'))
-    # Only remove this run's disposable location cache, after successful extraction.
     if cache.resolve().parent != cache_root or not cache.is_file():
         raise RuntimeError('Unexpected cache path; automatic cleanup refused')
     cache.unlink()

@@ -1,4 +1,5 @@
-// OSM-only recovery snapshots. Never use this store for commercial map responses.
+/* 缓存地点目录，管理有效期和快照读取。 */
+
 import { readFile, writeFile, mkdir, rename, stat } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { boundedJsonBytes } from "./bounded-json.mjs";
@@ -49,7 +50,6 @@ export async function createCatalogCache({
       if (!(now() - Date.parse(saved.at) < TTL)) remove(key);
   }
   try {
-    // Derived data can be rebuilt on demand. Do not parse oversized legacy files.
     if ((await io.stat(file)).size <= maxBytes) {
       const old = JSON.parse(await io.readFile(file, "utf8"));
       for (const [key, saved] of Object.entries(old))
@@ -66,7 +66,6 @@ export async function createCatalogCache({
         while (dirty) {
           dirty = false;
           prune();
-          // One active snapshot and one pending refresh, never a queue of JSON strings.
           const content = JSON.stringify(
             Object.fromEntries([...entries].map(([k, v]) => [k, v.saved])),
           );

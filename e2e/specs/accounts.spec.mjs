@@ -1,3 +1,5 @@
+/* 验证账号注册、登录和资料管理。 */
+
 import { test, expect, signIn, home, loginUI, get } from "../fixtures.mjs";
 import { check } from "../cases.mjs";
 

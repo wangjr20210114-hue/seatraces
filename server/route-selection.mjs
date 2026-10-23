@@ -1,3 +1,5 @@
+/* 管理交通路线候选项及已选路线状态。 */
+
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { mainlandEligible, toGcj } from '../public/coordinates.js';
 
@@ -11,9 +13,6 @@ const locationOK = value => {
 const referenceOK = ref => ref && ['amap', 'google'].includes(ref.provider) && idOK(ref.id) &&
   (ref.provider === 'amap' ? locationOK(ref.location) : ref.location === undefined);
 
-// Proof of a candidate returned in this process, not a persistent login key.
-// It binds only the routing reference to its user, local POI, provider and expiry.
-// No candidate lists, names, credentials or provider responses are written to disk.
 export function createRouteSelection({ now = Date.now, ttlMs = 15 * 60_000 } = {}) {
   const secret = randomBytes(32);
   if (!Number.isSafeInteger(ttlMs) || ttlMs <= 0 || ttlMs > 15 * 60_000) throw Error('Invalid candidate lifetime');
@@ -50,10 +49,8 @@ export function amapEndpointParams(a, b, mode, selections = {}) {
     if (selections.from) params.origin_id = selections.from.id;
     if (selections.to) params.destination_id = selections.to.id;
   } else if (mode === 'transit' && selections.from && selections.to) {
-    // Amap transit requires POI IDs as a pair. A single selection still supplies its coordinates.
     params.originpoi = selections.from.id;
     params.destinationpoi = selections.to.id;
   }
-  // Cycling has no documented POI-ID fields; use the chosen GCJ-02 location.
   return params;
 }

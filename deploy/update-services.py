@@ -1,9 +1,4 @@
-"""Update the existing SeaTraces deployment after source review.
-
-Run as root with --commit <reviewed GitHub commit> --archive-sha256 <sha256>.
-Keeps providers/credentials/OSM/Caddy untouched. Backs up business DB; failed
-activation restores the prior image. Additive table is retained on rollback.
-"""
+"""更新周边服务功能，备份数据并检查部署结果。"""
 from pathlib import Path
 import argparse, hashlib, json, os, re, shutil, subprocess, sys, tarfile, time, urllib.request, urllib.error, secrets, uuid
 
@@ -64,7 +59,6 @@ try:
         db.execute('SET ROLE seatraces_business_owner')
         db.execute((source/'server/trip-services-schema.sql').read_text())
         db.execute('GRANT SELECT,INSERT,UPDATE,DELETE ON trip_service_recommendations TO seatraces_business_app')
-    # Same existing compose/network/proxy. Change only the release image.
     updated=re.sub(r'^SEATRACES_IMAGE=.+$', 'SEATRACES_IMAGE='+image_tag,old,flags=re.M)
     def set_env(value):
         temporary=root/'.env.deploy.next';temporary.write_text(value);temporary.chmod(0o600);temporary.replace(envfile)
@@ -80,7 +74,6 @@ try:
         gateway=re.search(r'^CADDY_BRIDGE_GATEWAY=(.+)$',old,re.M).group(1)
         with urllib.request.urlopen('http://'+gateway+':8788/trip-services.js',timeout=5) as r:
             if r.status!=200 or b'renderTripServicesPage' not in r.read():raise RuntimeError('New frontend missing')
-        # Verify authentication, then use a disposable account for the full flow.
         try:urllib.request.urlopen('http://127.0.0.1:8787/api/journey/trips/00000000-0000-4000-8000-000000000001/services',timeout=5)
         except urllib.error.HTTPError as exc:
             if exc.code!=401:raise RuntimeError('Authentication check failed')

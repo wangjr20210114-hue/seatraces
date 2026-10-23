@@ -1,3 +1,5 @@
+/* 验证自适应问卷题目。 */
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';

@@ -1,4 +1,4 @@
-"""Measure bounded read-only search latency on the server, not phone/network latency."""
+"""测量地点检索接口的响应时间和并发表现。"""
 from concurrent.futures import ThreadPoolExecutor
 import json
 import math

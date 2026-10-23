@@ -1,3 +1,5 @@
+/* 统计站内信的发送对象、送达和阅读情况。 */
+
 import {z} from 'zod';
 import {requireManagement} from './permissions.mjs';
 const fail=(message,status=400)=>Object.assign(Error(message),{status});
@@ -6,8 +8,6 @@ export function installMessageInsights(app,{query,events}){
   const audit=(req,action,resourceId)=>events.append({userId:req.user.id,kind:'admin',action,resourceId,requestId:req.operationRequestId});
   app.get('/api/admin/messages/audience',requireManagement,async(req,res)=>{
     const segment=z.enum(['new','active','inactive','planners','walkers']).parse(req.query.segment);
-    // Fixed SQL predicates only. The result is an explicit recipient snapshot;
-    // normal draft preview and send confirmation still apply afterwards.
     const active=`(EXISTS(SELECT 1 FROM product_events e WHERE e.user_id=u.id AND e.created_at>=now()-interval '7 days') OR EXISTS(SELECT 1 FROM operation_events e WHERE e.user_id=u.id AND e.kind='navigation' AND e.created_at>=now()-interval '7 days'))`;
     const predicates={new:"u.created_at>=now()-interval '7 days'",active,inactive:"u.created_at<now()-interval '30 days' AND NOT EXISTS(SELECT 1 FROM product_events e WHERE e.user_id=u.id AND e.created_at>=now()-interval '30 days') AND NOT EXISTS(SELECT 1 FROM operation_events e WHERE e.user_id=u.id AND e.kind='navigation' AND e.created_at>=now()-interval '30 days')",planners:'EXISTS(SELECT 1 FROM trips t WHERE t.user_id=u.id)',walkers:'EXISTS(SELECT 1 FROM citywalks t WHERE t.user_id=u.id)'};
     const items=(await query(`SELECT id,username,nickname FROM users u WHERE u.role='user' AND NOT u.analytics_excluded AND u.disabled_at IS NULL

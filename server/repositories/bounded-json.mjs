@@ -1,5 +1,5 @@
-// Conservative size check before serializing cache entries. An oversized live
-// response still reaches its caller; only its optional cache copy is skipped.
+/* 统计 JSON 数据大小并校验读取范围。 */
+
 export function boundedJsonBytes(value, limit) {
   const stack = [value],
     seen = new WeakSet();

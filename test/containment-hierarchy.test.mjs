@@ -1,3 +1,5 @@
+/* 验证地点几何包含层级。 */
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {overlayParentChecks} from '../server/domain/amap-parent.mjs';

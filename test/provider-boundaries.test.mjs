@@ -1,3 +1,5 @@
+/* 验证外部服务请求边界。 */
+
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createJsonRequester } from "../server/integrations/http.mjs";
@@ -14,7 +16,6 @@ test("named-place recall can prefer relevance while nearby browsing keeps distan
       requestJSON: async (provider, url) => {
         const sort = new URL(url).searchParams.get("sortrule");
         seen.push(sort);
-        // Synthetic supplier ranking: a nearby kiosk can precede the named venue.
         return {
           status: "1",
           pois:

@@ -1,4 +1,4 @@
-"""One-shot root worker, frozen to the reviewed mail release. Never sends email."""
+"""更新腾讯云邮件配置并检查服务状态。"""
 from pathlib import Path
 import base64,hashlib,json,os,re,subprocess,sys,time,urllib.request
 
@@ -93,8 +93,6 @@ def activate(credentials):
     env_path=ROOT/'backend.env'
     if env_path.is_symlink() or not env_path.is_file():raise RuntimeError('UNEXPECTED_ENV_FILE')
     old=env_path.read_bytes();old_hash=hashlib.sha256(old).hexdigest()
-    # Credentials travel from the hidden prompt to the worker only over stdin.
-    # Parse the existing key using the application's own dotenv implementation.
     parse_key="""import {parse} from 'dotenv';let s='';for await(const c of process.stdin)s+=c;
 console.log(JSON.stringify({oldQueueKey:parse(s).MAIL_OUTBOX_KEY||''}));"""
     try:existing=json.loads(run(['docker','run','--rm','-i','--network','none','--entrypoint','node',active,'--input-type=module','-e',parse_key],

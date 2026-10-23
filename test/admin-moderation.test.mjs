@@ -1,3 +1,5 @@
+/* 验证社区内容审核。 */
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';

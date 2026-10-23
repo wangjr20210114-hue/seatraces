@@ -1,3 +1,5 @@
+/* 验证账号注册、登录和资料管理。 */
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import express from 'express';
@@ -28,7 +30,6 @@ test('PostgreSQL accounts: unique IDs, session isolation, avatar, verified recov
       CREATE TABLE sessions(token_hash text PRIMARY KEY,user_id uuid REFERENCES users(id),expires_at timestamptz);
       CREATE TABLE browse_events(user_id uuid);`);
     await client.query(await readFile(new URL('../server/auth-schema.sql', import.meta.url), 'utf8'));
-    // One connection; serialize transactions so concurrent reset checks stay meaningful.
     let tail = Promise.resolve();
     const serialize = fn => { const result = tail.then(fn); tail = result.catch(() => {}); return result; };
     const query = (sql, args) => serialize(() => client.query(sql, args));
@@ -64,7 +65,6 @@ test('PostgreSQL accounts: unique IDs, session isolation, avatar, verified recov
     assert.equal((await a.request('/me', { nickname: '自己的昵称', username: 'changed' }, 'PATCH')).status, 400);
     assert.equal((await a.request('/me', { nickname: '自己的昵称', avatar: '🧭' }, 'PATCH')).status, 200);
     assert.equal((await b.request('/me')).data.user.nickname, 'traveler_two');
-    // A pre-upgrade preference cannot switch off recommendations or delete recorded views.
     await query(`UPDATE users SET preferences=preferences || '{"analyticsConsent":false}'::jsonb WHERE id=$1`, [registered.data.user.id]);
     assert.equal((await a.request('/me')).data.user.preferences.analyticsConsent, undefined);
     await query('INSERT INTO browse_events(user_id) VALUES($1)', [registered.data.user.id]);

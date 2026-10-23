@@ -1,3 +1,5 @@
+/* 生成腾讯云 SES 请求签名并发送邮件。 */
+
 import {createHash,createHmac} from 'node:crypto';
 import {request} from 'node:https';
 import {mailContent,mailOrigin,sesTemplates} from './mail-config.mjs';
@@ -7,7 +9,6 @@ const hash=v=>createHash('sha256').update(v).digest('hex');
 const hmac=(key,v)=>createHmac('sha256',key).update(v).digest();
 const safeError=(state,code)=>Object.assign(Error(code),{mailDelivery:{state,code}});
 
-// Tencent Cloud TC3 signature, fixed HTTPS endpoint and SES service scope.
 export function sesHeaders(env,action,body,timestamp=Math.floor(Date.now()/1000)){
   const date=new Date(timestamp*1000).toISOString().slice(0,10),scope=`${date}/ses/tc3_request`;
   const signedHeaders='content-type;host;x-tc-action';
@@ -19,7 +20,6 @@ export function sesHeaders(env,action,body,timestamp=Math.floor(Date.now()/1000)
     Authorization:`TC3-HMAC-SHA256 Credential=${env.SES_SECRET_ID}/${scope}, SignedHeaders=${signedHeaders}, Signature=${signature}`};
 }
 
-// No automatic transport retries: SendEmail has no documented idempotency key.
 function post(headers,body){
   return new Promise((resolve,reject)=>{
     const req=request({hostname:host,path:'/',method:'POST',headers:{...headers,'Content-Length':Buffer.byteLength(body)}},res=>{
@@ -49,7 +49,6 @@ export function createSesMailer(env,{postRequest=post,now=()=>Math.floor(Date.no
     if(code){
       if(code==='RequestLimitExceeded'||code==='FailedOperation.FrequencyLimit'||code==='FailedOperation.TemporaryBlocked')throw safeError('retry','SES_THROTTLED');
       if(code.startsWith('InternalError'))throw safeError(sending?'unknown':'retry',sending?'SES_ACCEPTANCE_UNKNOWN':'SES_TEMPORARY');
-      // Do not copy supplier messages: they can contain addresses or request data.
       const auth=/^(AuthFailure|UnauthorizedOperation|OperationDenied)/.test(code);
       throw safeError('failed',auth?'SES_AUTH_REJECTED':'SES_REQUEST_REJECTED');
     }
@@ -72,7 +71,6 @@ export function createSesMailer(env,{postRequest=post,now=()=>Math.floor(Date.no
         if(purpose==='password_changed'?fields.length>0:!fields.includes('token')||fields.some(v=>v!=='token'))
           throw safeError('failed','SES_TEMPLATE_VARIABLES_INVALID');
         if(purpose!=='password_changed'){
-          // The reviewed domain/path/action are static; only the hex token varies.
           const fixedLink=`${origin.origin}/login.html#action=${purpose}&token={{token}}`;
           if(!content.includes(fixedLink)||content.split(fixedLink).join('').includes('{{token}}'))
             throw safeError('failed','SES_TEMPLATE_LINK_INVALID');

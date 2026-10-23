@@ -1,3 +1,5 @@
+/* 展示单日行程备选方案，处理预览和应用。 */
+
 const reasonNames={explicitly_retained:'按你的要求保留',nearby_less_walking:'距离近，少走路',cultural_interest_and_depth:'人文主题与深度',popularity_and_coverage:'经典与覆盖',closed:'当日不开放',opening_window:'开放时段不合适',time_budget:'时间不够',walking_allowance:'超过步行额度',current_exclusion:'本次排除',already_scheduled_elsewhere:'已在其他日期安排',strategy_or_capacity:'方案取舍'};
 export function mountPlanningAlternatives({element,trip,day,api,onSaved}){
  const area=document.createElement('section');area.className='plan-alternatives';element.append(area);
@@ -16,13 +18,10 @@ export function mountPlanningAlternatives({element,trip,day,api,onSaved}){
    let saved;
    try{saved=await api('/api/trips/'+trip.id,{version:trip.version,operation:{type:'apply_preview',day,previewId:item.id}},'PATCH');}
    catch(error){
-    // The write may have committed before its response was lost. Read the normal
-    // owned-trip endpoint and recognize only this exact preview, never a merely
-    // newer version or somebody else's edit. Do not issue a second write.
     if(!error.status||[409,502,503,504].includes(error.status)){
      try{const latest=await api('/api/trips/'+trip.id);
       if(latest.version>trip.version&&latest.plan?.days?.[day]?.planningExplanation?.previewId===item.id)saved=latest;
-     }catch{/* Keep the original failure; retry remains available. */}
+     }catch{ }
     }
     if(!saved)throw error;
    }

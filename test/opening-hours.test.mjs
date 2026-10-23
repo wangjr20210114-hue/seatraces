@@ -1,3 +1,5 @@
+/* 验证开放时间解析。 */
+
 import test from "node:test";
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";

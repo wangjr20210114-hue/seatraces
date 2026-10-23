@@ -1,3 +1,5 @@
+/* 验证游客访问范围。 */
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {guestPage,guestApiRead,guestMapStyle} from '../public/guest-policy.js';

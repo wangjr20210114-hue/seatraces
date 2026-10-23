@@ -1,6 +1,7 @@
+/* 记录用户操作和业务事件。 */
+
 import { randomUUID } from 'node:crypto';
 
-// No caller-supplied request bodies, search strings, locations, cookies or headers.
 export function createEventRecorder({query, maximumQueue=2000, intervalMs=1000}) {
   let queue=[], pending=null, dropped=0, failed=0;
   async function append(event, client={query}) {

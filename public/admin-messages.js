@@ -1,3 +1,5 @@
+/* 编辑、预览和发送站内信。 */
+
 import {showMessageEffects} from './admin-message-effects.js';
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 export async function mountAdminMessages({content,status,api,isCurrent}) {

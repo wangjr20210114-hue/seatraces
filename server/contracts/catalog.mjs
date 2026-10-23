@@ -1,3 +1,5 @@
+/* 定义 OSM 地点、景区和目录查询参数。 */
+
 import { z } from "zod";
 
 const osmId = z.string().regex(/^osm:(node|way|relation)\/\d{1,20}$/);

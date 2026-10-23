@@ -1,3 +1,5 @@
+/* 根据路线站点生成并提供地图封面。 */
+
 import {reserveApiCall} from '../repositories/api-usage.mjs';
 import {createHash} from 'node:crypto';
 import {z} from 'zod';
@@ -13,7 +15,6 @@ export function staticMapParams(snapshot) {
  if(!stops.length)throw failure('路线没有可显示的坐标',422);
  const path=connections.flatMap(c=>c.path),positions=[...stops.map(p=>p.position),...path];
  const view=routeViewport(positions),coord=p=>p.map(n=>n.toFixed(6)).join(',');
- // Static maps support at most ten labelled markers. The entire route still fits.
  const selected=stops.length<=10?stops:Array.from({length:10},(_,i)=>stops[Math.round(i*(stops.length-1)/9)]);
  const params={size:'480*480',zoom:String(view.zoom),location:coord(view.location),scale:'1',
   markers:selected.map((s,i)=>`small,0x158e85,${String.fromCharCode(65+i)}:${coord(s.position)}`).join('|')};
@@ -44,7 +45,6 @@ export function createStaticMapRenderer({env=process.env,fetchImage=fetch,schedu
 export function installRouteCovers(app,{auth,query,render=createStaticMapRenderer()}) {
  app.get('/api/social/route-covers/:kind/:id',auth,async(req,res)=>{
   const kind=z.enum(['post','draft','journey','citywalk']).parse(req.params.kind),id=z.uuid().parse(req.params.id);
-  // Authorize every load, including conditional requests; hidden posts never leak a cover.
   let row;
   if(kind==='post')row=(await query(`SELECT p.snapshot FROM posts p JOIN users u ON u.id=p.user_id WHERE p.id=$1 AND ${visiblePost()} AND u.disabled_at IS NULL`,[id])).rows[0];
   else if(kind==='draft')row=(await query('SELECT snapshot FROM post_drafts WHERE id=$1 AND user_id=$2',[id,req.user.id])).rows[0];

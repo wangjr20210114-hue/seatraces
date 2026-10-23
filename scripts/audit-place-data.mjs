@@ -1,4 +1,5 @@
-// Read-only, bounded API audit. No database credentials, paid providers or UI.
+/* 检查地点资料覆盖情况，输出缺失字段报告。 */
+
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { performance } from 'node:perf_hooks';

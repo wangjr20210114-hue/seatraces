@@ -1,11 +1,11 @@
+/* 整理景区层级，校验模型建议并叠加已核验的信息。 */
+
 import { createHash } from 'node:crypto';
 
 export const hierarchyVersion = 'scenic-hierarchy/1';
 export const hashJSON = value => createHash('sha256').update(JSON.stringify(value)).digest('hex');
 export const hierarchyPlaceHash = p => hashJSON([p.id, p.name, p.lat, p.lng]);
 
-// Preserve supplier conclusions and reviewed facts. Inference is a separate
-// overlay: spatial candidates and LLM drafts must never become confirmed roots.
 export function overlayScenicHierarchy(points, results, {includeModelSuggestions=false}={}) {
   const ids = new Set(points.map(p => p.id));
   const supported = points.map(p => {
@@ -27,8 +27,6 @@ export function overlayScenicHierarchy(points, results, {includeModelSuggestions
     if (['root','child'].includes(p.parentLookup?.status)
       || ['evidence_reviewed','source_supported'].includes(p.parentRelation?.status)) continue;
     const row=results.get(p.id), a=row?.modelAssessment, parent=byId.get(a?.parentId);
-    // A display suggestion requires both the validated model output and the
-    // current OSM polygon candidate. Nearby-only guesses never become children.
     if (a?.status!=='unverified_model_assessment' || a.verdict!=='child_candidate'
       || !parent || parent.id===p.id || !a.sourceHash || a.sourceHash!==row.sourceHash
       || a.inputHash!==hierarchyPlaceHash(p)
@@ -94,8 +92,6 @@ export function validateHierarchyProposal(output, input) {
     if (!children.has(row.childId) || typeof row.reason !== 'string') throw Error('invalid_unresolved');
     return {childId: row.childId, reason: row.reason.slice(0, 300)};
   });
-  // A quote's existence is not a semantic review. Store LLM proposals for review
-  // rather than marking them evidence_reviewed or overwriting published facts.
   return {relations, facts, unresolved};
 }
 

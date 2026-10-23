@@ -1,3 +1,5 @@
+/* 记录 API 调用用量，预留并结算调用预算。 */
+
 import { transaction } from "../db.mjs";
 import {
   localApiLimitsEnabled,
@@ -65,7 +67,6 @@ export function createApiReservation({
           limits.total < 1
         )
           throw Object.assign(new Error("接口限额配置无效"), { status: 503 });
-        // Keep the existing hierarchy count exemption in the optional capped mode.
         if (
           provider !== "AmapParent" &&
           (Number(daily.n) >= limits.total ||

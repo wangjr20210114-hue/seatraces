@@ -1,3 +1,5 @@
+/* 验证旅行评价的各体验维度。 */
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';

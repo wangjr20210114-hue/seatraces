@@ -1,3 +1,5 @@
+/* 提供站内信编辑、发送、阅读和未读查询接口。 */
+
 import {createAdminActionRunner} from './action-runner.mjs';
 import {z} from 'zod';
 import {requireAdmin} from './routes.mjs';
@@ -52,7 +54,6 @@ export function installInboxRoutes(app,{auth,query,transaction,events}) {
       const row=await ownDraft(req.params.id,req.user.id,c,true);
       if(row.status==='sent')return {value:row,changed:false};
       if(row.status!=='draft'||row.version!==b.version)throw fail('消息状态已变化，请重新预览',409);
-      // Lock the current recipient snapshot; registration after this query is not a recipient.
       const delivery=(await c.query(`WITH targets AS MATERIALIZED(SELECT id FROM users WHERE ${audienceWhere} ORDER BY id FOR SHARE),
         delivered AS (INSERT INTO inbox_messages(campaign_id,user_id) SELECT $3,id FROM targets ON CONFLICT(campaign_id,user_id) DO NOTHING RETURNING 1)
         SELECT (SELECT count(*)::int FROM targets) recipients,(SELECT count(*)::int FROM delivered) inserted`,[row.audience,row.recipient_ids,row.id])).rows[0];

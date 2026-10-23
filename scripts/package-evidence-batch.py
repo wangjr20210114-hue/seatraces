@@ -1,3 +1,5 @@
+"""打包地点证据资料与批次清单。"""
+
 from pathlib import Path
 import hashlib,json,zipfile
 root=Path(__file__).resolve().parents[1]

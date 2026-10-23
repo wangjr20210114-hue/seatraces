@@ -1,3 +1,5 @@
+/* 按旅行日期、兴趣和时间预算安排站点，支持行程调整。 */
+
 import { officialOpening } from "./official-opening.mjs";
 const visitCategory = (category) =>
   ["attraction", "heritage", "nature", "leisure"].includes(category);
@@ -145,7 +147,7 @@ export function ordered(points, start) {
     todo.sort((a, b) => distance(last, a) - distance(last, b));
     last = todo.shift();
     out.push(last);
-  } // 2-opt reduces geographical detours; no claim of optimal road routing.
+  }
   for (let k = 0; k < 3; k++)
     for (let i = 0; i < out.length - 2; i++)
       for (let j = i + 2; j < out.length - 1; j++) {

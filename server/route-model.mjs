@@ -1,9 +1,9 @@
+/* 整理交通路线、路段和换乘信息。 */
+
 export { mainlandEligible } from "../public/coordinates.js";
-// A leg changes only at a transport transfer; street turns remain nested steps.
 export const numberOrNull = v => v === '' || v == null || Array.isArray(v) || !Number.isFinite(Number(v)) || Number(v)<0 ? null : Number(v);
 const duration = o => numberOrNull(o?.cost?.duration ?? o?.duration);
 const minutes = seconds => seconds===null ? null : Math.ceil(seconds/60);
-// V5 live responses may wrap the coordinate string in { polyline: "..." }.
 const lineText = value => typeof value==='string' ? value : typeof value?.polyline==='string' ? value.polyline : '';
 const rawLine = value => lineText(value).split(';').filter(Boolean).map(s=>s.split(',').map(Number)).filter(p=>p.length===2&&p.every(Number.isFinite)&&Math.abs(p[0])<=180&&Math.abs(p[1])<=90);
 function step(s, convert) {

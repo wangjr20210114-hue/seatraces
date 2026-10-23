@@ -1,6 +1,7 @@
+// 校验业务服务地址和同源访问条件。
+
 import { url } from '@kit.ArkTS';
 
-// The Web app uses origin-relative API paths, so only an origin is accepted.
 export function backendOrigin(value: string): string {
   try {
     const parsed = url.URL.parseURL(value.trim());

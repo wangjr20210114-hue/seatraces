@@ -1,4 +1,4 @@
-"""Integration test in an isolated, disposable local PostgreSQL database."""
+"""验证地点快照导入。"""
 import gzip
 import importlib.util
 import json
@@ -55,8 +55,6 @@ class ImportTests(unittest.TestCase):
                         self.assertEqual(conn.execute('SELECT name FROM osm.current_poi').fetchone()[0],'乙园')
                         self.assertEqual(conn.execute('SELECT count(*) FROM osm.poi').fetchone()[0],2)
                         self.assertIsNone(conn.execute('SELECT opening_hours FROM osm.current_poi').fetchone()[0])
-                        # Regression: a city with an English alias must outrank
-                        # shops selected only because their address has that city.
                         ranked=conn.execute("""SELECT name FROM (VALUES
                           ('AAA Shop',ARRAY[]::text[]),
                           ('马累',ARRAY['Malé']::text[]),

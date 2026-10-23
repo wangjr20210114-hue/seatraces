@@ -1,8 +1,4 @@
-"""Install the prepared, loopback-only catalog service on its existing host.
-
-Requires --apply; verifies the known old process before replacing it.
-No new credential, public listener, firewall rule or database write is created.
-"""
+"""安装地点查询服务并检查运行状态。"""
 import argparse
 from datetime import datetime, timezone
 import json
@@ -91,7 +87,6 @@ def main():
         (ROOT/'catalog-service-systemd.json').write_text(json.dumps(report,indent=2))
         print(json.dumps(report,indent=2))
     except Exception:
-        # Restore the known pre-existing loopback service if initial adoption fails.
         if stopped_old:
             run('sudo','-n','systemctl','disable','--now',UNIT,check=False)
             with (ROOT/'catalog-service.log').open('ab') as log:

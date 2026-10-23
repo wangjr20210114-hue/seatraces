@@ -1,3 +1,5 @@
+/* 管理经典 CityWalk 路线及其展示状态。 */
+
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 export async function mountAdminCityWalks({content,status,api,isCurrent}){
   let revision=0;const valid=n=>isCurrent()&&n===revision;

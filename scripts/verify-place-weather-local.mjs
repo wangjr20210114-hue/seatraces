@@ -1,5 +1,5 @@
-// Explicit local acceptance: real pinned BGE + read-only OSM + one Amap forecast.
-// Disposable database identities; no production writes or model downloads.
+/* 检查本地地点资料和天气查询流程。 */
+
 import {readFile,writeFile,mkdir} from 'node:fs/promises';
 import {randomUUID} from 'node:crypto';
 import assert from 'node:assert/strict';

@@ -1,3 +1,5 @@
+/* 验证AI 实际服务检查的请求内容。 */
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {assertPublicTestPayload,liveAgentQuestions} from '../scripts/lib/agent-live-payload.mjs';

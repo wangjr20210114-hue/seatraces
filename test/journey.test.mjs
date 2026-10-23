@@ -1,3 +1,5 @@
+/* 验证旅行规划流程。 */
+
 import test from "node:test";
 import assert from "node:assert/strict";
 import {

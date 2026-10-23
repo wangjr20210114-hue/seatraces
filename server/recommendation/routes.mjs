@@ -1,3 +1,5 @@
+/* 提供推荐列表、行为反馈和画像查询接口。 */
+
 import {z} from 'zod';
 import {requireManagement} from '../operations/permissions.mjs';
 import {recommend} from './engine.mjs';

@@ -1,3 +1,5 @@
+/* 在模拟器中执行端到端测试。 */
+
 import { spawn } from "node:child_process";
 import { createWriteStream } from "node:fs";
 import { readFile, writeFile, mkdir, cp } from "node:fs/promises";

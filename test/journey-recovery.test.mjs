@@ -1,3 +1,5 @@
+/* 验证旅行问卷进度恢复。 */
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {performance} from 'node:perf_hooks';

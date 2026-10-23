@@ -1,4 +1,5 @@
-// Explicit resumable batch. No paid calls unless --live; shares application quotas.
+/* 补充并核验指定城市的景区主体地点。 */
+
 import { readFile, writeFile } from "node:fs/promises";
 import dotenv from "dotenv";
 const root = new URL("../", import.meta.url);
@@ -30,7 +31,7 @@ const local = JSON.parse(
   await readFile(new URL(".runtime/local.json", root), "utf8"),
 );
 process.env.DATABASE_URL = `postgresql://seatraces:${encodeURIComponent(local.password)}@127.0.0.1:${local.port}/seatraces`;
-process.env.AMAP_PARENT_LOOKUP_ENABLED = "false"; // This command owns its work, not the web background queue.
+process.env.AMAP_PARENT_LOOKUP_ENABLED = "false";
 const { pool, migrate, query } = await import("../server/db.mjs");
 try {
   await migrate();

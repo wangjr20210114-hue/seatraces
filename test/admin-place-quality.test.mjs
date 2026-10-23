@@ -1,3 +1,5 @@
+/* 验证地点资料质量统计。 */
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {iterationFixture} from './helpers/iteration-db.mjs';

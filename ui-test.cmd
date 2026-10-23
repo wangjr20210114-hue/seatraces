@@ -1,3 +1,5 @@
+@rem 启动界面测试命令菜单。
+
 @echo off
 setlocal EnableExtensions DisableDelayedExpansion
 cd /d "%~dp0"

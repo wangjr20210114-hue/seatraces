@@ -1,3 +1,5 @@
+/* 展示行程日期对应的天气信息。 */
+
 export function mountTripWeather({element,trip,day,api}){
   const area=document.createElement('section');area.className='trip-day trip-weather';
   const open=document.createElement('button');open.className='inline-action';open.textContent='天气与预警 ☀';

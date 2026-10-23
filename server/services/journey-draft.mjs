@@ -1,3 +1,5 @@
+/* 根据问卷和地点选择生成按天安排的旅行草稿。 */
+
 import { z } from "zod";
 import { llmJSON } from "../integrations/deepseek.mjs";
 import { datesBetween, ordered, distance } from "../planner.mjs";
@@ -231,8 +233,6 @@ export function createJourneyDraft({
             previous = null,
             walkingKm=0,
             stops = [];
-          // A low-ranked wish must survive even when the model omits it. Fit wishes
-          // first, then fill with model choices; opening hours still take precedence.
           const todayWishes = day.stops.filter(
             (p) => p.wanted && !used.has(p.id),
           );

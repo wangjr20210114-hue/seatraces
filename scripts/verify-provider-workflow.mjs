@@ -1,5 +1,5 @@
-// Explicit live business-level acceptance. Up to 6 Amap + 1 DeepSeek requests.
-// Uses a disposable local account and public OSM places; never saves vendor POIs.
+/* 检查地点匹配、交通路线和外部服务调用流程。 */
+
 import assert from "node:assert/strict";
 import { readFile, writeFile } from "node:fs/promises";
 import { randomBytes } from "node:crypto";
@@ -107,8 +107,6 @@ try {
         questionCount: data.questions.length,
       };
     });
-  // A railway station and a garden are far enough apart to exercise transit.
-  // These are public OSM IDs verified in the current catalog, not vendor records.
   const transitEndpoints = [
     { id: "osm:node/5218876252" },
     { id: "osm:way/468359738" },
@@ -138,8 +136,6 @@ try {
         {},
       );
       assert.equal(matched.status, "live");
-      // Fixed sample: the downtown museum may be explicitly labeled its main site.
-      // This simulates a user choosing that branch; it does not auto-merge entities.
       const acceptedNames = new Set([name, name + "(本馆)", name + "（本馆）"]);
       const candidate = matched.items.find(
         (p) =>
@@ -156,8 +152,6 @@ try {
     });
   for (const mode of transitOnly ? ["transit"] : ["walking", "transit"])
     await check("normalized_" + mode, async () => {
-      // Nearby landmarks validate selected walking endpoints; transit uses a
-      // separate station-to-garden fixture so it actually exercises a vehicle.
       const routeEndpoints = mode === "transit" ? transitEndpoints : endpoints;
       assert.equal(routeEndpoints.length, 2);
       const data = await api("/routes", {

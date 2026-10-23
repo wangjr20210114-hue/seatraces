@@ -1,4 +1,5 @@
--- Additive, bounded recommendation data. No raw questionnaires or POI trees.
+-- 定义推荐特征、行为反馈、画像和模型的数据表、索引和关联结构。
+
 CREATE TABLE IF NOT EXISTS recommendation_demo_batches (
  id uuid PRIMARY KEY, seed integer NOT NULL, algorithm text NOT NULL, created_at timestamptz NOT NULL DEFAULT now(),
  manifest jsonb NOT NULL, status text NOT NULL DEFAULT 'ready' CHECK(status IN ('ready','removed'))
@@ -64,8 +65,6 @@ CREATE TABLE IF NOT EXISTS recommendation_trip_feedback (
 CREATE OR REPLACE FUNCTION recommendation_dot(a real[],b real[]) RETURNS double precision LANGUAGE sql IMMUTABLE PARALLEL SAFE AS $$
  SELECT coalesce(sum(x*y),0)::double precision FROM unnest(a,b) v(x,y)
 $$;
--- Current-state profiles and temporal training labels have different jobs.
--- The trigger records reversals, never treats an unchanged replay as a new vote.
 CREATE OR REPLACE FUNCTION recommendation_signal() RETURNS trigger LANGUAGE plpgsql SET search_path FROM CURRENT AS $$
 DECLARE r jsonb; uid uuid; pid uuid; aid uuid; k text; enabled boolean; experience_score integer;
 BEGIN
@@ -82,8 +81,6 @@ BEGIN
  IF TG_TABLE_NAME='recommendation_trip_feedback' THEN
   SELECT post_id INTO pid FROM recommendation_trip_sources WHERE trip_id=(r->>'trip_id')::uuid AND user_id=uid;
   IF pid IS NOT NULL THEN
-   -- Explicit place satisfaction is independent of pace, transport and service
-   -- experience. A mixed/aspect-only review has no inferred place label.
    experience_score:=CASE WHEN (r->'aspects'->>'places') ~ '^[1-5]$' THEN (r->'aspects'->>'places')::int
      WHEN (r->'aspects') ?| ARRAY['pace','walking','transport','dining','stay'] THEN NULL ELSE (r->>'rating')::int END;
    INSERT INTO recommendation_outcomes(user_id,post_id,kind,active) VALUES
@@ -95,8 +92,6 @@ BEGIN
  WHEN 'social_adoptions' THEN 'adopt_intent' WHEN 'social_feedback' THEN 'not_interested' END;
  IF k IS NOT NULL THEN
   IF TG_TABLE_NAME='comments' THEN
-   -- A comment outcome represents topic participation, not the last comment
-   -- row edited. Removing one comment must retain the others' evidence.
    enabled:=EXISTS(SELECT 1 FROM comments WHERE user_id=uid AND post_id=pid AND hidden_at IS NULL);
   END IF;
   INSERT INTO recommendation_outcomes(user_id,post_id,author_id,kind,active) VALUES(uid,pid,aid,k,enabled);

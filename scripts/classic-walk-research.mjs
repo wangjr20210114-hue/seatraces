@@ -1,4 +1,5 @@
-// Curated adjacent portions of official tourism recommendations, not whole-city tours.
+/* 收集经典 CityWalk 路线的候选站点资料。 */
+
 export const plans = [
  ['shanghai-riverside','上海','外滩 · 桥畔万国建筑',121.49,31.24,['上海邮政博物馆','乍浦路桥','外白渡桥','黄浦公园','和平饭店','海关大楼'],'https://www.shanghai.gov.cn/nw15343/20250710/c756c96e47fb422e844e3336da22ada5.html','上海市政府：北外滩历史走廊'],
  ['shanghai-wukang','上海','武康路 · 梧桐洋房',121.435,31.21,['武康大楼','武康庭','巴金故居','黄兴故居','上海话剧艺术中心'],'https://www.shanghai.gov.cn/citywalk/20260625/3492b1b945c146fc96c4585d7b04f00d.html','上海市政府：武康路—安福路街区'],

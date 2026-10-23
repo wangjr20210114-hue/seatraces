@@ -1,3 +1,5 @@
+/* 展示兴趣画像、推荐配置和推荐预览。 */
+
 import {esc} from './social-ui.js';
 const sources={trip_answers:'本次问卷',chosen_citywalk:'手选 CityWalk',place_wish:'想去地点',manual_edit:'手动调整',not_interested:'不感兴趣',save_or_adopt:'收藏或参考路线',reaction:'点赞或推荐',effective_view:'有效浏览'};
 export function recommendationPanel(result){

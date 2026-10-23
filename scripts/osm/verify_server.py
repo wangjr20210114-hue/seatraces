@@ -1,4 +1,4 @@
-"""Verify raw-file checksums, active snapshots, search and service resource state."""
+"""检查原始文件、地点快照、检索和服务状态。"""
 import argparse
 import json
 from pathlib import Path
@@ -44,7 +44,6 @@ with psycopg.connect(**json.loads((ROOT / 'database.json').read_text()), row_fac
         report['query_ms'][name] = round((time.perf_counter()-started)*1000,2)
     report['nearby'] = conn.execute('SELECT * FROM osm.search_places(%s,center_lon=>121.49,center_lat=>31.24,radius_m=>3000,result_limit=>5)',('',)).fetchall()
     report['quality'] = conn.execute('SELECT count(*) AS rows,count(*) FILTER (WHERE opening_hours IS NOT NULL) AS with_opening_hours,count(*) FILTER (WHERE city IS NOT NULL) AS with_city,count(*) FILTER (WHERE NOT selectable) AS restricted_access FROM osm.poi p JOIN osm.active_imports a ON a.import_id=p.import_id').fetchone()
-    # This full-database audit is separate from the 5-second reader query limit.
     conn.execute("SET LOCAL statement_timeout='180s'")
     conn.execute("SET LOCAL work_mem='64MB'")
     report['active_unique_objects'] = conn.execute('SELECT count(DISTINCT p.id) FROM osm.poi p JOIN osm.active_imports a ON a.import_id=p.import_id').fetchone()['count']

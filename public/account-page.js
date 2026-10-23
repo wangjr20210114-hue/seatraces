@@ -1,3 +1,5 @@
+/* 展示账号信息，处理头像、昵称和邮箱绑定。 */
+
 export async function renderAccountPage({ content, api, esc, isCurrent, onUser, onLogout }) {
   const $ = selector => content.querySelector(selector);
   const { user } = await api('/api/me');

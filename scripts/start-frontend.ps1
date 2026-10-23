@@ -1,3 +1,5 @@
+# 启动前端资源服务和接口转发。
+
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
 try {

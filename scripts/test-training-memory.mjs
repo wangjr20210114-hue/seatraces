@@ -1,5 +1,5 @@
-// Worst-shaped bounded read: real requests have 120 candidates, unlike the
-// single-candidate demo fixture. Parent owns cleanup even if worker hits OOM.
+/* 测量推荐训练过程的内存使用情况。 */
+
 import {fork} from 'node:child_process';
 import {readFile,mkdir,writeFile} from 'node:fs/promises';
 import {fileURLToPath} from 'node:url';

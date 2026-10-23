@@ -1,8 +1,8 @@
+/* 发送 JSON 请求，处理超时、重试和响应错误。 */
+
 import {traceSpan} from '../operations/tracing.mjs';
 import { reserveApiCall } from "../repositories/api-usage.mjs";
 
-// Every commercial call records usage and honors optional local caps. No paid retries.
-// URL/headers/body and vendor error text must never reach logs or public errors.
 export function createJsonRequester({
   reserve = reserveApiCall,
   fetchImpl = (...args) => fetch(...args),

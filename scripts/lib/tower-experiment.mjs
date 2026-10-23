@@ -1,5 +1,5 @@
-// Offline research only. These artifacts cannot be activated by the serving
-// loader: wider embeddings require a separately reviewed model/schema release.
+/* 组织双塔模型的离线训练、评分和效果对比。 */
+
 import { random, sigmoid, rankingMetrics } from '../../server/recommendation/model.mjs';
 import { dot, validVector, clamp } from '../../server/recommendation/features.mjs';
 

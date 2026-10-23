@@ -1,3 +1,5 @@
+/* 校验旅行评价，提取各体验维度的反馈信号。 */
+
 import {z} from 'zod';
 import {answerFeatures} from '../social/features.mjs';
 const rating=z.number().int().min(1).max(5);
@@ -10,8 +12,6 @@ export const tripFeedbackSchema=z.object({rating,experience:z.enum(['plan','trip
 
 export function feedbackEvidence(feedback){
   const f=tripFeedbackSchema.parse({rating:feedback.rating,experience:feedback.experience,aspects:feedback.aspects}),weight=f.experience==='trip'?3:1,rows=[];
-  // Overall satisfaction is not an interest label. Each aspect changes only its
-  // own dimensions; a disappointing restaurant never negates a food category.
   if(f.aspects.places)rows.push({origin:'places',values:answerFeatures({interests:feedback.interests||[]}),weight:f.experience==='trip'?5:1,sign:(f.aspects.places-3)/2,reason:'place_satisfaction'});
   if(f.aspects.pace==='too_busy')rows.push({origin:'pace',values:{'pace.relaxed':1,'pace.rests':1},weight,reason:'pace_satisfaction'});
   if(f.aspects.pace==='too_slow')rows.push({origin:'pace',values:{'pace.full':1},weight,reason:'pace_satisfaction'});

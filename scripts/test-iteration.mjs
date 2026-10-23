@@ -1,4 +1,5 @@
-// Local isolated regression. Never uses TEST_URL or the running app's user data.
+/* 运行功能回归检查并汇总结果。 */
+
 import {readdir,mkdir,writeFile} from 'node:fs/promises';
 import {spawn} from 'node:child_process';
 import {fileURLToPath} from 'node:url';

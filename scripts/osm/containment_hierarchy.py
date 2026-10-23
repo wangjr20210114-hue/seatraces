@@ -1,15 +1,10 @@
-"""SeaTraces product rule: full containment, nearest enclosing scenic polygon, 8 levels.
-
-This is a geometric product hierarchy, not a claim of ownership or site membership.
-Original categories are preserved. Root level is 1; overflow attaches to level 7.
-"""
+"""根据几何包含关系构建并校验景区层级。"""
 VERSION = 'osm-full-containment/1'
 MAX_DEPTH = 8
 SCENIC = ('attraction', 'heritage', 'nature', 'leisure')
 
 
 def cap_forest(parents, max_depth=MAX_DEPTH):
-    """Reference implementation for validating SQL depth compression. Iterative, cycle-safe."""
     if not 2 <= max_depth <= 8:
         raise ValueError('max_depth must be between 2 and 8')
     paths = {}
@@ -39,7 +34,6 @@ def cap_forest(parents, max_depth=MAX_DEPTH):
 
 
 def infer_fixture(places, geometries):
-    """Small-fixture reference; production uses indexed PostGIS, not all-pairs comparison."""
     from shapely.strtree import STRtree
     eligible = [(p['id'], geometries[p['id']]) for p in places
                 if p.get('category') in SCENIC and not p.get('administrative', False)

@@ -1,3 +1,5 @@
+@rem 启动腾讯云邮件配置工具。
+
 @echo off
 setlocal
 cd /d "%~dp0"

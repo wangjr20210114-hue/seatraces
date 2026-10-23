@@ -1,3 +1,5 @@
+/* 查询旅行问卷和行程详情，对比行程修改结果。 */
+
 import {z} from 'zod';
 import {eventFilters} from './routes.mjs';
 import {requireManagement} from './permissions.mjs';
@@ -23,7 +25,6 @@ export function comparePlans(before,after){
   const a=planSummary(before),b=planSummary(after),days=[];
   for(let i=0;i<Math.max(a.days.length,b.days.length);i++){
     const left=a.days[i],right=b.days[i],ls=left?.stops||[],rs=right?.stops||[];
-    // Retain occurrence order so repeated stops are not collapsed to a single id.
     const keyed=stops=>{const count=new Map();return stops.map((s,index)=>{const key=s.id||('name:'+s.name);const n=count.get(key)||0;count.set(key,n+1);return {...s,key:key+'#'+n,index};});};
     const l=keyed(ls),r=keyed(rs),lm=new Map(l.map(s=>[s.key,s])),rm=new Map(r.map(s=>[s.key,s]));
     const changed=r.filter(s=>lm.has(s.key)&&['arrive','leave','durationMin','locked'].some(k=>s[k]!==lm.get(s.key)[k]));

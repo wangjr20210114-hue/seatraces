@@ -1,3 +1,5 @@
+/* 验证智能行程调整接口。 */
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';

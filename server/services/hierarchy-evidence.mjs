@@ -1,3 +1,5 @@
+/* 收集景区层级资料，整理证据和评估任务。 */
+
 import { createHash } from 'node:crypto';
 import { readFile, writeFile, mkdir, rename } from 'node:fs/promises';
 import { hashJSON } from '../domain/scenic-hierarchy.mjs';
@@ -21,8 +23,6 @@ export function plainText(html) {
     .replace(/[ \t]+/g, ' ').replace(/\n\s*\n/g, '\n').trim();
 }
 
-// Only exact, reviewed public source URLs from our registry may be fetched.
-// OSM website tags are output for source discovery, not implicitly trusted.
 export async function collectEvidence(registry, directory, {fetchImpl = fetch, now = Date.now()} = {}) {
   const evidence = [], errors = [];
   for (const entry of registry.sources) {
@@ -70,7 +70,6 @@ export function buildEvidenceJobs(data, checks, evidence) {
       if (!parent) continue;
       const matching = evidence.filter(e => e.parentNames.some(n => [parent.name, ...(parent.aliases || [])].includes(n)));
       const child = byId.get(row.placeId);
-      // No paid request unless a fetched source actually mentions this child.
       const mentions = matching.filter(e => [child.name, ...(child.aliases || [])].some(n => n.length >= 2 && e.text.includes(n)));
       if (!mentions.length) continue;
       if (!groups.has(parent.id)) groups.set(parent.id, {parent, children: new Map(), sources: new Map()});
@@ -98,7 +97,6 @@ export function buildEvidenceJobs(data, checks, evidence) {
           const last = merged.at(-1);
           if (last && span[0] <= last[1]) last[1] = Math.max(last[1],span[1]); else merged.push([...span]);
         }
-        // Keep separate excerpt IDs: models cannot quote across joined passages.
         for (const [start,end] of merged) snippets.push({...source, id: source.id + '-' + start, text: source.text.slice(start,end)});
       }
       if (snippets.length) jobs.push({parent: brief(group.parent), children: children.map(brief),

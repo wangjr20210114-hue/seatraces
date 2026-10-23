@@ -1,4 +1,5 @@
-// Existing overseas adapter. Account activation is outside the current phase.
+/* 调用 Google 路线和地点接口。 */
+
 import { request } from "./http.mjs";
 import {
   googleRouteRequest,

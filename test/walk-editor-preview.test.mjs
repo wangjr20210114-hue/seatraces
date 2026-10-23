@@ -1,6 +1,7 @@
+/* 验证CityWalk 编辑预览。 */
+
 import test from 'node:test';import assert from 'node:assert/strict';
 import {renderWalkEditor} from '../public/citywalk-editor.js';
-// Minimal DOM adapter drives the actual editor handlers; HTTP is delayed/fails on purpose.
 function surface(){
  const nodes=new Map(),messages=[];
  const make=()=>({innerHTML:'',textContent:'',disabled:false,dataset:{},addEventListener(name,fn){this['on'+name]=fn;},contentWindow:{postMessage:message=>messages.push(message)}});
@@ -15,7 +16,6 @@ test('ME-011: reopening a saved walk restores verified distance, paths and order
  const originalWindow=globalThis.window,originalLocation=globalThis.location;
  globalThis.window={addEventListener(){},removeEventListener(){}};globalThis.location={origin:'http://test.local'};
  const city={id:'city',name:'上海',lat:31,lng:121,country:'CN'};
- // Use a saved order different from the current geometric ordering.
  const stops=[{...city,id:'a',name:'起点'},{...city,id:'b',name:'远站',lng:121.003},{...city,id:'c',name:'近站',lng:121.001}];
  const paths=[[[121,31],[121.002,31.001],[121.003,31]],[[121.003,31],[121.001,31]]];
  const verified={status:'verified',distanceM:1250,legs:paths.map(path=>({paths:[path]})),blocked:false,warning:false};

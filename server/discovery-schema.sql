@@ -1,4 +1,5 @@
--- Sharing is explicit. Remove the previous automatic publication triggers on upgrade.
+-- 定义路线分享和发现页内容的数据表、索引和关联结构。
+
 ALTER TABLE posts ADD COLUMN IF NOT EXISTS auto_shared boolean NOT NULL DEFAULT false;
 ALTER TABLE posts ADD COLUMN IF NOT EXISTS citywalk_id uuid REFERENCES citywalks(id) ON DELETE CASCADE;
 CREATE UNIQUE INDEX IF NOT EXISTS posts_citywalk ON posts(citywalk_id);
@@ -7,7 +8,6 @@ DROP TRIGGER IF EXISTS trips_discovery_sync ON trips;
 DROP TRIGGER IF EXISTS citywalks_discovery_sync ON citywalks;
 DROP FUNCTION IF EXISTS sync_route_discovery();
 DROP FUNCTION IF EXISTS discovery_stops(jsonb);
--- Older automatic posts are retained, but hidden from feeds until explicitly published.
 ALTER TABLE posts ADD COLUMN IF NOT EXISTS hidden_at timestamptz;
 ALTER TABLE posts ADD COLUMN IF NOT EXISTS moderation_version integer NOT NULL DEFAULT 1;
 ALTER TABLE comments ADD COLUMN IF NOT EXISTS hidden_at timestamptz;

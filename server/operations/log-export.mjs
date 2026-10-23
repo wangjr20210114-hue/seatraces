@@ -1,3 +1,5 @@
+/* 创建和执行日志导出任务，生成下载文件。 */
+
 import {z} from 'zod';
 import {gzip,createGzip} from 'node:zlib';
 import {promisify} from 'node:util';
@@ -8,8 +10,6 @@ import {requireRawCoverage} from './archive-coverage.mjs';
 const compress=promisify(gzip);
 const fail=(message,status=400,code='EXPORT_INVALID')=>Object.assign(Error(message),{status,code});
 export const exportLimits=Object.freeze({rows:100000,rawBytes:128*1024*1024,rowBytes:512*1024,batchRows:50,chunkBytes:2*1024*1024,hours:24,queued:5});
-// Store only a bounded list of IDs. Large event payloads never enter this query's
-// result. Late events cannot enter an already accepted export.
 export async function captureLogSelection(query,input,maxRows=exportLimits.rows){
  const q=eventQuery(input);
  await requireRawCoverage(query,q.values[0],q.values[1],{stream:'operation',userId:q.values[2]});
@@ -47,8 +47,6 @@ export function createLogExportService({query,transaction,events}){
  const audit=(req,action,id,metadata={},c)=>events.append({userId:req.user.id,kind:'admin',action,resourceId:id,requestId:req.operationRequestId,metadata},c);
  const cleanup=()=>query(`DELETE FROM admin_log_exports e USING maintenance_tasks t WHERE e.id=t.id AND e.expires_at<=now() AND t.state NOT IN ('queued','running')`);
  async function authorizeOwner(c,id){
-  // Export privilege currently belongs only to administrators. Recheck for work
-  // accepted before an account was disabled or demoted.
   const u=(await c.query('SELECT role,disabled_at,username FROM users WHERE id=$1 FOR SHARE',[id])).rows[0];
   if(!u||u.role!=='admin'||u.disabled_at||/^demo_[a-f0-9]{8}$/.test(u.username))throw fail('导出权限已失效',403,'EXPORT_ACCESS_REVOKED');
  }

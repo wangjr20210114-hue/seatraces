@@ -1,3 +1,5 @@
+/* 启动推荐分级评审页面并保存评分。 */
+
 import {createServer} from 'node:http';
 import {readFile} from 'node:fs/promises';
 import {pathToFileURL} from 'node:url';

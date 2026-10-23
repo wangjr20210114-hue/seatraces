@@ -1,3 +1,5 @@
+/* 在独立进程中测量行程处理的内存占用。 */
+
 import pg from "pg";
 import v8 from "node:v8";
 import { readFile } from "node:fs/promises";

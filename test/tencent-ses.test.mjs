@@ -1,3 +1,5 @@
+/* 验证腾讯云邮件签名与发送。 */
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {randomBytes,createHash} from 'node:crypto';
@@ -37,7 +39,6 @@ test('SES configuration is explicit, fail-closed and never exposes secret values
 });
 
 test('TC3 signature matches independent Python vector, signs the action and uses UTC date',()=>{
-  // Generated independently with Python hashlib/hmac from Tencent TC3 specification.
   const h=sesHeaders(env,'GetEmailTemplate','{"TemplateID":101}',1551113065);
   assert.equal(h.Authorization,'TC3-HMAC-SHA256 Credential=AKIDEXAMPLE/2019-02-25/ses/tc3_request, SignedHeaders=content-type;host;x-tc-action, Signature=a37ef5d9afad58fbf00e5740e7b67d2e3f7f3f309e80496626ed26f06f8af6ed');
   assert.equal(h.Host,'ses.tencentcloudapi.com');assert.equal(h['X-TC-Region'],'ap-guangzhou');

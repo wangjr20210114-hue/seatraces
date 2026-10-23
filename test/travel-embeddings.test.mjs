@@ -1,3 +1,5 @@
+/* 验证旅行语义嵌入。 */
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {specs,formatText,historyVector,cosine} from '../scripts/experiment-travel-embeddings.mjs';

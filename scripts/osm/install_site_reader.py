@@ -1,4 +1,4 @@
-"""Install only the additive site read endpoints after the server batch succeeds."""
+"""安装 OSM site 层级查询接口并验证结果。"""
 from datetime import datetime,timezone
 import json
 from pathlib import Path
@@ -17,8 +17,6 @@ def get(path):
 
 def main():
     receipt=json.loads((ROOT/'audits/site-hierarchy/receipt.json').read_text())
-    # The one-row active pointer needs accurate cardinality before queries join
-    # several current_site views; the rebuild already analyzes the data tables.
     from rebuild_sites import connect
     with connect(ROOT) as conn:
         conn.execute('ANALYZE osm.site_builds')

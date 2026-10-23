@@ -1,3 +1,5 @@
+/* 在地图侧栏展示周边服务，处理筛选与地点联动。 */
+
 import { setIconLabel } from './ui-icons.js';
 import { serviceRecommendations, clearServiceCache } from "./trip-services.js";
 import {
@@ -226,7 +228,6 @@ export function mountServiceMapDock({
       slot.items.forEach((p) => seen.add(p.id));
       selectedId = undefined;
       render();
-      // Older detail URLs now open a drawer in this same map when the candidate is present.
       if (!refresh && route.params?.place) reopen = route.params.place;
     } catch (e) {
       if (current() && mine === revision) {

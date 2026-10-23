@@ -1,4 +1,5 @@
-// Local, synthetic-only, read-only experiment. No server model activation.
+/* 对比加入语义特征后的推荐效果。 */
+
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { localDatabase } from './recommendation-local-db.mjs';
@@ -33,15 +34,12 @@ try {
   if (split.train.length < 150 || split.validation.length < 50 || split.test.length < 50) throw Error('Insufficient temporal coverage');
   const posts = (await db.query('SELECT id,title,body,tags,revision,created_at,updated_at FROM posts WHERE is_synthetic AND id=ANY($1::uuid[]) ORDER BY id', [ids])).rows;
   const byPost = new Map(posts.map(p => [p.id, p]));
-  // No historical text revision store exists: refuse any text that may have
-  // been edited after its exposure instead of leaking its latest contents.
   for (const row of samples) {
     const p = byPost.get(row.postId);
     if (!p || p.revision !== 1 || new Date(p.updated_at).getTime() > row.at || new Date(p.created_at).getTime() > row.at) throw Error('Historical text provenance unavailable; do not use current edited text');
   }
   report.corpusDigest = digest(posts.map(p => [p.id, p.revision, postText(p)]));
   report.posts = posts.length; report.originalBaselineValidation = evaluateExperiment(split.validation, s => cosine(s.user, s.item));
-  // Save the fixed configurations and corpus identities before any training.
   await save();
   const encode = async text => {
     if (!encoder) {
@@ -84,7 +82,6 @@ try {
     if (!selected || best.validation.ndcgAtK > selected.validation.ndcgAtK) selected = { ...best, config };
     await save();
   }
-  // Freeze the model/epoch on validation before touching historical test metrics.
   await writeFile(new URL('selected.json', directory), JSON.stringify({ ...selected, model: serializableMLP(selected.model), activation: false }));
   const predict = s => { const p = inputs(s, selected.config); return mlpScore(selected.model, p.user, p.item); }, baseline = s => cosine(s.user, s.item);
   report.selected = { name: selected.config.name, epoch: selected.epoch, validation: selected.validation, test: evaluateExperiment(split.test, predict), baselineTest: evaluateExperiment(split.test, baseline), interval: pairedInterval(split.test, predict, baseline) };

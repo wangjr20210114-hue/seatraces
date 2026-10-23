@@ -1,4 +1,5 @@
-// Offline-only features. Never import this module into a serving route.
+/* 构建语义特征缓存，按时间组织推荐实验输入。 */
+
 import { createHash } from 'node:crypto';
 import { mkdir, readFile, writeFile, rename } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -36,8 +37,6 @@ export async function cachedEmbedding(directory, text, encode) {
   await rename(temp, path);
   return { vector, hit: false };
 }
-// Current sample's label never participates in its own features. A previous
-// label is used only once its ENTIRE seven-day observation window has closed.
 export function temporalSemantics(samples, itemVectors, queryVectors, { historyDays = 30, maxHistory = 20 } = {}) {
   const byUser = new Map(), output = new Map();
   for (const row of [...samples].sort((a, b) => a.at - b.at)) {

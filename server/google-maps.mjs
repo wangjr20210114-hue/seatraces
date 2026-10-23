@@ -1,5 +1,5 @@
-// Optional Google adapter. No network, credentials or persistent provider data
-// live in this module; the caller supplies the existing budgeted request helper.
+/* 整理 Google 地点和路线请求，转换返回结果。 */
+
 import { numberOrNull, finalizeAlternative, rankAlternatives } from './route-model.mjs';
 import { departureInstant, placeTimeZone } from '../public/travel-time.js';
 
@@ -25,7 +25,6 @@ function coordinate(location){
 function geometry(polyline){
   const g=polyline?.geoJsonLinestring;
   if(g?.type!=='LineString'||!Array.isArray(g.coordinates)||g.coordinates.length<2)return [];
-  // Reject a broken line as a whole; removing bad vertices would invent links.
   if(g.coordinates.some(p=>!Array.isArray(p)||p.length<2||!Number.isFinite(p[0])||!Number.isFinite(p[1])||Math.abs(p[0])>180||Math.abs(p[1])>90))return [];
   return g.coordinates.map(p=>[p[1],p[0]]);
 }

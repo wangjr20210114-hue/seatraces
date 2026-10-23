@@ -1,3 +1,5 @@
+/* 验证后台操作校验与执行。 */
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';

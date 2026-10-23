@@ -1,3 +1,5 @@
+/* 验证交通路线查询。 */
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { transitAlternatives,pathAlternatives,rankAlternatives,mainlandEligible } from '../server/route-model.mjs';

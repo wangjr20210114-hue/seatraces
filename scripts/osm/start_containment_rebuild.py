@@ -1,4 +1,4 @@
-"""Launch one background batch on the existing server; no new login keys or scheduler."""
+"""启动几何包含层级的后台重建任务。"""
 import os
 from pathlib import Path
 import subprocess

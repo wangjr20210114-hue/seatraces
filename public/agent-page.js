@@ -1,3 +1,5 @@
+/* 展示 AI 对话、处理进度、操作预览和确认结果。 */
+
 import { setIconLabel } from './ui-icons.js';
 const node = (tag, className, text) => {
   const el = document.createElement(tag);
@@ -81,7 +83,6 @@ export function mountAgent({
         if (!active() || progressRequest !== requestId) return;
         if (p.steps?.length) status.textContent = p.steps.at(-1);
       } catch {
-        /* Progress is optional; the operation response remains authoritative. */
       }
       if (active() && progressRequest === requestId)
         progressTimer = setTimeout(poll, 900);

@@ -1,4 +1,5 @@
-// Two-layer, normalized dual encoder for bounded LOCAL experiments only.
+/* 实现离线推荐实验中的多层感知机训练与评分。 */
+
 import { random, sigmoid } from '../../server/recommendation/model.mjs';
 
 export const mlpAlgorithm = 'offline-semantic-mlp/1';

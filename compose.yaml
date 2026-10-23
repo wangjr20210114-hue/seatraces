@@ -1,3 +1,5 @@
+# 配置本地容器环境中的业务服务与数据库。
+
 services:
   db:
     image: postgis/postgis:18-3.6
@@ -14,7 +16,6 @@ services:
       timeout: 5s
       retries: 10
     mem_limit: 1g
-    # No host port: only the private compose network can reach the database.
   app:
     build: .
     restart: unless-stopped

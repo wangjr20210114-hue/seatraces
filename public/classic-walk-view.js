@@ -1,3 +1,5 @@
+/* 展示经典 CityWalk 的路线介绍和站点。 */
+
 import { icon } from './ui-icons.js';
 import {mainlandEligible,toGcj} from './coordinates.js';
 import {schematicConnections} from './route-curves.js';

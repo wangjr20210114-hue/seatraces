@@ -1,3 +1,5 @@
+/* 根据位置和旅行偏好推荐附近地点。 */
+
 import { z } from "zod";
 import { catalogRequest } from "./catalog.mjs";
 import { fromOsm } from "../domain/place-candidate.mjs";

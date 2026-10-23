@@ -1,5 +1,5 @@
-// First server migration only. Output contains private application records;
-// keep it outside Git and transmit only to the application's own server.
+/* 导出业务数据，供数据库迁移使用。 */
+
 import pg from 'pg';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { createHash } from 'node:crypto';

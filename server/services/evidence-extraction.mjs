@@ -1,3 +1,5 @@
+/* 从来源资料中提取地点事实并校验结构化结果。 */
+
 import { z } from "zod";
 
 const price = z
@@ -33,7 +35,6 @@ const extracted = z
   })
   .strict();
 
-// Structural + literal evidence checks. Semantic correctness still needs review before import.
 export function validateExtractedFacts(
   response,
   place,

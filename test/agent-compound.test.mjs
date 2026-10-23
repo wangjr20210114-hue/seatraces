@@ -1,3 +1,5 @@
+/* 验证AI 复合旅行需求处理。 */
+
 import test from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";

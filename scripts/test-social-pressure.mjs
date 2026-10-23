@@ -1,5 +1,5 @@
-// Isolated local PostgreSQL schema, synthetic data, no paid providers or production.
-// Run: node --max-old-space-size=320 --max-semi-space-size=8 --expose-gc scripts/test-social-pressure.mjs
+/* 测量社区接口在批量请求下的性能和资源占用。 */
+
 import {iterationFixture} from '../test/helpers/iteration-db.mjs';
 import {installSocialCommunity} from '../server/social/community.mjs';
 import {rankSocial,rebuildStyle,refreshPostFeatures} from '../server/social/style-store.mjs';
@@ -11,7 +11,6 @@ const out={schemaVersion:'social-pressure/1',at:new Date().toISOString(),product
 let peakHeap=0,peakRss=0,sampler;
 try{
  const u=f.users.user.id,a=f.users.other.id;
- // 1,200 sources, 30 stops each. They are built in SQL, not one giant JS document.
  await f.query(`INSERT INTO posts(id,user_id,title,body,tags,snapshot,created_at)
  SELECT gen_random_uuid(),$1,'压力验收路线 '||n,repeat('合成测试正文 ',200),ARRAY[CASE WHEN n%2=0 THEN '人文' ELSE '自然' END],
  jsonb_build_object('cities',jsonb_build_array('北京'),'days',jsonb_build_array(jsonb_build_object('city','北京','stops',

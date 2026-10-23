@@ -1,3 +1,5 @@
+/* 定义通用页面布局和公共组件样式。 */
+
 .detail-page { height: 100dvh; overflow-y: auto; overscroll-behavior: contain; background: #fffdf2; }
 .page-header { position: sticky; top: 0; z-index: 2; padding: env(safe-area-inset-top, 0px) 20px 0; background: #fffdf2; border-bottom: 1px solid #dbe2d2; }
 .page-header-inner { display: flex; align-items: center; gap: 14px; min-height: 76px; max-width: 640px; margin: auto; }
@@ -28,7 +30,6 @@ body.detail-open #toast, body.detail-open #connection-status { bottom: max(20px,
 @keyframes page-enter { from { opacity: .5; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .page-content > div { animation: none; } }
 
-/* Shared secondary pages keep the same travel-paper controls. */
 .page-header{background:#fffdf6f5}.page-back{background:#e0f1df;border-color:#bad2bd;transition:background .18s,transform .18s}.page-back:active{transform:scale(.94)}
 .page-content .walk-create{border:1px solid #c8dfca;background:#e9f3e2;min-height:42px;border-radius:15px;font-size:14px}.page-content .primary{border-width:1.5px;box-shadow:0 2px 0 #183c4026;border-radius:16px}
 .page-content button,.shell-content button{transition:background .18s,color .18s,box-shadow .18s}.page-content button:active:not(:disabled),.shell-content button:active:not(:disabled){filter:brightness(.96)}

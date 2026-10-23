@@ -1,3 +1,5 @@
+# 准备本地服务，按需构建、安装并启动鸿蒙应用。
+
 param([string]$DevEco='D:/SWE-OpenHarmony/DevEcoStudio',[string]$DeviceId='', [switch]$Build, [switch]$Install, [switch]$NoDevice, [switch]$Restart)
 $ErrorActionPreference='Stop'
 $projectRoot=Split-Path -Parent $PSScriptRoot
@@ -22,7 +24,6 @@ function Stop-RecordedService([string]$Name,[int]$Port) {
     $knownAbsolute=$process.CommandLine.Contains($absoluteScript)
     $knownLegacy=($process.CommandLine -match ('(?:^|[\s"])(?:'+[regex]::Escape($relativeScript)+')(?:[\s"]|$)')) -and ($listener.OwningProcess -contains $servicePid)
     if ($process.Name -ne 'node.exe' -or !($knownAbsolute -or $knownLegacy)) { throw "Cannot verify ownership of $Name; left running." }
-    # Stop only descendants of the verified watcher, then its root process.
     $all=@(Get-CimInstance Win32_Process)
     $ids=[System.Collections.Generic.List[int]]::new(); $ids.Add($servicePid)
     for($i=0;$i -lt $ids.Count;$i++){foreach($child in $all | Where-Object { $_.ParentProcessId -eq $ids[$i] -and $_.Name -eq 'node.exe' }){$ids.Add([int]$child.ProcessId)}}
@@ -49,7 +50,6 @@ function Start-LocalService([string]$Name,[int]$Port,[string]$Script,[string]$He
     }
     throw "$Name did not become ready. See .runtime/$Name-error.log"
 }
-# Explicit local settings take precedence over any production .env settings.
 $env:NODE_ENV='development';$env:HOST='127.0.0.1';$env:PORT='8787'
 $env:APP_ORIGIN='http://127.0.0.1:8788';$env:SKIP_MIGRATIONS='false';$env:REQUIRE_POSTGIS='false'
 $env:FRONTEND_HOST='127.0.0.1';$env:FRONTEND_PORT='8788';$env:FRONTEND_API_ORIGIN='http://127.0.0.1:8787';$env:FRONTEND_TRUST_PROXY=''

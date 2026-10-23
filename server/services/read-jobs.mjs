@@ -1,5 +1,5 @@
-// Short polling responses keep a slow city read independent of HTTP deadlines.
-// Keys are scoped to an authenticated user + session; rejected jobs can retry.
+/* 管理异步读取任务，复用结果并提供任务状态。 */
+
 export function createReadJobs({
   now = Date.now,
   ttlMs = 5 * 60_000,

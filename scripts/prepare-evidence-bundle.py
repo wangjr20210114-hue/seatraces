@@ -1,4 +1,4 @@
-"""Build bounded source excerpts from the three already retrieved official pages."""
+"""从已获取的官方页面中整理地点资料片段。"""
 from pathlib import Path
 from datetime import datetime,timezone
 import hashlib,json

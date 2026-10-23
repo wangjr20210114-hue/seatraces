@@ -1,3 +1,5 @@
+/* 验证活跃指标与业务漏斗。 */
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
@@ -30,7 +32,7 @@ test('operational statistics honor event coverage, users, ordered flows and perm
     for(const [type,at] of [['started','2026-10-08T01:00Z'],['candidates_loaded','2026-10-08T02:00Z'],['questions_ready','2026-10-08T03:00Z'],['completed','2026-10-09T02:00Z'],['completed','2026-10-09T03:00Z']])await event(owner,'journey.'+type,at,{flow:good});
     for(const [type,at] of [['started','2026-10-08T04:00Z'],['completed','2026-10-08T05:00Z'],['candidates_loaded','2026-10-08T06:00Z'],['questions_ready','2026-10-08T07:00Z']])await event(owner,'journey.'+type,at,{flow:bad});
     await event(owner,'journey.started','2026-10-15T01:00Z',{flow:open});
-    await event(newUser,'journey.completed','2026-10-16T02:00Z',{flow:open}); // Other user's completion cannot finish this flow.
+    await event(newUser,'journey.completed','2026-10-16T02:00Z',{flow:open});
     await event(other,'journey.started','2026-10-08T01:00Z');
     await event(f.users.admin.id,'journey.started','2026-10-08T01:00Z');
     await event(owner,'citywalk.started','2026-10-08T01:00Z',{flow:walk});await event(owner,'citywalk.saved','2026-10-09T01:00Z',{flow:walk});

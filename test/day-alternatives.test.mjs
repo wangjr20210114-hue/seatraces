@@ -1,3 +1,5 @@
+/* 验证单日行程备选方案。 */
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {makeDayAlternatives,verifyDayAlternative} from '../server/domain/day-alternatives.mjs';

@@ -1,3 +1,5 @@
+/* 读取和保存景区主体地点的核验结果。 */
+
 import { query } from "../db.mjs";
 import { parentInputHash } from "../domain/amap-parent.mjs";
 import { mainlandEligible } from "../../public/coordinates.js";

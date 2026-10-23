@@ -1,3 +1,5 @@
+/* 展示景区内部地点及其分组信息。 */
+
 const esc = (value) =>
   String(value ?? "").replace(
     /[&<>"']/g,

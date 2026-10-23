@@ -1,4 +1,5 @@
--- Versioned derived hierarchy; osm.poi, site membership and editorial facts stay intact.
+-- 定义几何包含层级及其版本的数据表、索引和关联结构。
+
 CREATE TABLE IF NOT EXISTS osm.containment_builds (
  build_id text PRIMARY KEY, algorithm text NOT NULL, sources jsonb NOT NULL,
  created_at timestamptz NOT NULL DEFAULT now(), completed_at timestamptz,

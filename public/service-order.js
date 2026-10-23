@@ -1,3 +1,5 @@
+/* 整理周边服务的价格、距离和排序方式。 */
+
 import { icon } from './ui-icons.js';
 export const serviceIcons = {
   dining: icon('dining'),

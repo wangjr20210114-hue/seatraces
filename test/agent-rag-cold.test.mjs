@@ -1,3 +1,5 @@
+/* 验证AI 知识检索的首次加载。 */
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {mkdir,writeFile} from 'node:fs/promises';

@@ -1,8 +1,4 @@
-"""Deploy the reviewed map workspace to the existing installation, with an additive price cache table.
-
-Run with sudo --commit <40 hex> --archive-sha256 <64 hex>.
-Keeps existing secrets, compose, OSM database and proxy configuration unchanged.
-"""
+"""更新周边餐饮功能和服务价格缓存。"""
 from pathlib import Path
 import argparse, fcntl, hashlib, json, os, re, subprocess, sys, tarfile, time, urllib.request, urllib.error
 
@@ -80,7 +76,6 @@ try:
         db.execute('GRANT SELECT,INSERT,UPDATE,DELETE ON place_service_prices TO seatraces_business_app')
         db.execute('SET ROLE seatraces_business_app')
         db.execute('SELECT count(*) FROM place_service_prices').fetchone()
-    # Additive cache table is retained if code activation rolls back.
     report('activating', image=tag)
     set_env(re.sub(r'^SEATRACES_IMAGE=.+$','SEATRACES_IMAGE='+tag,old,flags=re.M)); activated=True
     run(compose+['up','-d','backend','frontend'])

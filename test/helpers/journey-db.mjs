@@ -1,3 +1,5 @@
+/* 准备旅行流程测试数据库和调用工具。 */
+
 import pg from "pg";
 import { readFile } from "node:fs/promises";
 import { randomBytes, randomUUID } from "node:crypto";

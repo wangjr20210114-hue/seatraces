@@ -1,3 +1,5 @@
+/* 查询目的地天气，整理行程日期对应的预报。 */
+
 import {z} from 'zod';
 import {amap} from '../integrations/amap.mjs';
 import {toGcj} from '../../public/coordinates.js';

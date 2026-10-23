@@ -1,3 +1,5 @@
+/* 验证地图工作区交互。 */
+
 import test from "node:test";
 import assert from "node:assert/strict";
 import vm from "node:vm";
@@ -271,7 +273,7 @@ test("map layer updates preserve route, user camera and context; only explicit s
     ...route,
     services: [{ id: "a", kind: "lunch", position: [121.001, 31], name: "店" }],
   });
-  assert.equal(fits.length, 1); // a selection is not a camera command
+  assert.equal(fits.length, 1);
   assert.equal(
     removed.some((items) =>
       items.some((p) => p.opts?.content?.includes("景点")),
@@ -282,7 +284,7 @@ test("map layer updates preserve route, user camera and context; only explicit s
   assert.equal(fits.length, 2);
   send(route);
   assert.equal(moves.length, 1);
-  assert.equal(fits.length, 2); // restore day viewport
+  assert.equal(fits.length, 2);
   send({
     kind: "planner",
     contextKey: "city",
@@ -306,7 +308,7 @@ test("map layer updates preserve route, user camera and context; only explicit s
       districts: [],
     },
   });
-  assert.equal(fits.length, 2); // late boundary must not steal a manually moved camera
+  assert.equal(fits.length, 2);
   const groups = [
     { id: "c1", name: "西片", number: 1, position: [116.39, 39.9] },
     { id: "c2", name: "东片", number: 2, position: [116.41, 39.91] },

@@ -1,3 +1,5 @@
+/* 合并同一景点的来源记录，整理地点分组与选择状态。 */
+
 import { distance } from "../planner.mjs";
 
 const normalized = (s) =>
@@ -19,8 +21,6 @@ const relationPriority = p => p.geometricHierarchy?.buildId ? 6 : p.parentRelati
   : p.parentRelation?.status==='evidence_reviewed' ? 5
   : ['root','child'].includes(p.parentLookup?.status) ? 4 : p.parentLookup ? 1 : 0;
 
-// Keep source records, rather than deleting duplicate OSM objects. A child sight is
-// a separate place inside an area, not another name for that area.
 function record(p) {
   const { sourceRecords, children, score, signals, wanted, ...rest } = p;
   return rest;
@@ -60,8 +60,6 @@ export function deduplicateVisitPlaces(points) {
     if (wikidata)
       for (const c of index.get("w:" + wikidata) || []) candidates.add(c);
     const old = [...candidates].find((c) => {
-      // The server has compared full geometry and identity evidence. Distinct
-      // canonical IDs must not be merged again by the earlier radius heuristic.
       if (p.entityIdentity?.buildId || c.entityIdentity?.buildId)
         return p.id === c.id;
       const d = distance(c, p),
@@ -116,8 +114,6 @@ export function deduplicateVisitPlaces(points) {
           [...old.children, ...(p.children || [])].map((r) => [r.id, r]),
         ).values(),
       ];
-      // An area and its POI marker can have different source IDs. Keep reviewed
-      // facts attached to either representation when producing one visit entity.
       for (const [field, fact] of Object.entries(p.facts || {})) {
         const current = old.facts?.[field];
         if (
@@ -178,8 +174,6 @@ export function groupScenicEntities(points) {
       if (n.length >= 2) byName.set(n, [...(byName.get(n) || []), p]);
     }
   for (const child of entities) {
-    // A completed Amap lookup is authoritative for this display policy. Empty
-    // parent must not be undone by a name prefix; failed matches are not roots.
     if (child.parentLookup) {
       if (child.parentLookup.status === "child") {
         const parent = byId.get(child.parentId);
@@ -193,9 +187,6 @@ export function groupScenicEntities(points) {
       }
       continue;
     }
-    // Explicit parent IDs / names, or an unambiguous "景区名·子景点" label.
-    // Proximity alone never proves containment. Polygon-based grouping can be
-    // added once the catalog exposes actual area geometries.
     const parentName =
       child.traits?.["is_in:attraction"] || child.traits?.["is_in:tourism"];
     const prefix = child.name?.match(/^(.{2,}?)[·・：:—－-](.{1,})$/u)?.[1];
@@ -209,8 +200,6 @@ export function groupScenicEntities(points) {
     );
     if (near.length === 1) parents.set(child.id, near[0]);
   }
-  // Cards aggregate descendants for planning, while geometric parent/depth
-  // fields keep the persisted hierarchy. displayParentId identifies the card.
   const roots = new Map(), inferredPaths = new Set();
   for (const child of entities) {
     let parent = parents.get(child.id),

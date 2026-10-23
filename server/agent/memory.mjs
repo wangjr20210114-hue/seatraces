@@ -1,3 +1,5 @@
+/* 读取和保存旅行偏好，整理供 AI 使用的记忆。 */
+
 import { z } from "zod";
 import { interests } from "../planner.mjs";
 export const styleSchema = z
@@ -51,7 +53,6 @@ export const strength = (key, value) =>
         new: 0.9,
         either: 0.3,
       }[value] ?? 0.5);
-// Only first-person, explicit statements. Negations and contradictions do not become silent memory.
 export function explicitStyle(text) {
   const result = {};
   const set = (k, pattern, v) => {
@@ -86,7 +87,6 @@ export function explicitStyle(text) {
     );
     if (tags.length) result.interests = tags;
   }
-  // A negative/corrective complex statement is clarified, never guessed by lexical matching.
   if (
     /(并不|不是|别记|不要记|朋友|他喜欢|她喜欢|例如|假如|如果|不想少|不要少)/.test(
       text,

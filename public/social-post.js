@@ -1,3 +1,5 @@
+/* 展示帖子详情，处理点赞、收藏和评论。 */
+
 import {icon} from './ui-icons.js';
 import {esc,routeCover,mapCover,trackVisible,signalInterestChanged} from './social-ui.js';
 import {routeMap} from './route-map.js';

@@ -1,3 +1,5 @@
+/* 验证版本发布流程。 */
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {forbiddenPath,scanForSecrets} from '../scripts/publish-deploy.mjs';

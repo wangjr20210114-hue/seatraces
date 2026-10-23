@@ -1,5 +1,5 @@
-// Functional counterfactuals, not a model-quality benchmark or human ratings.
-// Real HTTP interactions/feed + isolated PostgreSQL + the production worker.
+/* 检查用户行为对兴趣画像和后续推荐的影响。 */
+
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
 import {mkdir,writeFile} from 'node:fs/promises';
@@ -37,8 +37,6 @@ try{
   }
   const topicById=new Map(posts.map(p=>[p.id,p.topic]));
   const selected=Object.fromEntries(themes.map(t=>[t,posts.filter(p=>p.topic===t).slice(0,6).map(p=>p.id)]));
-  // Same 102 unseen candidates for all before/after comparisons. Previously
-  // interacted posts cannot manufacture a higher score by returning themselves.
   const exclude=Object.values(selected).flat();
   const errors=[],worker=createStyleWorker({...f,afterRebuild:buildProfile,onError:e=>errors.push(e.message)});
   async function drain(){for(let i=0;i<20;i++){if(!(await f.query('SELECT 1 FROM style_dirty_users LIMIT 1')).rowCount)break;await worker.tick();}

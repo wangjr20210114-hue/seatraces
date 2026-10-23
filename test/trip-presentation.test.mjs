@@ -1,3 +1,5 @@
+/* 验证行程概览与站点展示。 */
+
 import test from "node:test";
 import assert from "node:assert/strict";
 import {

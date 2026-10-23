@@ -1,3 +1,5 @@
+"""验证UniSRec 模型适配。"""
+
 import copy
 import importlib.util
 import math

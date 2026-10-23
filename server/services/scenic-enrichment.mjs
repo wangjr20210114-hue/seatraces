@@ -1,3 +1,5 @@
+/* 定义景区资料补充任务，校验关系和事实结果。 */
+
 import { z } from 'zod';
 import { distance } from '../planner.mjs';
 
@@ -9,7 +11,6 @@ const fact = z.object({placeId:id,field:z.enum(['openingHours','lastEntry','tick
 const response = z.object({relations:z.array(relationship).max(30),facts:z.array(fact).max(30),
   unresolved:z.array(z.object({name:z.string().min(1).max(120),reason:z.string().min(1).max(300)}).strict()).max(30)}).strict();
 
-// Structural and literal checks only. A separate source review is required for publication.
 export function validateScenicEnrichment(value, input, now = new Date().toISOString()) {
   const parsed=response.parse(value), places=new Map(input.places.map(p=>[p.id,p])), seen=new Set();
   function evidence(row, target, field) {

@@ -1,4 +1,4 @@
-"""Predeclared small CPU ranking experiments. Not a two-tower activation path."""
+"""运行推荐排序诊断实验并保存指标。"""
 import hashlib
 import json
 import os
@@ -71,7 +71,6 @@ def main():
      if part=='test':
       result['partitions'][part]['deltaVsCosine']=paired_interval(groups[part][0],scores,[r['parts']['affinity'] for r in groups[part][0]],label)
       result['partitions'][part]['deltaVsFineRule']=paired_interval(groups[part][0],scores,init[part],label)
-    # Serialized LightGBM excludes init_score. Verify our explicit addition.
     if iteration:
      reloaded=lgb.Booster(model_file=str(ROOT/(name+'.txt')))
      assert np.allclose(init['test']+reloaded.predict(matrices['test']),init['test']+model.predict(matrices['test'],num_iteration=iteration))

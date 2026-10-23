@@ -1,3 +1,5 @@
+/* 收集 Playwright 用例结果和覆盖信息。 */
+
 import { report } from "./report.mjs";
 import { readFile } from "node:fs/promises";
 export default class CatalogReporter {

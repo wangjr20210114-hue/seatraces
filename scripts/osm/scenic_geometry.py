@@ -1,9 +1,4 @@
-"""Offline, checkpointed extraction of scenic geometries from an existing OSM PBF.
-
-Three selective passes retain only needed relation/way/node references in memory.
-Multipolygon rings describe geometry, NEVER scenic membership. All geometry is WGS84.
-No provider API, download, or database connection is made by this program.
-"""
+"""分批提取景区边界和几何数据，保存处理进度。"""
 import argparse
 from collections import Counter
 from datetime import datetime, timezone
@@ -45,7 +40,6 @@ def oid(kind, number):
 
 def scenic_container(p):
     tags = p.get('rawTags') or p.get('traits') or {}
-    # Administrative boundaries, water bodies and forests are not scenic containers.
     if tags.get('boundary') in ('administrative', 'political') or tags.get('admin_level') or tags.get('area') == 'no' or tags.get('access') in ('no', 'private'):
         return False
     return (tags.get('tourism') in ('attraction', 'museum', 'zoo', 'theme_park', 'aquarium')
@@ -96,7 +90,6 @@ def infer(points, geometries, site_members):
         if parent_id not in by_id or not scenic_container(by_id[parent_id]):
             continue
         for member in members:
-            # A perimeter is boundary topology; an entrance/label is not a child attraction.
             if member['role'] not in ('', 'part', 'member'):
                 continue
             child_id = oid(member['type'], member['ref'])
@@ -106,8 +99,6 @@ def infer(points, geometries, site_members):
     for p in points:
         pid = p['id']
         geometry = geometries.get(pid)
-        # Only actual point features can use point containment. A representative
-        # point from a missing way/relation geometry is insufficient evidence.
         if geometry is None and pid.startswith('osm:node/'):
             geometry = Point(p['lng'], p['lat'])
         candidates = []
@@ -117,7 +108,6 @@ def infer(points, geometries, site_members):
                 if parent_id == pid or not area.covers(geometry) or area.equals(geometry):
                     continue
                 parent = by_id[parent_id]
-                # Duplicate representations belong in the entity deduplicator.
                 same_name = parent['name'].strip() == p['name'].strip()
                 same_wiki = p.get('rawTags', {}).get('wikidata') and p['rawTags']['wikidata'] == parent.get('rawTags', {}).get('wikidata')
                 if same_name or same_wiki:
@@ -127,8 +117,6 @@ def infer(points, geometries, site_members):
                                    'boundaryTouch': area.boundary.intersects(geometry)})
         candidates.sort(key=lambda c: (c['areaDegrees2'], c['parentId']))
         direct = sorted(explicit.get(pid, set()))
-        # Evidence of site membership is stronger than containment, but reject
-        # spatial contradictions and ambiguity. Keep every rejected candidate.
         direct = [parent for parent in direct if not (
             parent in geometries and geometry is not None
             and geometries[parent].geom_type in ('Polygon', 'MultiPolygon')
@@ -143,8 +131,6 @@ def infer(points, geometries, site_members):
             result.update(status='spatial_candidate', method='polygon_covers')
         if len(direct) > 1 or (explicit.get(pid) and not direct):
             result.update(status='conflict', method='osm_site_conflict')
-        # Explicit OSM is_in tags may corroborate polygon containment. Prefix
-        # names and nearest-neighbour guesses alone are intentionally not enough.
         tags = p.get('rawTags') or {}
         parent_name = tags.get('is_in:tourism') or tags.get('is_in:attraction')
         matches = [c for c in candidates if parent_name and parent_name in
@@ -228,8 +214,6 @@ def run(project, output, recompute=False):
             begin = time.monotonic()
             progress(phase)
             with osmium.io.Reader(str(pbf), bit) as reader:
-                # Filter in C++ before Python callbacks; otherwise millions of
-                # unrelated China nodes make a selective pass unnecessarily slow.
                 handlers = [osmium.filter.IdFilter(ids), handler] if ids is not None else [handler]
                 osmium.apply(reader, *handlers)
             status.setdefault('phaseSeconds', {})[phase] = round(time.monotonic()-begin, 2)

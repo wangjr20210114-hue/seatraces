@@ -1,3 +1,5 @@
+/* 检查服务状态，生成和更新健康告警。 */
+
 import v8 from "node:v8";
 
 export const alertRules = {
@@ -81,7 +83,6 @@ export function createHealthMonitor({
       };
     const decisions = healthDecisions(data);
     const result = await transaction(async (c) => {
-      // Only one monitor updates active alerts at a time, across server processes.
       await c.query(
         "SELECT pg_advisory_xact_lock(hashtextextended('seatraces.health-monitor',0))",
       );
@@ -119,7 +120,6 @@ export function createHealthMonitor({
             [rule],
           );
       }
-      // Samples contain only aggregate process counters. Keep 7 days for charts.
       await c.query(
         "DELETE FROM operational_samples WHERE sampled_at<now()-interval '7 days'",
       );

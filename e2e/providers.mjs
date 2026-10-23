@@ -1,5 +1,5 @@
-// Synthetic transport fixtures, not verified destination/price/route data.
-// Business routes, clustering, persistence and frontend remain real.
+/* 提供界面测试使用的外部服务模拟数据。 */
+
 const places = [
   ["UI江边展馆", "attraction", 121.484, 31.233],
   ["UI街角公园", "nature", 121.486, 31.234],
@@ -27,7 +27,6 @@ const json = (data) =>
     headers: { "Content-Type": "application/json" },
   });
 export function providerFixture(url, init) {
-  // Opt-in synthetic planner output for end-to-end save tests. Never contacts a model.
   if (process.env.UI_PLANNER_MODEL === '1' && url.hostname === 'api.deepseek.com') {
     const request = JSON.parse(init?.body || '{}');
     if (!request.messages?.[0]?.content.includes('按每日时间预算选景点'))
@@ -73,7 +72,6 @@ export function providerFixture(url, init) {
         ],
       });
     }
-    // Deliberately unavailable: no fake walking distance may be saved as verified.
     return json({
       status: "0",
       infocode: "10001",

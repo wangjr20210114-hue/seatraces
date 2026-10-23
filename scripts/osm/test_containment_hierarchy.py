@@ -1,3 +1,5 @@
+"""验证地点包含层级构建。"""
+
 import unittest
 from pathlib import Path
 import json

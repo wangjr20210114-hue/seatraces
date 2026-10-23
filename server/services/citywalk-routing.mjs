@@ -1,3 +1,5 @@
+/* 核验 CityWalk 步行道路，计算路线距离与耗时。 */
+
 import {createHash} from 'node:crypto';
 import {query as dbQuery} from '../db.mjs';
 import {route as providerRoute} from './routes.mjs';

@@ -1,10 +1,9 @@
--- Additive migration: existing account IDs, profiles and trips stay intact.
+-- 定义账号、会话和旅行偏好的数据表、索引和关联结构。
+
 CREATE UNIQUE INDEX IF NOT EXISTS users_username_normalized ON users (lower(username));
 ALTER TABLE users ADD COLUMN IF NOT EXISTS password_changed_at timestamptz NOT NULL DEFAULT now();
 ALTER TABLE users ADD COLUMN IF NOT EXISTS disabled_at timestamptz;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS is_synthetic boolean NOT NULL DEFAULT false;
--- Existing legacy choices are left as historical data and no longer read as switches.
--- Do not rewrite them to true and misrepresent a user action.
 ALTER TABLE users ALTER COLUMN preferences SET DEFAULT '{"interests":["人文","自然"],"pace":"balanced"}'::jsonb;
 ALTER TABLE sessions ADD COLUMN IF NOT EXISTS created_at timestamptz NOT NULL DEFAULT now();
 CREATE INDEX IF NOT EXISTS sessions_user ON sessions(user_id);

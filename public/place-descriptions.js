@@ -1,5 +1,5 @@
-// Only currently visible parent cards request descriptions. Full records and
-// model output never get copied into the questionnaire catalog.
+/* 按需加载地点介绍并更新页面内容。 */
+
 export function observePlaceDescriptions(container,{sessionId,api}) {
  let dead=false,active=0;const queue=[],seen=new Set();
  async function pump(){

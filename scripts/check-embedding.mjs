@@ -1,3 +1,5 @@
+/* 检查嵌入模型加载、向量输出和语义相似度。 */
+
 import { writeFile } from "node:fs/promises";
 import {
   embedNames,

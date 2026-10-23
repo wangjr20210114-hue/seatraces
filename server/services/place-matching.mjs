@@ -1,3 +1,5 @@
+/* 根据名称和距离匹配高德或 Google 地点。 */
+
 import { distance } from "../planner.mjs";
 import { toGcj, toWgs } from "../../public/coordinates.js";
 import { mainlandEligible } from "../route-model.mjs";
@@ -62,7 +64,6 @@ export async function matchPlace(p) {
     location: toGcj(p),
     radius: 3000,
     limit: 5,
-    // Match the named entity before nearby entrances/shops fill the small page.
     sort: "weight",
   });
   const items = (r.pois || [])

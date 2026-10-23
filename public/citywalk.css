@@ -1,3 +1,5 @@
+/* 定义 CityWalk 首页、路线卡片和编辑页面样式。 */
+
 .walk-section { margin: 32px auto 12px; max-width: 760px; scroll-margin-top: 18px; }
 .walk-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 0 0 16px; }
 .walk-heading h2 { margin: 0; font-size: 21px; letter-spacing: -.5px; }

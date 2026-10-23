@@ -1,4 +1,4 @@
-"""Conservative identity rules. Containment alone is never identity."""
+"""比较名称和来源证据，识别同一景点的重复记录。"""
 import re
 import unicodedata
 
@@ -46,8 +46,6 @@ def evidence(a, b, spatial):
     if not shared:
         return None
     strong = any(k.startswith(('wikidata:', 'wikipedia:')) for k in shared)
-    # An OSM marker inside a named area, almost identical mapped areas, or
-    # coincident markers with an explicit shared identity. No name-only radius rule.
     kind = spatial.get('kind')
     if kind == 'point_area' and spatial.get('covered'):
         pass
@@ -61,13 +59,11 @@ def evidence(a, b, spatial):
 
 
 def rank(row):
-    # Stable main object: full area before marker; larger almost-equal area first.
     return (-row.get('dimension', 0), -row.get('area_m2', 0),
             0 if row['id'].startswith('osm:relation/') else 1, row['id'])
 
 
 def group_matches(records, matches):
-    """Every member must directly match its representative; no transitive bridge."""
     neighbours = {}
     for a, b, why in matches:
         neighbours.setdefault(a, {})[b] = why

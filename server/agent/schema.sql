@@ -1,3 +1,5 @@
+-- 定义AI 会话、消息和操作状态的数据表、索引和关联结构。
+
 CREATE TABLE IF NOT EXISTS agent_conversations (
  id uuid PRIMARY KEY, user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
  state jsonb NOT NULL DEFAULT '{}', revision integer NOT NULL DEFAULT 0,

@@ -1,3 +1,5 @@
+/* 准备 CityWalk 候选地点、片区和选择目录。 */
+
 import { cityCatalog } from "./city-clusters.mjs";
 import { catalogRequest } from "./catalog.mjs";
 import {
@@ -9,8 +11,6 @@ import { metres } from "../../public/citywalk-route.js";
 export async function cityWalkCatalog(city) {
   const base = await cityCatalog(city),
     extra = [];
-  // Sample central commercial areas too; more nearby categories load lazily as
-  // the user chooses an anchor. This is a recommendation pool, not every shop.
   for (const category of ["food", "shopping"]) {
     try {
       const r = await catalogRequest("/places", {
@@ -23,7 +23,6 @@ export async function cityWalkCatalog(city) {
       });
       extra.push(...(r.items || []));
     } catch {
-      /* Scenic areas remain usable; nearby queries can be retried. */
     }
   }
   const places = uniqueWalkPlaces([...base.places, ...extra]).map((p) => ({

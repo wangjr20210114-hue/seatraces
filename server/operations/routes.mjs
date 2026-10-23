@@ -1,3 +1,5 @@
+/* 注册后台概览、用户和日志等管理接口。 */
+
 import {streamLegacyLogs,createLogExportService} from './log-export.mjs';
 import {createAdminActionRunner} from './action-runner.mjs';
 import {eventFilters,eventQuery} from './event-query.mjs';

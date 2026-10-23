@@ -1,3 +1,5 @@
+/* 验证社区页面展示。 */
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {socialCard,routeCover,libraryCard} from '../public/social-ui.js';

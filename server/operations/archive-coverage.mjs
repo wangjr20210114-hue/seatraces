@@ -1,4 +1,5 @@
-// A query must never report zero simply because raw events moved to an archive.
+/* 检查日志归档覆盖范围，汇总归档查询结果。 */
+
 async function available(query){return (await query("SELECT to_regclass(format('%I.event_archives',current_schema())) IS NOT NULL available")).rows[0].available;}
 export async function requireRawCoverage(query,start,end,{stream=null,userId=null}={}){
   if(!await available(query))return;

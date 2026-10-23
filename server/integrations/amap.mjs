@@ -1,3 +1,5 @@
+/* 调用高德地点和地图接口，统一请求排队与结果处理。 */
+
 import { request } from "./http.mjs";
 import { toGcj } from "../../public/coordinates.js";
 import { createPacedQueue } from "./paced-queue.mjs";
@@ -69,7 +71,7 @@ export function createAmapClient({
     return result;
   }
   function version() {
-    const value = env.AMAP_POI_VERSION || "v5"; // Preserve existing matching behavior.
+    const value = env.AMAP_POI_VERSION || "v5";
     if (!["v3", "v5"].includes(value))
       throw Object.assign(new Error("AMAP_POI_VERSION 必须为 v3 或 v5"), {
         status: 503,

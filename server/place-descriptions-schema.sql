@@ -1,5 +1,5 @@
--- Place metadata is independent of user questionnaires and immutable raw OSM.
--- IDs may belong to the read-only OSM catalog, so there is no local places FK.
+-- 定义地点介绍及生成状态的数据表、索引和关联结构。
+
 CREATE TABLE IF NOT EXISTS place_descriptions (
  place_id text PRIMARY KEY CHECK(length(place_id) BETWEEN 1 AND 80),
  short_text text NOT NULL CHECK(length(short_text) BETWEEN 1 AND 120),

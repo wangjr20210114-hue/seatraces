@@ -1,3 +1,5 @@
+/* 选择可用交通路线，整理已选路线标识。 */
+
 import { mainlandEligible } from './coordinates.js';
 
 export function chooseRoutingCandidate(place, candidate, provider) {

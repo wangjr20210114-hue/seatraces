@@ -1,4 +1,5 @@
--- Additive, versioned OSM hierarchy. Original POI rows and categories are untouched.
+-- 定义OSM site 关系、成员和构建版本的数据表、索引和关联结构。
+
 CREATE TABLE IF NOT EXISTS osm.site_builds (
  build_id text PRIMARY KEY, algorithm text NOT NULL, sources jsonb NOT NULL,
  created_at timestamptz NOT NULL DEFAULT now(), completed_at timestamptz,

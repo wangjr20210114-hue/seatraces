@@ -1,8 +1,9 @@
+/* 将服务价格信息匹配到对应地点。 */
+
 import { nameSimilarity } from "./place-matching.mjs";
 import { metres } from "./trip-services.mjs";
 import { toWgs } from "../../public/coordinates.js";
 
-// Amap cost is per-capita consumption, including hotels; not a nightly room quote.
 export function matchServicePrice(place, pois, now = new Date().toISOString()) {
   const candidates = (pois || [])
     .flatMap((p) => {
@@ -25,8 +26,6 @@ export function matchServicePrice(place, pois, now = new Date().toISOString()) {
           .filter((x) => typeof x === "string")
           .map((n) => {
             const exact = nameSimilarity(n, p.name);
-            // OSM often omits a branch suffix. Only accept that omission within 100m;
-            // an explicit branch in OSM must still match, and ambiguous stores fail below.
             const branchless =
               distance <= 100 && !/[（(]/.test(n)
                 ? nameSimilarity(

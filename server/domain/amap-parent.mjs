@@ -1,3 +1,5 @@
+/* 匹配高德景区主体，整理主体地点的核验信息。 */
+
 import { createHash } from "node:crypto";
 import { distance } from "../planner.mjs";
 import { toWgs } from "../../public/coordinates.js";
@@ -87,8 +89,6 @@ export function selectParentPoi(place, pois) {
   return { status: "matched", ...ranked[0] };
 }
 
-// Group before geographic partitioning so a parent and its children cannot end
-// up in different city clusters. Pending checks remain visible and unconfirmed.
 export function overlayParentChecks(points, checks) {
   const all = new Map(points.map((p) => [p.id, { ...p }]));
   const counts = {
@@ -101,8 +101,6 @@ export function overlayParentChecks(points, checks) {
     unsupported: 0,
   };
   for (const p of points) {
-    // The user's geometric hierarchy is the active product rule. Historic
-    // provider checks remain stored but must not replace this build's parent.
     if (p.geometricHierarchy?.buildId) {
       counts.checked++;
       if (p.parentId) counts.children++;
@@ -132,7 +130,6 @@ export function overlayParentChecks(points, checks) {
       continue;
     }
     counts.checked++;
-    // Provider empty parent is an explicit display rule, not proof of real-world independence.
     value.parentId = status === "child" ? check.parentId : null;
     value.hierarchyLevel = status === "child" ? 2 : 1;
     value.parentRelation = {

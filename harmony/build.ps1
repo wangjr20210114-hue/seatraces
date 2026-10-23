@@ -1,3 +1,5 @@
+# 调用 DevEco 构建鸿蒙应用安装包。
+
 param([string]$DevEco='D:/SWE-OpenHarmony/DevEcoStudio')
 $ErrorActionPreference='Stop'
 Set-Location -LiteralPath $PSScriptRoot

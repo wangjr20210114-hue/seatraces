@@ -1,8 +1,4 @@
-"""Rebuild geometric parents for all current OSM places on the database host.
-
-Uses existing regional PBFs; zero map or LLM calls. New immutable build tables
-are published only after validation. Root=1; maximum depth=8. Category unchanged.
-"""
+"""根据 OSM 几何数据重建并发布地点包含层级。"""
 import argparse
 from collections import Counter
 from datetime import datetime, timezone
@@ -94,7 +90,6 @@ def rebuild(root):
                 emit('verify_source',region=source['region'],buildId=build)
                 if digest(Path(source['path']))!=source['pbf_sha256']:raise ValueError('PBF hash mismatch: '+source['region'])
             if existing:
-                # Only an unpublished failed draft can be restarted. Successful builds are immutable.
                 active=conn.execute('SELECT build_id FROM osm.containment_active').fetchone()
                 if active and active['build_id']==build:raise ValueError('Refusing to replace the active build')
                 with conn.transaction():
@@ -117,8 +112,6 @@ def rebuild(root):
             extraction=[]
             for index,source in enumerate(sources):
                 reserve();emit('extract_geometry',region=source['region'],regionIndex=index+1,totalRegions=len(sources),totalPlaces=total)
-                # Release osmium's disk-backed node cache after every country,
-                # even if a native library retains handles until process exit.
                 source_file=cache/(source['region']+'-source.json')
                 atomic(source_file,source)
                 subprocess.run([sys.executable,str(Path(__file__).with_name('containment_geometry.py')),
@@ -127,7 +120,6 @@ def rebuild(root):
                 load_geometry(conn,path,build,source['region'],emit)
                 extraction.append(dict(region=source['region'],**report))
             emit('prepare_spatial_index')
-            # Geometry validity was checked during extraction; point rows come from constrained catalog coordinates.
             conn.execute('''UPDATE osm.containment_places SET
                 area_m2=ST_Area(geom::geography),is_container=container_eligible
                 WHERE build_id=%s AND ST_Dimension(geom)=2''',(build,))
@@ -174,7 +166,6 @@ def rebuild(root):
                 JOIN osm.containment_places p ON p.build_id=e.build_id AND p.id=e.child_id
                 WHERE e.build_id=%s GROUP BY e.parent_id,p.category) c GROUP BY parent_id''',(build,build))
             emit('validate')
-            # Strictly increasing polygon area guarantees acyclicity; validate all published edges, including compressed ones.
             invalid=conn.execute('''SELECT count(*) AS n FROM osm.containment_edges e
               JOIN osm.containment_places c ON c.build_id=e.build_id AND c.id=e.child_id
               JOIN osm.containment_places p ON p.build_id=e.build_id AND p.id=e.parent_id

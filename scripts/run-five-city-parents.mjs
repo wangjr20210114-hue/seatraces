@@ -1,4 +1,5 @@
-// Authorized five-city batch, round-robin chunks are checkpoints, not total caps.
+/* 按城市执行景区主体核验并保存处理进度。 */
+
 import { readFile, writeFile, mkdir, rename } from "node:fs/promises";
 import dotenv from "dotenv";
 const root = new URL("../", import.meta.url),
@@ -85,7 +86,6 @@ async function loadCity(id, name) {
 }
 try {
   await migrate();
-  // Correct the imported GeoNames canonical city label while preserving its ID/aliases.
   await query(
     "UPDATE places SET aliases=ARRAY(SELECT DISTINCT unnest(aliases || ARRAY[name,'深圳','深圳市'])),name='深圳',search_text=search_text || ' 深圳 深圳市',updated_at=now() WHERE id='gn-1795565' AND category='city' AND name<>'深圳'",
   );

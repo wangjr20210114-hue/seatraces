@@ -1,3 +1,5 @@
+/* 验证城市选择快照读取。 */
+
 import test from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";

@@ -1,4 +1,5 @@
-// Read-only database acceptance; performs no provider HTTP requests.
+/* 检查景区层级处理状态和结果。 */
+
 import {readFile,writeFile} from 'node:fs/promises';
 const root=new URL('../',import.meta.url);
 const local=JSON.parse(await readFile(new URL('.runtime/local.json',root),'utf8'));

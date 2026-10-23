@@ -1,3 +1,5 @@
+/* 验证日志筛选与查询视图。 */
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';

@@ -1,7 +1,7 @@
+/* 根据位置和停留信息判断用户是否到访地点。 */
+
 import { distance } from "../planner.mjs";
 
-// A dwell observation is evidence of presence near a representative coordinate,
-// never proof of admission or a completed visit. No raw location track is stored.
 export function inferPresence(stops, samples, now = Date.now()) {
   if (samples.length < 6 || samples.length > 16) return [];
   if (

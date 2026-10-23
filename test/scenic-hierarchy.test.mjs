@@ -1,3 +1,5 @@
+/* 验证景区层级生成与展示。 */
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {validateHierarchyProposal,overlayScenicHierarchy,estimateFinish} from '../server/domain/scenic-hierarchy.mjs';

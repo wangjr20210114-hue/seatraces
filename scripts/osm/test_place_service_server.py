@@ -1,4 +1,4 @@
-"""Read-only live regression of the new catalog against the full server database."""
+"""验证实际地点服务的查询结果。"""
 from datetime import datetime, timezone
 import json
 from pathlib import Path

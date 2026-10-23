@@ -1,3 +1,5 @@
+/* 保存待发邮件，处理投递、重试和状态查询。 */
+
 import {createCipheriv,createDecipheriv,createHash,randomBytes,randomUUID} from 'node:crypto';
 import {z} from 'zod';
 import {requireManagement} from '../operations/permissions.mjs';
@@ -27,16 +29,12 @@ export function createOutboxMailer({query,transaction,transport,events,env=proce
  const config=mailConfiguration(env),enabled=Boolean(config.enabled&&transport.enabled),key=enabled?Buffer.from(env.MAIL_OUTBOX_KEY,'base64'):null;
  let running=false,timer;
  function audit(job,state,code){
-  // Delivery state is durable in mail_outbox. An audit sink failure must never
-  // replay a message already accepted by the provider.
   try{events?.record({kind:'system',action:'mail.delivery.'+state,resourceId:job.id,
    metadata:{provider:config.provider,purpose:job.purpose,attempts:job.attempts||0,...(code?{code}:{})}});}catch{}
  }
  async function send(input){
   if(!enabled)throw fail('邮件服务尚未完成配置');
   const value=message.parse(input),id=randomUUID(),sealed=encryptMail(value,key);
-  // Token hash forms the idempotency key; it cannot be used as a recovery token.
-  // Password-change notifications have no token and are distinct notifications.
   const dedupe=createHash('sha256').update(JSON.stringify([value.to,value.purpose,value.token||id])).digest('hex');
   const inserted=await transaction(async c=>{
     await c.query('SELECT pg_advisory_xact_lock(20261028)');
@@ -49,7 +47,6 @@ export function createOutboxMailer({query,transaction,transport,events,env=proce
   if(!enabled||running)return;running=true;
   try{
    const job=await transaction(async c=>{
-    // A crash after SMTP acceptance cannot safely be auto-replayed.
     await c.query("UPDATE mail_outbox SET state='unknown',last_error='WORKER_INTERRUPTED',updated_at=now() WHERE state='sending' AND lease_until<now()");
     await c.query("UPDATE mail_outbox SET state=CASE WHEN state IN ('queued','retry') THEN 'expired' ELSE state END,payload=NULL,nonce=NULL,tag=NULL,updated_at=now() WHERE expires_at<=now() AND payload IS NOT NULL AND state<>'sending'");
     const r=(await c.query("SELECT id FROM mail_outbox WHERE state IN ('queued','retry') AND next_at<=now() AND expires_at>now() AND attempts<4 ORDER BY created_at,id LIMIT 1 FOR UPDATE SKIP LOCKED")).rows[0];

@@ -1,3 +1,5 @@
+/* 展示 AI 会话、操作记录和处理耗时。 */
+
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const time=v=>v?new Date(v).toLocaleString('zh-CN',{timeZone:'Asia/Shanghai',hour12:false}):'未记录';
 const ms=v=>v===null||v===undefined?'未记录':v+' ms';

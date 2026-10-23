@@ -1,3 +1,5 @@
+/* 检查地点目录检索及相关接口。 */
+
 import assert from 'node:assert/strict';
 import {writeFile} from 'node:fs/promises';
 const base=process.env.TEST_URL||'http://127.0.0.1:8787';

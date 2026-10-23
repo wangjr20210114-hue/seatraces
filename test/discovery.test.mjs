@@ -1,3 +1,5 @@
+/* 验证发现页与路线分享。 */
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
@@ -19,7 +21,6 @@ test('PostgreSQL: save stays private; explicit publish is owned, idempotent, san
   try {
     const owner=randomUUID(), viewer=randomUUID(), trip=randomUUID(), walk=randomUUID();
     for (const [id,name] of [[owner,'author'],[viewer,'viewer']]) await client.query('INSERT INTO users(id,username,password_hash,nickname) VALUES($1,$2,$3,$2)',[id,name,'test']);
-    // Simulate the prior version, then ensure migration removes automatic publication.
     await client.query(`CREATE FUNCTION sync_route_discovery() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN
       INSERT INTO posts(id,user_id,trip_id,title,body,snapshot,auto_shared) VALUES(gen_random_uuid(),NEW.user_id,NEW.id,'old','old','{}',true);
       RETURN NEW; END $$;
@@ -55,7 +56,6 @@ test('PostgreSQL: save stays private; explicit publish is owned, idempotent, san
     assert.equal(mine.items.length,2); assert.equal(mine.hasMore,true); assert.ok(mine.items.every(p=>p.isOwn));
     assert.equal((await request('/api/discovery/mine?limit=2&offset=2')).data.items.length,1);
     assert.equal((await request('/api/discovery/mine',null,viewer)).data.items.length,0);
-    // Editing a private route never changes the published snapshot without another click.
     const before=(await client.query('SELECT snapshot FROM posts WHERE trip_id=$1',[trip])).rows[0].snapshot;
     await client.query('UPDATE trips SET plan=$2 WHERE id=$1',[trip,JSON.stringify({...plan,days:[]})]);
     assert.deepEqual((await client.query('SELECT snapshot FROM posts WHERE trip_id=$1',[trip])).rows[0].snapshot,before);

@@ -1,3 +1,5 @@
+/* 管理维护任务，展示执行步骤和结果。 */
+
 import {mountDiagnostics} from './admin-diagnostics.js';
 import {mountArchives} from './admin-archives.js';
 const esc = (s) =>

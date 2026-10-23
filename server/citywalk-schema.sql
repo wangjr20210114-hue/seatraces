@@ -1,4 +1,5 @@
--- User-owned routes and short-lived, server-verified selection catalogs.
+-- 定义个人 CityWalk 路线和选择目录的数据表、索引和关联结构。
+
 CREATE TABLE IF NOT EXISTS citywalks (
  id uuid PRIMARY KEY, user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
  title varchar(80) NOT NULL, city jsonb NOT NULL, stops jsonb NOT NULL,

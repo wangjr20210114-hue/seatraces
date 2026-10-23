@@ -1,4 +1,4 @@
-"""Read-only, category-preserving access to the active OSM site hierarchy."""
+"""查询当前 OSM site 层级和成员地点。"""
 import re
 
 ID = re.compile(r'osm:(node|way|relation)/[0-9]{1,20}')
@@ -27,7 +27,6 @@ def annotate_sites(gateway, items):
 
 def present_object(row):
     r=dict(row)
-    # Supplemental relation containers can legitimately have no point location.
     return {'id':r['id'],'name':r['name'],'category':r['category'],'subcategory':r['subcategory'],
             'isSite':r['is_site'],'catalogPresent':r['catalog_present'],
             'availability':r['availability'],'lng':r['lon'],'lat':r['lat'],
@@ -54,7 +53,6 @@ def site_get(gateway, path, params):
     if not ID.fullmatch(place_id) or (after and not ID.fullmatch(after)) or not 1<=limit<=200:
         raise ValueError('site 参数无效')
     if category and category not in CATEGORIES:raise ValueError('分类无效')
-    # Read the active pointer once and pin every query to that immutable build.
     rows=gateway.execute('SELECT build_id FROM osm.site_active')
     if not rows:return {'status':'live','item':None,'parents':[],'children':[],'nextCursor':None}
     build=rows[0]['build_id']

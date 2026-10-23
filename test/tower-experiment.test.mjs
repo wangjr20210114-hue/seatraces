@@ -1,3 +1,5 @@
+/* 验证双塔模型离线实验。 */
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { trainTower, towerScore, validateTower } from '../server/recommendation/model.mjs';

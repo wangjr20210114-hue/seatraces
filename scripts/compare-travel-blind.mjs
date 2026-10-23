@@ -1,4 +1,5 @@
-// Post-hoc diagnostics only: never train on, rewrite, or relabel human answers.
+/* 对比旅行推荐模型在人工盲评数据上的表现。 */
+
 import {readFile,writeFile} from 'node:fs/promises';
 import {digest} from './lib/offline-semantic.mjs';
 import {formatText,cosine} from './experiment-travel-embeddings.mjs';

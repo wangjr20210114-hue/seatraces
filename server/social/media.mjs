@@ -1,3 +1,5 @@
+/* 处理社区图片上传、读取和图片格式转换。 */
+
 import {randomUUID} from 'node:crypto';
 import {mkdir,writeFile,unlink,stat} from 'node:fs/promises';
 import {createReadStream} from 'node:fs';

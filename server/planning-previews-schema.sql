@@ -1,3 +1,5 @@
+-- 定义行程调整预览方案的数据表、索引和关联结构。
+
 CREATE TABLE IF NOT EXISTS trip_plan_previews (
  id uuid PRIMARY KEY,user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
  trip_id uuid NOT NULL REFERENCES trips(id) ON DELETE CASCADE,

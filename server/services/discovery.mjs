@@ -1,3 +1,5 @@
+/* 提供发现页内容查询和已有路线分享接口。 */
+
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { query as dbQuery } from '../db.mjs';

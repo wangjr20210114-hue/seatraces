@@ -1,3 +1,5 @@
+/* 验证后台登录和访问控制。 */
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
@@ -12,8 +14,6 @@ test('ADM-AUTH: independent management login, protected document and session bou
   const f=await iterationFixture({production:true});let frontend;
   try{
     const port=await f.start();
-    // Use the real proxy timeout: concurrent bcrypt checks can exceed one second.
-    // The outage case below keeps its explicit short timeout and fail-closed assertions.
     frontend=http.createServer(createFrontend({backendOrigin:'http://127.0.0.1:'+port}));
     await new Promise(r=>frontend.listen(0,'127.0.0.1',r));
     const base='http://127.0.0.1:'+frontend.address().port;

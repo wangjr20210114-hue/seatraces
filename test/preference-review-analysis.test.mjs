@@ -1,3 +1,5 @@
+/* 验证人工偏好评审统计。 */
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';

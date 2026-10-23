@@ -1,3 +1,5 @@
+-- 定义业务事件及其关联记录的数据表、索引和关联结构。
+
 CREATE TABLE IF NOT EXISTS analytics_settings (
  id integer PRIMARY KEY CHECK(id=1), started_at timestamptz NOT NULL DEFAULT now(),
  raw_retention_days integer NOT NULL DEFAULT 90 CHECK(raw_retention_days BETWEEN 7 AND 365),
@@ -23,8 +25,6 @@ CREATE INDEX IF NOT EXISTS product_events_time ON product_events(created_at DESC
 CREATE INDEX IF NOT EXISTS product_events_flow ON product_events(user_id,flow_id,created_at);
 CREATE INDEX IF NOT EXISTS product_events_resource ON product_events(resource_type,resource_id,event_type);
 
--- A successful write and its business event commit together. No bodies,
--- coordinates, dialogue, provider responses or authentication material copied.
 CREATE OR REPLACE FUNCTION record_product_change() RETURNS trigger LANGUAGE plpgsql SET search_path FROM CURRENT AS $$
 DECLARE
  event_name text; kind text; entity text; flow uuid; ver integer;

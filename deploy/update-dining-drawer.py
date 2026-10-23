@@ -1,8 +1,4 @@
-"""Deploy the reviewed dining drawer and cluster framing to the existing installation, without migrations.
-
-Run with sudo --commit <40 hex> --archive-sha256 <64 hex>.
-Keeps existing secrets, compose, OSM database and proxy configuration unchanged.
-"""
+"""更新餐饮推荐侧栏和片区展示功能。"""
 from pathlib import Path
 import argparse, fcntl, hashlib, json, os, re, subprocess, tarfile, time, urllib.request, urllib.error
 
@@ -62,7 +58,6 @@ try:
     tag='seatraces-business:drawer-'+args.commit[:12]
     report('building', image=tag)
     with (stage/'build.log').open('w') as log: run(['docker','build','-t',tag,str(source)],stdout=log,stderr=log)
-    # No schema changes. Save the exact prior image reference for rollback.
     report('activating', image=tag)
     set_env(re.sub(r'^SEATRACES_IMAGE=.+$','SEATRACES_IMAGE='+tag,old,flags=re.M)); activated=True
     run(compose+['up','-d','backend','frontend'])

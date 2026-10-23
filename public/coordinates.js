@@ -1,3 +1,5 @@
+/* 转换 WGS84 与 GCJ-02 坐标，判断地图坐标适用区域。 */
+
 function offset(lat, lng) {
   const x = lng - 105,
     y = lat - 35,
@@ -45,7 +47,6 @@ export function toWgs(polyline) {
 export function mainlandEligible(p) {
   if(['HK','MO','TW'].includes(p.country))return false;
   if(p.country!=='CN'&&p.extract_region!=='china')return false;
-  // Conservative geographic guard for the China extract's HK/Macao overlap.
   if(p.lat<22.6&&p.lng>113.45&&p.lng<114.6&&!p.mainlandCityVerified)return false;
   return p.lng>=73.5&&p.lng<=135.1&&p.lat>=18&&p.lat<=53.6;
 }

@@ -1,3 +1,5 @@
+/* 查询并核验景区主体，管理后台补充任务。 */
+
 import { createAmapClient } from "../integrations/amap.mjs";
 import { mainlandEligible, toGcj } from "../../public/coordinates.js";
 import {
@@ -85,10 +87,8 @@ export function createParentEnricher({
           });
           parent = matching((local.items || []).filter(visitable));
         } catch {
-          /* A provider-only container still keeps the child reachable. */
         }
       }
-      // A missing OSM parent is an isolated provider container, never inserted into osm.poi.
       parent ||= {
         id: "amap:" + poi.id,
         name: poi.name,
@@ -217,8 +217,6 @@ export function createParentEnricher({
 const enrichment = createParentEnricher();
 export const parentEnricher = {
   async run(points, options) {
-    // Coordinate the CLI and web workers: the same OSM place is never billed by
-    // two background batches concurrently, even across backend processes.
     const connection = await pool.connect();
     let locked = false;
     let databaseLost = false;

@@ -1,3 +1,5 @@
+/* 验证行程候选地点读取的内存占用。 */
+
 import { compactJourneyCatalogs } from "../server/repositories/compact-journeys.mjs";
 import { journeyPlaceDetail } from "../server/services/journey-details.mjs";
 import test from "node:test";

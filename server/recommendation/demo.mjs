@@ -1,3 +1,5 @@
+/* 生成、写入和清理推荐实验使用的示例数据。 */
+
 import {createHash,randomBytes} from 'node:crypto';
 import {readFile} from 'node:fs/promises';
 import {random} from './model.mjs';
@@ -56,8 +58,6 @@ export async function seedDemo({query,transaction,seed=20261017,now=Date.now()})
   if((await c.query("SELECT 1 FROM recommendation_demo_batches WHERE id=$1 AND status='ready'",[batchId])).rowCount)return;
   await c.query("DELETE FROM recommendation_demo_batches WHERE id=$1 AND status='removed'",[batchId]);
   await c.query('INSERT INTO recommendation_demo_batches(id,seed,algorithm,manifest) VALUES($1,$2,$3,$4)',[batchId,seed,demoAlgorithm,manifest]);
-  // Invalid, non-reusable password hash + authentication denial for synthetic
-  // accounts. No login credentials or admin roles are generated.
   for(const u of users)await c.query(`INSERT INTO users(id,username,password_hash,nickname,avatar,preferences,created_at,is_synthetic,synthetic_batch_id,analytics_excluded) VALUES($1,$2,$3,$4,$5,$6,$7,true,$8,true)`,[u.id,u.username,'!synthetic:'+randomBytes(32).toString('hex'),u.nickname,u.avatar,u.preferences,u.createdAt,batchId]);
   for(const p of posts){await c.query(`INSERT INTO posts(id,user_id,title,body,tags,snapshot,created_at,updated_at,is_synthetic,synthetic_batch_id) VALUES($1,$2,$3,$4,$5,$6,$7,$7,true,$8)`,[p.id,p.userId,p.title,p.body,p.tags,p.snapshot,p.createdAt,batchId]);await refreshItem(c,p.id);}
   const items=(await c.query('SELECT i.*,p.created_at,p.user_id FROM recommendation_items i JOIN posts p ON p.id=i.post_id WHERE p.synthetic_batch_id=$1',[batchId])).rows;
@@ -78,8 +78,6 @@ export async function seedDemo({query,transaction,seed=20261017,now=Date.now()})
     await c.query('INSERT INTO browse_events(user_id,post_id,day,dwell_seconds,created_at) VALUES($1,$2,$3,$4,$5)',[u.id,p.id,ts.toISOString().slice(0,10),Math.floor(visibleMs/1000),ts]);
     const affinity=Math.max(0,cosine(uv,item.vector)),positive=rnd()<Math.min(.9,.07+affinity*.95);
     if(positive){const kind=rnd()<.45?'save':rnd()<.5?'recommend':'like';await c.query('INSERT INTO reactions(user_id,post_id,kind,created_at) VALUES($1,$2,$3,$4) ON CONFLICT DO NOTHING',[u.id,p.id,kind,new Date(at+60000)]);
-     // Trigger timestamps represent real writes. Synthetic historical actions
-     // explicitly use the simulated time and remain tagged through their owner.
      await c.query('UPDATE recommendation_outcomes SET occurred_at=$4 WHERE user_id=$1 AND post_id=$2 AND kind=$3',[u.id,p.id,kind,new Date(at+60000)]);events++;
      if(rnd()<.15){await c.query('INSERT INTO comments(id,user_id,post_id,body,created_at) VALUES($1,$2,$3,$4,$5)',[uuid(seed,'comment:'+u.id+':'+j),u.id,p.id,['这个顺序很适合慢慢走。','先收好了，想找个周末试试看。','我更喜欢前半段，后面可以留到下次。'][j%3],new Date(at+120000)]);await c.query("UPDATE recommendation_outcomes SET occurred_at=$3 WHERE user_id=$1 AND post_id=$2 AND kind='comment'",[u.id,p.id,new Date(at+120000)]);}
      if(p.snapshot.days?.length&&rnd()<.1){

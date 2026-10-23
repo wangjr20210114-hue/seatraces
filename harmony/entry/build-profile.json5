@@ -1,1 +1,3 @@
+/* 配置入口模块的构建目标。 */
+
 {"apiType":"stageMode","buildOption":{},"targets":[{"name":"default"}]}

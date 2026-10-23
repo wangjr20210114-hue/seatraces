@@ -1,4 +1,5 @@
-// Local smoke only: disposable account and trip, cleaned even after failure.
+/* 检查行程周边服务的查询、选择和移除流程。 */
+
 import pg from "pg";
 import { readFile, writeFile } from "node:fs/promises";
 import { randomUUID, randomBytes } from "node:crypto";

@@ -1,3 +1,5 @@
+/* 生成端到端测试结果报告。 */
+
 import { readFile, mkdir, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import path from "node:path";

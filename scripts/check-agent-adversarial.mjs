@@ -1,4 +1,5 @@
-// Bounded semantic stress test: local only, no confirmation of business writes.
+/* 检查 AI 在异常输入和越权请求下的处理结果。 */
+
 import { randomBytes, randomUUID } from "node:crypto";
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import assert from "node:assert/strict";
@@ -239,7 +240,6 @@ try {
     })
   ).user.id;
   for (const c of cases) {
-    // This local harness tests semantics, not the independent per-minute rate limit.
     await db.query(
       "UPDATE agent_turns SET created_at=now()-interval '2 minutes' WHERE user_id=$1",
       [userId],

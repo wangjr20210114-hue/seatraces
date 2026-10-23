@@ -1,4 +1,4 @@
-"""Provision or use a least-privilege, server-local place-search account."""
+"""配置并检查地点查询专用的数据库账号。"""
 import argparse
 import json
 import os

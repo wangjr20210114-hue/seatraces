@@ -1,3 +1,5 @@
+-- 定义站内信、发送对象和阅读状态的数据表、索引和关联结构。
+
 CREATE TABLE IF NOT EXISTS inbox_campaigns (
  id uuid PRIMARY KEY, created_by uuid NOT NULL REFERENCES users(id),
  title varchar(80) NOT NULL, body varchar(4000) NOT NULL,

@@ -1,4 +1,5 @@
-// Always show visit order, including when actual road geometry is available.
+/* 根据站点坐标生成路线示意曲线。 */
+
 export function schematicConnections(stops) {
   return stops.slice(1).flatMap((to, i) => {
     const from = stops[i];

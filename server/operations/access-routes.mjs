@@ -1,3 +1,5 @@
+/* 提供后台成员和角色管理接口。 */
+
 import {z} from 'zod';
 import {roles,requireManagement} from './permissions.mjs';
 const fail=(message,status=400)=>Object.assign(Error(message),{status});
@@ -18,7 +20,6 @@ export function installAccessRoutes(app,{query,transaction,events}) {
     const id=z.uuid().parse(req.params.id);
     const b=z.object({role:z.enum(['operator','support','analyst']).nullable(),version:z.number().int().min(0),confirmation:z.literal('change-role')}).strict().parse(req.body);
     const result=await transaction(async c=>{
-      // Serialize against account disable, password reset and concurrent role edits.
       const u=(await c.query('SELECT id,role,disabled_at FROM users WHERE id=$1 FOR UPDATE',[id])).rows[0];
       if(!u)throw fail('用户不存在',404);
       if(u.role==='admin'||id===req.user.id)throw fail('不能通过此接口修改管理员或自己的权限',409);

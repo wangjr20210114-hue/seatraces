@@ -1,10 +1,10 @@
+/* 将已保存的城市选择分批写入恢复响应。 */
+
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { withSavedCityRows } from "../repositories/journey-snapshot.mjs";
 import { applyWishes } from "../domain/scenic-entities.mjs";
 
-// Same JSON response as an ordinary city load, so installed apps need no update.
-// Streaming also respects a slow/disconnected client instead of buffering a city.
 export async function sendSavedCitySelection({
   res, transaction, sessionId, userId, cityId, wishes, restoreHeader,
 }) {
@@ -35,7 +35,6 @@ export async function sendSavedCitySelection({
       },
     );
   } catch (err) {
-    // A broken stream must never look like a successful, truncated questionnaire.
     if (!res.headersSent && !res.destroyed) throw err;
     res.destroy();
     if (err.code !== "ERR_STREAM_PREMATURE_CLOSE")

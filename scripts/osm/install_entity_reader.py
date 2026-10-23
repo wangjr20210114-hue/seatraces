@@ -1,4 +1,4 @@
-"""Back up the live reader, add the canonical adapter and verify public read paths."""
+"""安装景点实体查询接口并验证结果。"""
 import json
 from pathlib import Path
 import shutil
@@ -75,7 +75,6 @@ def run():
         for name in ['place_service.py',*modules]:
             if (backup/name).exists():shutil.copy2(backup/name,target/name)
             elif name in modules:(target/name).unlink(missing_ok=True)
-        # Restore the old active version as well as its code. Source data is never touched.
         pointer=json.loads((Path(receipt['backup'])/'receipt.json').read_text())
         with connect(ROOT) as conn:
             with conn.transaction():

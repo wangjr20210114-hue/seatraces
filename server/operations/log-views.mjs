@@ -1,3 +1,5 @@
+/* 保存和读取后台日志查询视图。 */
+
 import {z} from 'zod';
 import {logFilterSchema,logColumns,eventFilters} from './event-query.mjs';
 const fail=(message,status=400)=>Object.assign(Error(message),{status});

@@ -1,4 +1,4 @@
-"""Record actual multilingual search results and the active source regions containing them."""
+"""采集海外地点的多语言检索样本。"""
 import json
 from pathlib import Path
 import sys

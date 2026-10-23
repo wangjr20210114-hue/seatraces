@@ -1,3 +1,5 @@
+/* 验证路线地图封面。 */
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';

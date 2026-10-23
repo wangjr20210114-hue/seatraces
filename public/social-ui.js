@@ -1,3 +1,5 @@
+/* 生成社区卡片与封面，绑定互动和浏览记录。 */
+
 import {icon} from './ui-icons.js';
 export const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 export function routeCover(snapshot={},title='下一程，去哪里？'){

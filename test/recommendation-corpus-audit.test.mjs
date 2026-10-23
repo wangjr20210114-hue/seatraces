@@ -1,3 +1,5 @@
+/* 验证推荐语料检查。 */
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {spawnSync} from 'node:child_process';

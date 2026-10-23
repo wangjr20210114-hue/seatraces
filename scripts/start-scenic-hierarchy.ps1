@@ -1,3 +1,5 @@
+# 启动景区层级批处理任务。
+
 param([switch]$OfflineOnly)
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot

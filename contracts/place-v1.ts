@@ -1,24 +1,20 @@
-/** Phase-one DESIGN CONTRACT. Not yet deployed or wired into the current API.
- * The smaller live candidate-search API is documented in BACKEND_CANDIDATES.md;
- * it does not claim to implement this full detail/validity/conflict contract.
- * Null expresses unknown; omission is only for category-inapplicable extensions.
- * Source timestamps, import snapshots and real-world validity are distinct.
- */
+/* 定义统一地点结构，包括坐标、来源、开放时间和参考价格。 */
+
 export type FactStatus = 'unknown' | 'source_reported' | 'derived' | 'verified' | 'conflicting' | 'not_applicable';
 export type Category = 'attraction' | 'heritage' | 'nature' | 'leisure' | 'accommodation' | 'food' | 'rest' | 'transport' | 'shopping' | 'settlement' | 'service';
 export interface Fact<T> {
   value: T | null;
   status: FactStatus;
   sourceRefs: string[];
-  retrievedAt: string | null; // RFC3339: when the source was read, not verification
+  retrievedAt: string | null;
   sourceUpdatedAt: string | null;
-  validFrom: string | null; // inclusive local YYYY-MM-DD
-  validThrough: string | null; // inclusive local YYYY-MM-DD
-  validityTimeZone: string | null; // IANA; null means validity cannot be resolved
-  reviewAfter: string | null; // RFC3339 review target; does not assert closure
+  validFrom: string | null;
+  validThrough: string | null;
+  validityTimeZone: string | null;
+  reviewAfter: string | null;
   verification: {method:'official_source_review'|'on_site'|'authorized_feed';at:string;actorRef:string} | null;
   derivation: {ruleVersion:string;inputRefs:string[]} | null;
-  alternatives: Array<{value:T;sourceRefs:string[]}>; // conflicting => value=null
+  alternatives: Array<{value:T;sourceRefs:string[]}>;
 }
 export interface Point {lat:number;lng:number;crs:'WGS84'}
 export interface PlaceSource {
@@ -29,16 +25,15 @@ export interface PlaceSource {
 }
 export interface OpeningRule {
   raw:string;syntax:'osm_opening_hours'|'official_text';
-  // Derived dated intervals belong to an evaluation response, not the raw rule.
 }
 export interface ReferencePrice {
   amount:number;currency:string;unit:'person'|'room_night'|'vehicle'|'visit'|'other';
   audience:string | null;product:string | null;conditions:string | null;
-  kind:'published_reference'; // live availability/offers are a separate API
+  kind:'published_reference';
 }
 export interface PlaceV1 {
   schemaVersion:'1.0-draft';
-  id:string; // Initially osm:node/..., osm:way/..., osm:relation/...; never a name
+  id:string;
   name:string;
   names:Array<{value:string;language:string | null;kind:'primary'|'alias'|'historical'|'brand';sourceRefs:string[]}>;
   classification:{primary:Category;subtype:string | null;travelRoles:Category[];ruleVersion:string};
@@ -67,19 +62,7 @@ export interface PlaceV1 {
   quality:{
     profile:Category;requiredForSearch:string[];missingForTravel:string[];
     conflicts:string[];needsReview:string[];
-    // Request-time quality, not a misleading global "100% complete" score.
     searchUsable:boolean;openingEvaluable:boolean;navigationReady:'not_evaluated';
   };
   delivery:{status:'live'|'snapshot';cachedAt:string | null;assembledAt:string};
 }
-
-// Runtime validation rules to implement after field review:
-// 1. unknown/not_applicable/conflicting => value=null; confirmed values need sourceRefs.
-// 2. derived => derivation required; verified => verification required.
-// 3. known country codes use ISO alpha-2; timezone uses an actual IANA identifier.
-// 4. coordinates/ranges and all dates validated; validThrough >= validFrom.
-// 5. price amounts non-negative, currency ISO-4217, explicit unit; unknown is not zero.
-// 6. no declared entrance unless supported; canonical coordinates remain WGS84.
-// 7. resolve facts for requested local date; no blind latest-record-wins on conflicts.
-// 8. do not persist request_only provider responses in this place record.
-// 9. missingFields evaluated per category and use case; not by all possible fields.
